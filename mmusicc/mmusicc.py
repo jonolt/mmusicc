@@ -9,6 +9,7 @@ Created on Mon Dec 23 12:30:45 2019
 
 """
 import os
+import enum
 
 import mutagen
 import sqlalchemy
@@ -18,12 +19,15 @@ from mutagen.id3 import ID3
 from sqlalchemy import Column, String, Integer
 from sqlalchemy import orm
 from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy import text
+
+from mmusicc import tui
 
 Base = declarative_base()
 
 
 class Metadata(Base):
-    __tablename__ = 'mediaElement'
+    __tablename__ = 'meta'
     _id = Column(Integer, primary_key=True, name="id")
     _file = Column(String(1023))
     _log = Column(String(1023))
@@ -82,6 +86,20 @@ class Metadata(Base):
                 cls.association_dict_flac_id3[value] = key
                 # print(key,  v,  cls.association_dict_flac_id3)
 
+    @property
+    def file(self):
+        return self._file
+
+    @property
+    def path_struct(self):
+        struct = list()
+        tmp = self._file
+        while len(tmp) > 1:
+            tmp, apnd = os.path.split(tmp)
+            struct.append(apnd)
+        struct[0] = os.path.splitext(struct[0])[0]
+        return struct
+
     def __init__(self, file, autofill=False, tracktotal=None, disctotal=None):
         Metadata.__init_association_dict_flac_id3()
         self.autofill = autofill
@@ -106,12 +124,45 @@ class Metadata(Base):
                 self.__scan_flac()
         except mutagen.MutagenError:
             print('scanning File "{}" failed!'.format(file))
+        print(self.path_struct)
 
     def log_to_db(self, msg):
         if self._log:
             self._log = (self._log + '\n' + msg)
         else:
             self._log = msg
+
+    def confirm_flac(self):
+        meta_file = Metadata(self.file, autofill=None)
+
+    def write_tag(self, confirm=True, delete=False, tags=None):
+        if self._mp3:
+            self.__write_tag_mp3(confirm=confirm, delete=False, tags=tags)
+        elif self._flac:
+            self.__write_tag_flac(confirm=confirm, delete=False, tags=tags)
+
+    def __write_tag_flac(self, confirm=True, tags=None):
+        pass
+
+    def __write_tag_mp3(self, confirm=True, tags=None):
+        pass
+
+    def delete_tag(self, confirm=True, delete=False, tags=None):
+        if self._mp3:
+            self.__delete_tag_mp3(confirm=confirm, delete=False, tags=tags)
+        elif self._flac:
+            self.__delete_tag_flac(confirm=confirm, delete=False, tags=tags)
+
+        # delete(filething=None)
+
+    def __delete_tag_flac(self, confirm=True, tags=None):
+        pass
+        # self._flac.delete()
+
+    def __delete_tag_mp3(self, confirm=True, tags=None):
+        pass
+        # self._flac.delete()
+
 
     def __scan_flac(self):
         self.dummy_dict = dict(self._flac.tags.copy())
@@ -298,45 +349,171 @@ class Metadata(Base):
 
 class MusicManager:
 
-    def __init__(self, session):
-        self._session = session
+    suported_files = [".mp3", ".flac"]
 
-    def scan_tags(self, gen, autofill=True):
+    def __init__(self):
+        self._session = None
+        self._source_path = None
+        self._source_type = None
+        self._source = None
+        self._target_path = None
+        self._target_type = None
+        self._target = None
+
+    @property
+    def source_path(self):
+        return self._source_path
+
+    @source_path.setter
+    def source_path(self, path):
+        self._source_path = path
+        self._source_type = self.get_object_type(path)
+        if self._source_type:
+            self.fetch_source()
+        else:
+            print("path not valid: {}".format(path))
+
+    @property
+    def source(self):
+        # TODO formatting of different types
+        return self._source
+
+    @property
+    def target_path(self):
+        return self._target_path
+
+    @target_path.setter
+    def target_path(self, path):
+        self._target_path = path
+        self._target_type = self.get_object_type(path)
+        if self._target_type:
+            self.fetch_target()
+        else:
+            print("path not valid: {}".format(path))
+
+    @property
+    def target(self):
+        # TODO formatting of different types
+        return self._target
+
+    def get_object_type(self, path):
+        path = os.path.expanduser(path)
+        media_type = None
+        if os.path.isfile(path):
+            ext = os.path.splitext(path)[1]
+            if ext == ".db3":
+                media_type = MediaType.database
+                self._session = MusicManager.create_session(path)
+            elif os.path.exists(path):
+                if ext in MusicManager.suported_files:
+                    media_type = MediaType.file
+        elif os.path.isdir(path):
+            if os.path.exists(path):
+                gen = os.walk(path, topdown=True)
+                (dirpath, dirnames, filenames) = next(gen)
+                if dirnames and filenames:
+                    media_type = MediaType.undefined
+                    # data = os.walk(path, topdown=False)
+                elif dirnames:
+                    media_type = MediaType.folder
+                    # data = os.walk(path, topdown=False)
+                elif filenames:
+                    media_type = MediaType.album
+                    # data = filenames
+        return media_type
+
+    def fetch_target(self):
+        self.__fetch(fetch_source=False)
+
+    def fetch_source(self):
+        self.__fetch(fetch_source=True)
+
+    def __fetch(self, fetch_source=True):
+        if fetch_source:
+            media_type = self._source_type
+            path = self._source_path
+        else:
+            media_type = self._target_type
+            path = self._target_path
+        if media_type == MediaType.database:
+            self._session = MusicManager.create_session(path)
+            data = self.__fetch_db()
+            # TODO funtion to sort list into folder structure
+        elif media_type == MediaType.folder:
+            data = self.__fetch_folder(path)
+        elif media_type == MediaType.album:
+            data = self.__fetch_album(path)
+        elif media_type == MediaType.file:
+            data = self.__fetch_file(path)
+
+        if fetch_source:
+            self._source = data
+        else:
+            self._target = data
+
+    def __fetch_db(self):
+        return self._session.query(Metadata).all()
+
+    def __fetch_folder(self, path):
+        list_meta = list()
+        gen = os.walk(path)
         while True:
             try:
                 source_dir, dirnames, filenames = next(gen)
             except StopIteration:
                 break
             if not dirnames:
-                target_dir = os.path.join(target_root, *source_dir.split("/")[2:])
-                if not os.path.exists(target_dir):
-                    pass
-                if autofill:
-                    tracktotal = len(list(filter(lambda x: ".flac" in x or ".mp3" in x, filenames)))
-                    # TODO LOW auto find disctotal
-                for filename in filenames:
-                    if not os.path.splitext(filename)[1] == '.flac' and not os.path.splitext(filename)[1] == '.mp3':
-                        # print(filename)
-                        continue
-                    source_path = os.path.join(source_dir, filename)
-                    target_path = source_path
-                    # target_path = os.path.join(target_dir, os.path.splitext(filename)[0] + ".mp3")
-                    meta = Metadata(target_path, autofill=autofill, tracktotal=tracktotal, disctotal=None)
-                    self._session.add(meta)
-                    self._session.commit()
+                list_meta.extend(self.__fetch_album(source_dir))
+        return list_meta
+
+    def __fetch_album(self, path):
+        list_meta = list()
+        for file in os.listdir(path):
+            if os.path.splitext(file)[1] in MusicManager.suported_files:
+                file_path = os.path.join(path, file)
+                list_meta.append(Metadata(file_path))
+        return list_meta
+
+    def __fetch_file(self, path):
+        return [Metadata(path)]
+
+    def write_tags(self, confirm=True, sql_query=None):
+        if sql_query:
+            meta_list1 = self._session.execute(text("SELECT * FROM meta")).fetchall()
+            raise Exception("not working returns row_proxy, not metadata obj")
+        #else:
+        meta_list = self._session.query(Metadata).all()
+
+        if not confirm:
+            input("Metadata will be Overwriten without backup. Confirm")
+
+        for meta in meta_list:
+            if os.path.exists(meta.file):
+                meta.write_tag(confirm=confirm)
+
+    def compare_tags(self):
+        pass
 
     @staticmethod
-    def create_session(project_folder, db_file):
+    def create_session(db_file):
         """create a session and the db-file if not exist"""
-        if not os.path.exists(project_folder):
-            if not os.path.exists(project_folder):
-                os.makedirs(project_folder)
+        if not os.path.exists(db_file):
+            if not os.path.exists(os.path.basename(db_file)):
+                os.makedirs(os.path.basename(db_file))
         engine = 'sqlite:///' + db_file
         some_engine = sqlalchemy.create_engine(engine)
         Base.metadata.create_all(some_engine,
                                  Base.metadata.tables.values(), checkfirst=True)
         Session = orm.sessionmaker(bind=some_engine)
         return Session()
+
+
+class MediaType(enum.Enum):
+    database = 0,
+    file = 1,
+    album = 2,
+    folder = 3,
+    undefined = 42
 
 
 if __name__ == "__main__":
@@ -353,11 +530,24 @@ if __name__ == "__main__":
     # Metadata.save_tag_association_yaml(project_folder)
 
     db_file = os.path.join(project_folder, 'mmproject.db3')
-    if os.path.exists(db_file):
-        os.remove(db_file)
+    #if os.path.exists(db_file):
+    #    os.remove(db_file)
 
     gen = os.walk(source_root)
 
-    session = MusicManager.create_session(project_folder, db_file)
-    mm = MusicManager(session)
-    mm.scan_tags(gen)
+    mm = MusicManager()
+    mm.source_path = "/home/johannes/Desktop/MusicManager/media/Abrahma/Reflections_In_The_Bowels_Of_A_Bird_(2015)/01_Fountains_Of_Vengeance.flac"
+    print((mm.source))
+    mm.target_path = "/home/johannes/Desktop/MusicManager/test/Abrahma/Reflections_In_The_Bowels_Of_A_Bird_(2015)/01_Fountains_Of_Vengeance.mp3"
+    print((mm.target))
+    #mm.source_path = "/home/johannes/Desktop/MusicManager/media/Abrahma/Reflections_In_The_Bowels_Of_A_Bird_(2015)"
+    #print(len(mm.source))
+    #mm.source_path = "/home/johannes/Desktop/MusicManager/media/Infected_Rain"
+    #print(len(mm.source))
+    #mm.source_path = "/home/johannes/Desktop/MusicManager/media"
+    #print(len(mm.source))
+    #mm.source_path = "/home/johannes/Desktop/MusicManager/mmproject.db3"
+    #print(len(mm.source))
+
+    #mm.scan_tags(gen)
+    #mm.write_tags()
