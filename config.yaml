@@ -1,0 +1,69 @@
+#TAG:    Vorbis Tag
+#- 0     Position
+#- TAG   ID3 Tag
+#- - TAG Assertions
+ALBUM:
+- 1
+- TALB
+- []
+YEAR:
+- 2
+- TDRC
+- - DATE
+ARTIST:
+- 3
+- TPE1
+- []
+ALBUMARTIST:
+- 4
+- TPE2
+- - ALBUM ARTIST
+TRACKNUMBER:
+- 5
+- TRCK
+- []
+TITLE:
+- 6
+- TIT2
+- []
+GENRE:
+- 7
+- TCON
+- []
+LYRICS:
+- 8
+- USLT
+- - UNSYNCEDLYRICS
+DESCRIPTION:
+- 9
+- COMM
+- - COMMENT
+BPM:
+- 10
+- TBPM
+- []
+COMPOSER:
+- 11
+- TCOM
+- []
+DISCNUMBER:
+- 12
+- TPOS
+- []
+ISRC:
+- 13
+- TSRC
+- []
+DISCID:
+- 14
+- DISCID
+- []
+DISCTOTAL:
+- 15
+- DISKTOT
+- []
+TRACKTOTAL:
+- 16
+- TRKTOT
+- - TOTALTRACKS
+

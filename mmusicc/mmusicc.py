@@ -6,7 +6,6 @@ Created on Mon Dec 23 12:30:45 2019
 @author: johannes
 
 
-
 """
 import os
 import enum
@@ -21,12 +20,14 @@ from sqlalchemy import orm
 from sqlalchemy.ext.declarative import declarative_base
 from sqlalchemy import text
 
+from mmusicc.tui import Tui
 from mmusicc import tui
 
 Base = declarative_base()
 
 
 class Metadata(Base):
+
     __tablename__ = 'meta'
     _id = Column(Integer, primary_key=True, name="id")
     _file = Column(String(1023))
@@ -48,6 +49,8 @@ class Metadata(Base):
     DISCID = Column(String(127))
     DISKTOT = Column(String(4))
     TRKTOT = Column(String(4))
+
+    class_initialized = False
     # TODO same again with int to show autofill changes
     # TODO store numbers as int
     # TODO add option to change between normal and dash notation in id3 tag (and write to vorbis tags)
@@ -55,36 +58,33 @@ class Metadata(Base):
     # TORY = Column(String(4))  # Orginal Release Year
     # TOPE = Column(String(127))  # Original Artist/Performer
 
-    association_dict_id3_flac = {
-        'TALB': ['ALBUM'],
-        'TDRC': ['DATE', 'YEAR'],
-        'TPE1': ['ARTIST'],
-        'TPE2': ['ALBUMARTIST', 'ALBUM ARTIST'],
-        'TRCK': ['TRACKNUMBER'],
-        'TIT2': ['TITLE'],
-        'TCON': ['GENRE'],
-        'USLT': ['LYRICS', 'UNSYNCEDLYRICS'],
-        'COMM': ['DESCRIPTION'],
-        'TBPM': [],
-        'TCOM': ['COMPOSER'],
-        'TPOS': ['DISCNUMBER'],
-        'TSRC': ['ISRC'],
-        'DISCID': ['DISCID'],  # no official ID3 tag
-        'DISKTOT': ['DISCTOTAL'],
-        'TRKTOT': ['TRACKTOTAL', 'TOTALTRACKS'],
-    }
-
-    association_dict_flac_id3 = dict()
+    path_config_yaml = "config.yaml"
+    list_displ_tags = None
+    list_id3_tags = dict()
+    dict_id3_to_vorbis = dict()
+    dict_id3_to_str = dict()
 
     @classmethod
-    def __init_association_dict_flac_id3(cls):
-        a = cls.association_dict_id3_flac.keys()
-        for key in a:
-            values = cls.association_dict_id3_flac.get(key)
-            for value in values:
-                # print("dict {}={}".format(key, value))
-                cls.association_dict_flac_id3[value] = key
-                # print(key,  v,  cls.association_dict_flac_id3)
+    def init_class(cls):
+        if not os.path.exists(cls.path_config_yaml):
+            raise FileNotFoundError("config file not found")
+        with open(cls.path_config_yaml, 'r') as f:
+            cls.dict_config = yaml.safe_load(f)
+        cls.list_displ_tags = [None]*20
+        for key, value in cls.dict_config.items():
+            pos = value[0]
+            id3_tag = value[1]
+            assertions = value[2]
+            cls.dict_id3_to_vorbis[id3_tag] = key
+            strings = []
+            if key not in assertions:
+                strings.append(key)
+            for val in assertions:
+                strings.append(val)
+            cls.dict_id3_to_str[id3_tag] = strings
+            cls.list_displ_tags[pos] = key
+        cls.list_id3_tags = list(cls.dict_id3_to_vorbis.keys())
+        cls.class_initialized = True
 
     @property
     def file(self):
@@ -101,10 +101,12 @@ class Metadata(Base):
         return struct
 
     def __init__(self, file, autofill=False, tracktotal=None, disctotal=None):
-        Metadata.__init_association_dict_flac_id3()
+        if not Metadata.class_initialized:
+            Metadata.init_class()
         self.autofill = autofill
         self.tracktotal = tracktotal
         self.disctotal = disctotal
+        self.write_empty = True
         self._mp3 = None
         self._flac = None
         self._log = None
@@ -117,12 +119,17 @@ class Metadata(Base):
         try:
             ext = os.path.splitext(self._file)[1]
             if ext == ".mp3":
-                self._mp3 = ID3(file)
-                self.__scan_mp3()
+                try:
+                    #self._mp3 = ID3(file)
+                    self._mp3 = ID3()
+                    self._mp3.load(file)
+                except mutagen.id3.ID3NoHeaderError:
+                    print("no header found")
+                self.__read_tag_mp3()
             elif ext == ".flac":
                 self._flac = FLAC(file)
-                self.__scan_flac()
-        except mutagen.MutagenError:
+                self.__read_tag_flac()
+        except mutagen.MutagenError as ex:
             print('scanning File "{}" failed!'.format(file))
         print(self.path_struct)
 
@@ -132,20 +139,141 @@ class Metadata(Base):
         else:
             self._log = msg
 
-    def confirm_flac(self):
-        meta_file = Metadata(self.file, autofill=None)
+    def import_tag(self, source_meta, whitelist=None, blacklist=None):
+        if not whitelist:
+            whitelist = Metadata.list_id3_tags
+        if blacklist:
+            for t in blacklist:
+                try:
+                    whitelist.pop(whitelist.index(t))
+                except ValueError:
+                    print("warning {} not in whitelist".format(t))
+                    continue
+        if "TALB" in whitelist:
+            self.TALB = source_meta.TALB
+        if "TDRC" in whitelist:
+            self.TDRC = source_meta.TDRC
+        if "TPE1" in whitelist:
+            self.TPE1 = source_meta.TPE1
+        if "TPE2" in whitelist:
+            self.TPE2 = source_meta.TPE2
+        if "TRCK" in whitelist:
+            self.TRCK = source_meta.TRCK
+        if "TIT2" in whitelist:
+            self.TIT2 = source_meta.TIT2
+        if "TCON" in whitelist:
+            self.TCON = source_meta.TCON
+        if "USLT" in whitelist:
+            self.USLT = source_meta.USLT
+        if "COMM" in whitelist:
+            self.COMM = source_meta.COMM
+        if "TBPM" in whitelist:
+            self.TBPM = source_meta.TBPM
+        if "TCOM" in whitelist:
+            self.TCOM = source_meta.TCOM
+        if "TPOS" in whitelist:
+            self.TPOS = source_meta.TPOS
+        if "TSRC" in whitelist:
+            self.TSRC = source_meta.TSRC
+        if "DISKID" in whitelist:
+            self.DISKID = source_meta.DISKID
+        #if "DISKTOT" in whitelist:
+        #    self.DISKTOTD = source_meta.DISKTOTD
+        #if "TRKTOT" in whitelist:
+        #    self.TRKTOT = source_meta.TRKTOT
 
-    def write_tag(self, confirm=True, delete=False, tags=None):
-        if self._mp3:
-            self.__write_tag_mp3(confirm=confirm, delete=False, tags=tags)
-        elif self._flac:
-            self.__write_tag_flac(confirm=confirm, delete=False, tags=tags)
+    def write_tag(self, confirm=True, delete=False, whitelist=None, blacklist=None):
+        # TODO convert blacklist to whitelist
+        if not whitelist:
+            whitelist = Metadata.list_id3_tags
+        if blacklist:
+            for t in blacklist:
+                whitelist.pop(t)
+        if isinstance(self._mp3, mutagen.id3.ID3):
+            self.__write_tag_mp3(confirm=confirm, delete_all_first=True, tags=whitelist)
+        elif isinstance(self._flac, mutagen.flac.FLAC):
+            self.__write_tag_flac(confirm=confirm, delete_all_first=True, tags=whitelist)
 
-    def __write_tag_flac(self, confirm=True, tags=None):
-        pass
+    def __write_tag_flac(self, tags, confirm=True, delete_all_first=True):
 
-    def __write_tag_mp3(self, confirm=True, tags=None):
-        pass
+        if isinstance(tags, str):
+            tags = [tags]
+
+        if isinstance(tags, str):
+            tags = [tags]
+
+        if delete_all_first:
+            self._flac.delete()
+
+        if not self._flac.tags:
+            self._flac.add_tags()
+
+        for tag in tags:
+            eval_tmp = eval("self.{0}".format(tag))
+            str_tmp = self.repl_none(eval_tmp)
+            self._flac.tags[self.dict_id3_to_vorbis[tag]] = str_tmp
+        #    print(eval("self.{0}".format(tag)))
+        #    exec("self._flac.tags['{0}'] = self.{0}".format(tag))
+
+        #if 'TALB' in tags:
+        #    self._flac.tags['TALB'] = self.TALB
+
+
+        self._flac.save()
+
+
+    def __write_tag_mp3(self, tags, confirm=True, delete_all_first=True):
+
+        if isinstance(tags, str):
+            tags = [tags]
+
+        if isinstance(tags, str):
+            tags = [tags]
+
+        if delete_all_first:
+            self._mp3.delete()
+
+        if 'TALB' in tags:
+            self._mp3.add(mutagen.id3.TALB(text=self.TALB))
+        if 'TDRC' in tags:
+            self._mp3.add(mutagen.id3.TDRC(text=self.TDRC))
+        if 'TPE1' in tags:
+            self._mp3.add(mutagen.id3.TPE1(text=self.TPE1))
+        if 'TPE2' in tags:
+            self._mp3.add(mutagen.id3.TPE2(text=self.TPE2))
+        if 'TRCK' in tags:
+            self._mp3.add(mutagen.id3.TRCK(text=self.TRCK))
+        if 'TIT2' in tags:
+            self._mp3.add(mutagen.id3.TIT2(text=self.TIT2))
+        if 'TCON' in tags:
+            self._mp3.add(mutagen.id3.TCON(text=self.TCON))
+        if 'USLT' in tags:
+            self._mp3.add(mutagen.id3.USLT(text=self.USLT))
+        if 'COMM' in tags:
+            self._mp3.add(mutagen.id3.COMM(text=self.repl_none(self.COMM)))
+        if 'TBPM' in tags:
+            self._mp3.add(mutagen.id3.TBPM(text=[self.repl_none(self.TBPM)]))
+        if 'TCOM' in tags:
+            self._mp3.add(mutagen.id3.TCOM(text=[self.repl_none(self.TCOM)]))
+        if 'TPOS' in tags:
+            self._mp3.add(mutagen.id3.TPOS(text=self.TPOS))
+        if 'TSRC' in tags:
+            self._mp3.add(mutagen.id3.TSRC(text=self.TSRC))
+        #if 'DISCID' in tags:
+        #    self._mp3.add(mutagen.id3.TALB(text=self.TALB))
+        #if 'DISKTOT' in tags:
+        #    self._mp3.add(mutagen.id3.TALB(text=self.TALB))
+        #if 'TRKTOT' in tags:
+        #    self._mp3.add(mutagen.id3.TALB(text=self.TALB))
+        #self._mp3.add(mutagen.id3.TALB(text=[u"new value"]))
+
+        self._mp3.save(v1=2, v2_version=4)
+
+    @staticmethod
+    def repl_none(string):
+        if not string:
+            return ""
+        return string
 
     def delete_tag(self, confirm=True, delete=False, tags=None):
         if self._mp3:
@@ -163,8 +291,15 @@ class Metadata(Base):
         pass
         # self._flac.delete()
 
+    def read_tag(self):
+        if isinstance(self._mp3, mutagen.id3.ID3):
+            self.__read_tag_mp3()
+        elif self._flac:
+            self.__read_tag_flac()
 
-    def __scan_flac(self):
+    def __read_tag_flac(self):
+        if not self._flac.tags:
+            return
         self.dummy_dict = dict(self._flac.tags.copy())
         self.TALB = self.__get_flac_tag("TALB")
         self.TDRC = self.__get_flac_tag("TDRC")
@@ -197,7 +332,7 @@ class Metadata(Base):
         if self.dummy_dict:
             self._unproccessed_tags = str(self.dummy_dict)
 
-    def __scan_mp3(self):
+    def __read_tag_mp3(self):
         self.dummy_dict = dict(self._mp3.items().copy())
         for key in self.dummy_dict.keys():
             if "APIC:" in key:
@@ -246,28 +381,15 @@ class Metadata(Base):
         if self.dummy_dict:
             self._unproccessed_tags = str(self.dummy_dict)
 
-    def __log_to_db_values_do_not_match(self, tag, meta, scan):
-        self.log_to_db("{} do not match metadata -> {} != {} <- folder anaylysis".format(tag, meta, scan))
-
-    def get_tag(self, str_tag):
-        if self._mp3:
-            return self.__get_id3_tag(str_tag)
-        elif self._flac:
-            return self.__get_flac_tag(str_tag)
-
     def __get_id3_tag(self, str_tag):
-        # try:
         try:
             val = self.dummy_dict.pop(str_tag).text[0]
             return val
         except KeyError:
             return None
-        #    return val  # self._mp3.getall(str_tag)[0].text[0]
-        # except IndexError:
-        #    return None
 
     def __get_flac_tag(self, str_tag_id3, join=True):
-        know_associations = Metadata.association_dict_id3_flac.get(str_tag_id3)
+        know_associations = Metadata.dict_id3_to_str.get(str_tag_id3)
         ret_val = []
         ret_key = []
         for k in know_associations:
@@ -304,47 +426,8 @@ class Metadata(Base):
                     return ret_val
             return ret_val[0]
 
-    @classmethod
-    def save_tag_association_yaml(cls, path=None):
-        if path and os.path.exists:
-            filedir = path
-        else:
-            filedir = os.path.curdir
-        filepath = os.path.join(filedir, "tag_association.yaml")
-        print(filepath)
-        with open(filepath, 'w') as outfile:
-            yaml.dump(cls.association_dict_id3_flac, outfile, default_flow_style=False)
-
-    @classmethod
-    def load_tag_association_yaml(cls, path=None, append=True):
-        if path and os.path.exists(path):
-            filedir = path
-        else:
-            filedir = os.path.curdir
-        filepath = os.path.join(filedir, "tag_association.yaml")
-        if os.path.exists(filepath):
-            with open(filepath, 'r') as stream:
-                try:
-                    new_dict = yaml.safe_load(stream)
-                    if append:
-                        new_dict = cls._add_new_to_dict(cls.association_dict_id3_flac, new_dict)
-                    cls.association_dict_id3_flac = new_dict
-                except yaml.YAMLError as exc:
-                    print(exc)
-        else:
-            print("No 'tag_association.yaml' file found, using hardcoded values")
-
-    @staticmethod
-    def _add_new_to_dict(old_dict, new_dict):
-        for key in new_dict.keys():
-            if key in old_dict.keys():
-                vals = new_dict.get(key)
-                for val in vals:
-                    if val not in old_dict.get(key):
-                        old_dict.get(key).append(val)
-            else:
-                print("Key '{}' can't be processed".format(key))
-        return old_dict
+    def __log_to_db_values_do_not_match(self, tag, meta, scan):
+        self.log_to_db("{} do not match metadata -> {} != {} <- folder anaylysis".format(tag, meta, scan))
 
 
 class MusicManager:
@@ -359,6 +442,7 @@ class MusicManager:
         self._target_path = None
         self._target_type = None
         self._target = None
+        self.overwrite_dict = OverwriteDict()
 
     @property
     def source_path(self):
@@ -413,13 +497,10 @@ class MusicManager:
                 (dirpath, dirnames, filenames) = next(gen)
                 if dirnames and filenames:
                     media_type = MediaType.undefined
-                    # data = os.walk(path, topdown=False)
                 elif dirnames:
                     media_type = MediaType.folder
-                    # data = os.walk(path, topdown=False)
                 elif filenames:
                     media_type = MediaType.album
-                    # data = filenames
         return media_type
 
     def fetch_target(self):
@@ -477,6 +558,15 @@ class MusicManager:
     def __fetch_file(self, path):
         return [Metadata(path)]
 
+    def _compare_tui(self):
+        if self.target and self.source:
+            self.tui = tui.Tui(self).main()
+        else:
+            if not self.target:
+                print("target not defined")
+            if not self.source:
+                print("source not defined")
+
     def write_tags(self, confirm=True, sql_query=None):
         if sql_query:
             meta_list1 = self._session.execute(text("SELECT * FROM meta")).fetchall()
@@ -490,9 +580,6 @@ class MusicManager:
         for meta in meta_list:
             if os.path.exists(meta.file):
                 meta.write_tag(confirm=confirm)
-
-    def compare_tags(self):
-        pass
 
     @staticmethod
     def create_session(db_file):
@@ -508,6 +595,56 @@ class MusicManager:
         return Session()
 
 
+class OverwriteDict(dict):
+
+    def __init__(self):
+        super().__init__()
+        if not Metadata.class_initialized:
+            Metadata.init_class()
+        for key in Metadata.dict_id3_to_vorbis.keys():
+            self[key] = False
+        self.enable_count = 0
+
+    @property
+    def all_state(self):
+        if self.enable_count == 0:
+            return False
+        elif self.enable_count == len(Metadata.dict_id3_to_vorbis):
+            return True
+        else:
+            return None
+
+    def enable(self, key):
+        if not self[key]:
+            self[key] = True
+            self.enable_count += 1
+
+    def disable(self, key):
+        if self[key]:
+            self[key] = False
+            self.enable_count -= 1
+
+    def toggle(self, key):
+        if self[key]:
+            self.disable(key)
+        else:
+            self.enable(key)
+
+    def enable_all(self):
+        for key in self.keys():
+            self.enable(key)
+
+    def disable_all(self):
+        for key in self.keys():
+            self.disable(key)
+
+    def toggle_all(self):
+        if isinstance(self.all_state, type(None)) or self.all_state:
+            self.disable_all()
+        else:
+            self.enable_all()
+
+
 class MediaType(enum.Enum):
     database = 0,
     file = 1,
@@ -515,7 +652,7 @@ class MediaType(enum.Enum):
     folder = 3,
     undefined = 42
 
-
+"""
 if __name__ == "__main__":
 
     project_folder = "/home/johannes/Desktop/MusicManager"
@@ -535,11 +672,7 @@ if __name__ == "__main__":
 
     gen = os.walk(source_root)
 
-    mm = MusicManager()
-    mm.source_path = "/home/johannes/Desktop/MusicManager/media/Abrahma/Reflections_In_The_Bowels_Of_A_Bird_(2015)/01_Fountains_Of_Vengeance.flac"
-    print((mm.source))
-    mm.target_path = "/home/johannes/Desktop/MusicManager/test/Abrahma/Reflections_In_The_Bowels_Of_A_Bird_(2015)/01_Fountains_Of_Vengeance.mp3"
-    print((mm.target))
+
     #mm.source_path = "/home/johannes/Desktop/MusicManager/media/Abrahma/Reflections_In_The_Bowels_Of_A_Bird_(2015)"
     #print(len(mm.source))
     #mm.source_path = "/home/johannes/Desktop/MusicManager/media/Infected_Rain"
@@ -551,3 +684,4 @@ if __name__ == "__main__":
 
     #mm.scan_tags(gen)
     #mm.write_tags()
+"""
