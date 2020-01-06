@@ -2,6 +2,8 @@
 
 mmusic is a lightweight audio file and metadata control and synchronization program to transfer the changes in a master music library to a derived music library.  New files or albums are converted and created with ffmpeg, changed metadata only is copied to. To accommodate the different tag types only a limited set of the most common metadata is supported. These are stored in the ID3 schema which can also be exported to a SQLite database.
 
+The folder structure and directory/file names must be identical, this should be given when this toll is used to one-way sync the parent directory.
+
 More functions:  
 - automatic completion easy to determine missing meter data
 - show consistency errors between metadata and folder content

@@ -22,7 +22,7 @@ from sqlalchemy import text
 
 from mmusicc.tui import Tui
 from mmusicc import tui
-from mmusicc.metadata import Metadata, AlbumMetadata
+from mmusicc.metadata import Metadata, AlbumMetadata, Div
 
 
 class MusicManager:
@@ -56,6 +56,12 @@ class MusicManager:
 
     @source_path.setter
     def source_path(self, path):
+        if not path:
+            self._source_path = None
+            self._source_type = None
+            self._source = None
+            self.dict_diff.reset()
+            return
         self._source_path = path
         self._source_type = self.get_object_type(path)
         if self._source_type:
@@ -75,6 +81,12 @@ class MusicManager:
 
     @target_path.setter
     def target_path(self, path):
+        if not path:
+            self._target_path = None
+            self._target_type = None
+            self._target = None
+            self.dict_diff.reset()
+            return
         self._target_path = path
         self._target_type = self.get_object_type(path)
         if self._target_type:
@@ -90,20 +102,24 @@ class MusicManager:
 
     def update_dict_diff(self):
         if self.source and self.target:
+            self.__update_dict_diff_and_over()
+        return
 
-            if isinstance(self.source[0], Metadata):
-                # file --> file
-                if isinstance(self.target[0], Metadata):
-                    pass
-                # file --> album
-                elif isinstance(self.target[0], AlbumMetadata):
-                    pass
-            elif isinstance(self.source[0], Metadata):
-                # album --> album
-                if isinstance(self.target[0], AlbumMetadata):
-                    pass
-
-        raise Exception("Combo not valid")
+    def __update_dict_diff_and_over(self):
+        self.dict_overwrite.reset()
+        for tag in Metadata.list_tags:
+            meta_s = self.dict_meta_source.get(tag)
+            meta_t = self.dict_meta_target.get(tag)
+            if meta_s == meta_t:
+                self.dict_diff[tag] = DiffType.unchanged
+            elif not meta_t:
+                self.dict_diff[tag] = DiffType.new
+            elif not meta_s:
+                self.dict_diff[tag] = DiffType.deleted
+            else:
+                self.dict_diff[tag] = DiffType.overwrite
+            if isinstance(meta_t, Div) and isinstance(meta_s, Div):
+                self.dict_overwrite[tag] = False
 
     def get_object_type(self, path):
         path = os.path.expanduser(path)
@@ -151,6 +167,8 @@ class MusicManager:
             data = self.__fetch_album(path)
         elif media_type == MediaType.file:
             data = self.__fetch_file(path)
+        else:
+            raise Exception("Data cant be loaded")
 
         if fetch_source:
             self._source = data
@@ -159,49 +177,35 @@ class MusicManager:
 
     def __fetch_db(self):
         raise NotImplementedError
-        return self._session.query(Metadata).all()
+        # return self._session.query(Metadata).all()
 
     def __fetch_folder(self, path):
         raise NotImplementedError
-        list_meta = list()
-        gen = os.walk(path)
-        while True:
-            try:
-                source_dir, dirnames, filenames = next(gen)
-            except StopIteration:
-                break
-            if not dirnames:
-                list_meta.extend(self.__fetch_album(source_dir))
-        return list_meta
+        # list_meta = list()
+        # gen = os.walk(path)
+        # while True:
+        #     try:
+        #         source_dir, dirnames, filenames = next(gen)
+        #     except StopIteration:
+        #         break
+        #     if not dirnames:
+        #         list_meta.extend(self.__fetch_album(source_dir))
+        # return list_meta
 
     def __fetch_album(self, path):
-        return AlbumMetadata(path)
+        return [AlbumMetadata(path)]
 
     def __fetch_file(self, path):
         return [Metadata(path)]
 
-    def _compare_tui(self):
+    def compare_tui(self):
         if self.target and self.source:
-            self.tui = tui.Tui(self).main()
+            tui.Tui(self, ret=True).main()
         else:
             if not self.target:
                 print("target not defined")
             if not self.source:
                 print("source not defined")
-
-    def write_tags(self, confirm=True, sql_query=None):
-        if sql_query:
-            meta_list1 = self._session.execute(text("SELECT * FROM meta")).fetchall()
-            raise Exception("not working returns row_proxy, not metadata obj")
-        #else:
-        meta_list = self._session.query(Metadata).all()
-
-        if not confirm:
-            input("Metadata will be Overwriten without backup. Confirm")
-
-        for meta in meta_list:
-            if os.path.exists(meta.file):
-                meta.write_tag(confirm=confirm)
 
     """
     @staticmethod
@@ -223,16 +227,28 @@ class MetadataDict(dict):
 
     def __init__(self, init_value=None):
         super().__init__()
+        self._init_value = init_value
         if not Metadata.class_initialized:
             Metadata.init_class()
         for key in Metadata.list_tags:
             self[key] = init_value
 
+    def reset(self):
+        for key in list(self):
+            self[key] = self._init_value
+
 class OverwriteDict(MetadataDict):
 
-    def __init__(self):
+    def __init__(self, whitelist=None, blacklist=None):
         super().__init__(init_value=False)
         self.enable_count = 0
+        self.tags_whitelist = Metadata.process_white_and_blacklist(whitelist=whitelist, blacklist=blacklist)
+        self.reset()
+
+    def reset(self):
+        super().reset()
+        for tag in self.tags_whitelist:
+            self[tag] = True
 
     @property
     def all_state(self):
@@ -280,6 +296,12 @@ class MediaType(enum.Enum):
     album = 2,
     folder = 3,
     undefined = 42
+
+class DiffType(enum.Enum):
+    unchanged = 1,  # normal
+    overwrite = 2,  # red
+    deleted = 3,    # magenta
+    new = 4,        # green
 
 """
 if __name__ == "__main__":

@@ -48,8 +48,8 @@ class Metadata:
             for val in assertions:
                 strings.append(val)
             dict_tags_str[key] = strings
-            i = len(list_displ_tags) - 1
 
+        i = len(list_displ_tags) - 1
         while list_displ_tags[i] is None:
             list_displ_tags.pop(i)
             i -= 1
@@ -166,6 +166,9 @@ class Metadata:
                         val = ret_val
                 val = ret_val[0]
 
+            if val == "":  # TODO and list of strings which are empty
+                val = None
+
             self.dict_data[key] = val
 
         if self.dummy_dict:
@@ -230,7 +233,7 @@ class Metadata:
 
     def import_tag(self, source_meta, whitelist=None, blacklist=None, remove_other=False):
         """import metadata from source meta object"""
-        tags = Metadata._process_white_and_blacklist(whitelist, blacklist)
+        tags = Metadata.process_white_and_blacklist(whitelist, blacklist)
         for tag in self.list_tags:
             if tag in tags:
                 self.dict_data[tag] = source_meta.dict_data[tag]
@@ -239,7 +242,7 @@ class Metadata:
                     self.dict_data[tag] = None
 
     @staticmethod
-    def _process_white_and_blacklist(whitelist, blacklist):
+    def process_white_and_blacklist(whitelist, blacklist):
         if not whitelist:
             whitelist = Metadata.list_tags
         if blacklist:
@@ -296,7 +299,7 @@ class AlbumMetadata(Metadata):
     def import_tag(self, source_meta, whitelist=None, blacklist=None,
                    remove_other=False):
 
-        tags = Metadata._process_white_and_blacklist(whitelist, blacklist)
+        # tags = Metadata.process_white_and_blacklist(whitelist, blacklist)
 
         for metadata_self in self.list_metadata:
             for metadata_source in source_meta.list_metadata:
@@ -312,12 +315,26 @@ class Div:
 
     def __init__(self, key=None, list_metadata=None):
         self._dict_values = dict()
+        self._diff = None
         self._key_tag = None  # maybe not needed
         if key and list_metadata:
             self.add_metadata(key, list_metadata)
 
     def __repr__(self):
         return "<div>"
+
+    def __eq__(self, other):
+        if not isinstance(other, Div):
+            return False
+        equal = None
+        for meta_a in list(self._dict_values):
+            for meta_b in list(other._dict_values):
+                if meta_a.file_name == meta_b.file_name:
+                    if not self._dict_values.get(meta_a) == other._dict_values.get(meta_b):
+                        equal = False
+        if equal is None:
+            equal = False
+        return equal
 
     def add_metadata(self, key_tag, list_metadata):
         self._key_tag = key_tag

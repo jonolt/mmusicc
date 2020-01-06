@@ -68,13 +68,14 @@ class Tui:
     f_str_bckd_pos = 73
     f_str_meta_pos = 19
 
-    def __init__(self, mm=None):
+    def __init__(self, mm=None, ret=False):
         Tui.init_class()
         if mm:
             self._mm = mm
         else:
             self._mm = mmusicc.MusicManager()
         self._line_focus = "TAG"
+        self._ret = ret
         print("LOADED TUI")
 
     def main(self):
@@ -94,6 +95,9 @@ class Tui:
 
         self.main_static()
         self.update_overwrite()
+
+        self.__update_data()
+        self.win_main.refresh()
 
         # Maus initialisieren
         avail, oldmask = curses.mousemask(curses.BUTTON1_PRESSED)
@@ -130,6 +134,13 @@ class Tui:
                 else:
                     self._mm.dict_overwrite.toggle(self._line_focus)
                 self.update_overwrite()
+            elif c == curses.KEY_BACKSPACE:
+                if self._ret:
+                    break
+            elif c == curses.KEY_F1:
+                self._mm.target.write_tag()
+                if self._ret:
+                    break
             elif c == curses.KEY_MOUSE:
                 try:
                     id, x, y, z, button = curses.getmouse()
@@ -139,6 +150,9 @@ class Tui:
                     stdscr.refresh()
                 except curses.error:
                     continue
+            else:
+                s = "Key-Event: {:<20}".format(str(curses.unctrl(c)))
+                stdscr.addstr(0, 1, s)
         
             self.__update_data()
             self.win_main.refresh()
@@ -163,32 +177,23 @@ class Tui:
     def __update_tag(self, tag):
         tag_s = self._mm.dict_meta_source.get(tag)
         tag_t = self._mm.dict_meta_target.get(tag)
-        if not tag_s:
-            tag_s = "<None>"
-        if not tag_t:
-            tag_t = "<None>"
-        color_pair_t = ColorPair.normal
         if self._mm.dict_overwrite.get(tag):
-            if tag_s == tag_t:
-                color_pair_t = ColorPair.normal
-            else:
-                if tag_t == "" or tag_t == "<None>" or None:
-                    color_pair_t = ColorPair.new
-                else:
-                    color_pair_t = ColorPair.overwrite
+            diff = self._mm.dict_diff.get(tag)
+        else:
+            diff = mmusicc.DiffType.unchanged
         # write source TODO add autocomlete color blue
         self.__str_writer(
             line=Tui.dict_tag_pos.get(tag),
             col=Tui.col_source_start,
-            text=tag_s,
+            text=str(tag_s),
             length=Tui.length_tag_str
         )
         self.__str_writer(
             line=Tui.dict_tag_pos.get(tag),
             col=Tui.col_target_start,
-            text=tag_t,
+            text=str(tag_t),
             length=Tui.length_tag_str,
-            color_pair=color_pair_t.value[0]
+            color_pair=self.__diff_type_2_color(diff)
         )
 
     def __str_writer(self, line, col, text, length, align="<", color_pair=1):
@@ -256,34 +261,36 @@ class Tui:
         else:
             y_offset = 0
         self.win_head = curses.newwin(5, 130, y_offset, x_offset)
-        self.win_head.bkgd(curses.color_pair(ColorPair.standard_ui.value[0]))
+        self.win_head.bkgd(curses.color_pair(1))
         self.win_head.box()
         self.win_head.addstr(0, int(130 / 2 - 12), "Metadata Music Control")
         self.win_head.refresh()
         self.win_main = curses.newwin(40 - 5, 130, y_offset+5, x_offset)
-        self.win_main.bkgd(curses.color_pair(ColorPair.standard_ui.value[0]))
+        self.win_main.bkgd(curses.color_pair(1))
         self.win_main.box()
         self.win_main.refresh()
 
     def _init_curses(self):
         curses.start_color()
-        curses.init_pair(ColorPair.standard_ui.value[0], curses.COLOR_YELLOW, curses.COLOR_BLACK)
-        curses.init_pair(ColorPair.normal.value[0], curses.COLOR_WHITE, curses.COLOR_BLACK)
-        curses.init_pair(ColorPair.overwrite.value[0], curses.COLOR_RED, curses.COLOR_BLACK)
-        curses.init_pair(ColorPair.new.value[0], curses.COLOR_GREEN, curses.COLOR_BLACK)
-        curses.init_pair(ColorPair.autofill.value[0], curses.COLOR_CYAN, curses.COLOR_BLACK)
+        curses.init_pair(1, curses.COLOR_YELLOW, curses.COLOR_BLACK)
+        curses.init_pair(self.__diff_type_2_color(mmusicc.DiffType.unchanged), curses.COLOR_WHITE, curses.COLOR_BLACK)
+        curses.init_pair(self.__diff_type_2_color(mmusicc.DiffType.overwrite), curses.COLOR_RED, curses.COLOR_BLACK)
+        curses.init_pair(self.__diff_type_2_color(mmusicc.DiffType.new), curses.COLOR_GREEN, curses.COLOR_BLACK)
+        curses.init_pair(self.__diff_type_2_color(mmusicc.DiffType.deleted), curses.COLOR_MAGENTA, curses.COLOR_BLACK)
         self.stdscr.refresh()
 
     def __update_window_size(self):
         self.maxy, self.maxx = self.stdscr.getmaxyx()
 
+    def __diff_type_2_color(self, diff_type):
+        return diff_type.value[0] + 1
 
-class ColorPair(enum.Enum):
-    standard_ui = 1,
-    normal = 2,
-    overwrite = 3,
-    new = 4,
-    autofill = 42,
+#class ColorPair(enum.Enum):
+#    standard_ui = 1,
+#    normal = 2,
+#    overwrite = 3,
+#    new = 4,
+#    autofill = 42,
 
 # TODO conetnt None, Empty, Different (bei gruppen)
 
