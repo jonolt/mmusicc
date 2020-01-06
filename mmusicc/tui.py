@@ -113,22 +113,22 @@ class Tui:
                 stdscr.addstr(0, 1, "KEY_LEFT")
                 stdscr.addstr(0, 1, "KEY_RIGHT")
                 if self._line_focus == "TAG":
-                    self._mm.overwrite_dict.disable_all()
+                    self._mm.dict_overwrite.disable_all()
                 else:
-                    self._mm.overwrite_dict.disable(self._line_focus)
+                    self._mm.dict_overwrite.disable(self._line_focus)
                 self.update_overwrite()
             elif c == curses.KEY_RIGHT:
                 stdscr.addstr(0, 1, "KEY_RIGHT")
                 if self._line_focus == "TAG":
-                    self._mm.overwrite_dict.enable_all()
+                    self._mm.dict_overwrite.enable_all()
                 else:
-                    self._mm.overwrite_dict.enable(self._line_focus)
+                    self._mm.dict_overwrite.enable(self._line_focus)
                 self.update_overwrite()
             elif c == ord('t'):
                 if self._line_focus == "TAG":
-                    self._mm.overwrite_dict.toggle_all()
+                    self._mm.dict_overwrite.toggle_all()
                 else:
-                    self._mm.overwrite_dict.toggle(self._line_focus)
+                    self._mm.dict_overwrite.toggle(self._line_focus)
                 self.update_overwrite()
             elif c == curses.KEY_MOUSE:
                 try:
@@ -161,14 +161,14 @@ class Tui:
                 self.__update_tag(tag)
 
     def __update_tag(self, tag):
-        tag_s = self._mm.source_meta_dict.get(tag)
-        tag_t = self._mm.target_meta_dict.get(tag)
+        tag_s = self._mm.dict_meta_source.get(tag)
+        tag_t = self._mm.dict_meta_target.get(tag)
         if not tag_s:
             tag_s = "<None>"
         if not tag_t:
             tag_t = "<None>"
         color_pair_t = ColorPair.normal
-        if self._mm.overwrite_dict.get(tag):
+        if self._mm.dict_overwrite.get(tag):
             if tag_s == tag_t:
                 color_pair_t = ColorPair.normal
             else:
@@ -217,7 +217,7 @@ class Tui:
             style = curses.A_REVERSE
         else:
             style = curses.A_NORMAL
-        if self._mm.overwrite_dict.get(tag):
+        if self._mm.dict_overwrite.get(tag):
             self.win_main.addstr(Tui.dict_tag_pos[tag], Tui.f_str_bckd_pos-1, "[>]", style)
         else:
             self.win_main.addstr(Tui.dict_tag_pos[tag], Tui.f_str_bckd_pos-1, "[ ]", style)

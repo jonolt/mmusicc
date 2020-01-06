@@ -1,7 +1,7 @@
 import yaml
 import os
 import mutagen
-
+import mimetypes
 
 class Metadata:
 
@@ -63,21 +63,34 @@ class Metadata:
         }
 
 
-    def __init__(self, file):
+    def __init__(self, file, read_tag=True):
+        """
+        file can be None, this is tu support album Metadata
+
+        :param file: fuu
+        """
         if not Metadata.class_initialized:
             Metadata.init_class()
-        if os.path.exists(file):
+        if not file:
+            pass
+        elif os.path.exists(file):
             self._file_path = file
             self._file = mutagen.File(self._file_path)
             # TODO what happens if file contains no tag?
         else:
             raise FileNotFoundError("Error File does not exist")
-        self.unprocessed_tags = None
+
         self.dict_data = dict()
         for tag in Metadata.list_tags:
             self.dict_data[tag] = None
 
-        self.read_tag()
+        self.unprocessed_tags = None
+        if file and read_tag:
+            self.read_tag()
+
+    @property
+    def file_name(self):
+        return os.path.splitext(os.path.basename(self._file_path))[0]
 
     def read_tag(self):
         if isinstance(self._file, mutagen.mp3.MP3):
@@ -217,7 +230,7 @@ class Metadata:
 
     def import_tag(self, source_meta, whitelist=None, blacklist=None, remove_other=False):
         """import metadata from source meta object"""
-        tags = Metadata.__process_white_and_blacklist(whitelist, blacklist)
+        tags = Metadata._process_white_and_blacklist(whitelist, blacklist)
         for tag in self.list_tags:
             if tag in tags:
                 self.dict_data[tag] = source_meta.dict_data[tag]
@@ -226,7 +239,7 @@ class Metadata:
                     self.dict_data[tag] = None
 
     @staticmethod
-    def __process_white_and_blacklist(whitelist, blacklist):
+    def _process_white_and_blacklist(whitelist, blacklist):
         if not whitelist:
             whitelist = Metadata.list_tags
         if blacklist:
@@ -238,20 +251,115 @@ class Metadata:
                     continue
         return whitelist
 
+    @staticmethod
+    def check_is_audio(file):
+        mimetype = mimetypes.guess_type(file)
+        if mimetype[0] and "audio"in mimetype[0]:
+            return True
+        else:
+            return False
 
-if __name__ == "__main__":
 
+class AlbumMetadata(Metadata):
+
+    def __init__(self, path_album):
+        super().__init__(None)
+        self.list_metadata = list()
+        for file in os.listdir(path_album):
+            Metadata.check_is_audio(file)
+            if Metadata.check_is_audio(file):
+                file_path = os.path.join(path_album, file)
+                self.list_metadata.append(Metadata(file_path))
+        self.read_tag()
+
+    def read_tag(self):
+        for metadata in self.list_metadata:
+            metadata.read_tag()
+        for key in list(metadata.dict_data):
+            first = True
+            for metadata in self.list_metadata:
+                data = metadata.dict_data.get(key)
+                if first:
+                    self.dict_data[key] = data
+                    first = False
+                else:
+                    if self.dict_data[key] == data:
+                        pass
+                    else:
+                        self.dict_data[key] = Div(key, self.list_metadata)
+                        break
+
+    def write_tag(self, remove_other=True):
+        for metadata in self.list_metadata:
+            metadata.write_tag(remove_other=remove_other)
+
+    def import_tag(self, source_meta, whitelist=None, blacklist=None,
+                   remove_other=False):
+
+        tags = Metadata._process_white_and_blacklist(whitelist, blacklist)
+
+        for metadata_self in self.list_metadata:
+            for metadata_source in source_meta.list_metadata:
+                if metadata_self.file_name == metadata_source.file_name:
+                    metadata_self.import_tag(
+                        metadata_source,
+                        whitelist=whitelist,
+                        blacklist=blacklist,
+                        remove_other=remove_other)
+
+
+class Div:
+
+    def __init__(self, key=None, list_metadata=None):
+        self._dict_values = dict()
+        self._key_tag = None  # maybe not needed
+        if key and list_metadata:
+            self.add_metadata(key, list_metadata)
+
+    def __repr__(self):
+        return "<div>"
+
+    def add_metadata(self, key_tag, list_metadata):
+        self._key_tag = key_tag
+        for metadata in list_metadata:
+            self.add_value(metadata, metadata.dict_data.get(self._key_tag))
+
+    def add_value(self, obj, val):
+        self._dict_values[obj] = val
+
+#    def add_dict(self, dict):
+#        """dict<obj:val>"""
+#        pass
+
+
+def fuu():
     whitelist = None
     whitelist = ["ALBUM"]
 
-    mfs = Metadata("/home/johannes/Desktop/MusicManager/media/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/01_Only_The_Fear.flac")
-    m3 = Metadata("/home/johannes/Desktop/MusicManager/test/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/01_Only_The_Fear.mp3")
-    mf = Metadata("/home/johannes/Desktop/MusicManager/test/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/01_Only_The_Fear.flac")
+    mfs = Metadata(
+        "/home/johannes/Desktop/MusicManager/media/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/01_Only_The_Fear.flac")
+    m3 = Metadata(
+        "/home/johannes/Desktop/MusicManager/test/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/01_Only_The_Fear.mp3")
+    mf = Metadata(
+        "/home/johannes/Desktop/MusicManager/test/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/01_Only_The_Fear.flac")
 
     m3.import_tag(mfs, whitelist=whitelist, remove_other=True)
-    m3.write_tag()
+    # m3.write_tag()
 
     mf.import_tag(mfs, whitelist=whitelist, remove_other=True)
-    mf.write_tag()
+    # mf.write_tag()
 
     print(mfs, m3, mf)
+
+def bar():
+    mas = AlbumMetadata(
+        "/home/johannes/Desktop/MusicManager/media/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/")
+    mat = AlbumMetadata(
+        "/home/johannes/Desktop/MusicManager/test/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/")
+    mat.import_tag(mas)
+
+    print(mat)
+
+if __name__ == "__main__":
+    fuu()
+    bar()

@@ -22,10 +22,12 @@ from sqlalchemy import text
 
 from mmusicc.tui import Tui
 from mmusicc import tui
-from mmusicc.metadata import Metadata
+from mmusicc.metadata import Metadata, AlbumMetadata
 
 
 class MusicManager:
+
+    # TODO add option if album will be handeld as albnom or each single file
 
     suported_files = [".mp3", ".flac"]
 
@@ -37,14 +39,15 @@ class MusicManager:
         self._target_path = None
         self._target_type = None
         self._target = None
-        self.overwrite_dict = OverwriteDict()
+        self.dict_overwrite = OverwriteDict()
+        self.dict_diff = MetadataDict()
 
     @property
-    def source_meta_dict(self):
+    def dict_meta_source(self):
         return self.source[0].dict_data
 
     @property
-    def target_meta_dict(self):
+    def dict_meta_target(self):
         return self.target[0].dict_data
 
     @property
@@ -57,6 +60,7 @@ class MusicManager:
         self._source_type = self.get_object_type(path)
         if self._source_type:
             self.fetch_source()
+            self.update_dict_diff()
         else:
             print("path not valid: {}".format(path))
 
@@ -75,6 +79,7 @@ class MusicManager:
         self._target_type = self.get_object_type(path)
         if self._target_type:
             self.fetch_target()
+            self.update_dict_diff()
         else:
             print("path not valid: {}".format(path))
 
@@ -82,6 +87,23 @@ class MusicManager:
     def target(self):
         # TODO formatting of different types
         return self._target
+
+    def update_dict_diff(self):
+        if self.source and self.target:
+
+            if isinstance(self.source[0], Metadata):
+                # file --> file
+                if isinstance(self.target[0], Metadata):
+                    pass
+                # file --> album
+                elif isinstance(self.target[0], AlbumMetadata):
+                    pass
+            elif isinstance(self.source[0], Metadata):
+                # album --> album
+                if isinstance(self.target[0], AlbumMetadata):
+                    pass
+
+        raise Exception("Combo not valid")
 
     def get_object_type(self, path):
         path = os.path.expanduser(path)
@@ -136,9 +158,11 @@ class MusicManager:
             self._target = data
 
     def __fetch_db(self):
+        raise NotImplementedError
         return self._session.query(Metadata).all()
 
     def __fetch_folder(self, path):
+        raise NotImplementedError
         list_meta = list()
         gen = os.walk(path)
         while True:
@@ -151,12 +175,7 @@ class MusicManager:
         return list_meta
 
     def __fetch_album(self, path):
-        list_meta = list()
-        for file in os.listdir(path):
-            if os.path.splitext(file)[1] in MusicManager.suported_files:
-                file_path = os.path.join(path, file)
-                list_meta.append(Metadata(file_path))
-        return list_meta
+        return AlbumMetadata(path)
 
     def __fetch_file(self, path):
         return [Metadata(path)]
@@ -184,9 +203,10 @@ class MusicManager:
             if os.path.exists(meta.file):
                 meta.write_tag(confirm=confirm)
 
+    """
     @staticmethod
     def create_session(db_file):
-        """create a session and the db-file if not exist"""
+        #create a session and the db-file if not exist
         if not os.path.exists(db_file):
             if not os.path.exists(os.path.basename(db_file)):
                 os.makedirs(os.path.basename(db_file))
@@ -196,16 +216,22 @@ class MusicManager:
                                  Base.metadata.tables.values(), checkfirst=True)
         Session = orm.sessionmaker(bind=some_engine)
         return Session()
+    """
 
 
-class OverwriteDict(dict):
+class MetadataDict(dict):
 
-    def __init__(self):
+    def __init__(self, init_value=None):
         super().__init__()
         if not Metadata.class_initialized:
             Metadata.init_class()
         for key in Metadata.list_tags:
-            self[key] = False
+            self[key] = init_value
+
+class OverwriteDict(MetadataDict):
+
+    def __init__(self):
+        super().__init__(init_value=False)
         self.enable_count = 0
 
     @property
