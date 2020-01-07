@@ -4,6 +4,8 @@ mmusic is a lightweight audio file and metadata control and synchronization prog
 
 The folder structure and directory/file names must be identical, this should be given when this toll is used to one-way sync the parent directory.
 
+Autofill will be only applied to source files.
+
 More functions:  
 - automatic completion easy to determine missing meter data
 - show consistency errors between metadata and folder content

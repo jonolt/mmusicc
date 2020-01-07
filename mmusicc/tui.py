@@ -37,7 +37,7 @@ class Tui:
     @classmethod
     def init_class(cls):
         cls.list_displ_tags = metadata.Metadata.get_dictionaries().get(
-            "list_displ_tags")
+            "list_tags_sorted")
         cls.dict_tag_pos = dict()
         cls.divider = [6]
         for size in cls.divider_size:
@@ -182,11 +182,16 @@ class Tui:
         else:
             diff = mmusicc.DiffType.unchanged
         # write source TODO add autocomlete color blue
+        if self._mm.source[0].dict_auto_fill_org.get(tag) is False:
+            color_pair_source = 2
+        else:
+            color_pair_source = 6
         self.__str_writer(
             line=Tui.dict_tag_pos.get(tag),
             col=Tui.col_source_start,
             text=str(tag_s),
-            length=Tui.length_tag_str
+            length=Tui.length_tag_str,
+            color_pair=color_pair_source
         )
         self.__str_writer(
             line=Tui.dict_tag_pos.get(tag),
@@ -277,6 +282,7 @@ class Tui:
         curses.init_pair(self.__diff_type_2_color(mmusicc.DiffType.overwrite), curses.COLOR_RED, curses.COLOR_BLACK)
         curses.init_pair(self.__diff_type_2_color(mmusicc.DiffType.new), curses.COLOR_GREEN, curses.COLOR_BLACK)
         curses.init_pair(self.__diff_type_2_color(mmusicc.DiffType.deleted), curses.COLOR_MAGENTA, curses.COLOR_BLACK)
+        curses.init_pair(6, curses.COLOR_BLUE, curses.COLOR_BLACK)
         self.stdscr.refresh()
 
     def __update_window_size(self):

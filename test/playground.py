@@ -9,6 +9,9 @@ from mmusicc.mmusicc import MusicManager, Metadata
 
 
 if __name__ == '__main__':
+
+    Metadata.dry_run = True
+
     mm = MusicManager()
     mm.source_path = "/home/johannes/Desktop/MusicManager/test/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/01_Only_The_Fear.flac"
     mm.target_path = "/home/johannes/Desktop/MusicManager/media/Abrahma/Reflections_In_The_Bowels_Of_A_Bird_(2015)/01_Fountains_Of_Vengeance.flac"

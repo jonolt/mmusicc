@@ -22,7 +22,7 @@ from sqlalchemy import text
 
 from mmusicc.tui import Tui
 from mmusicc import tui
-from mmusicc.metadata import Metadata, AlbumMetadata, Div
+from mmusicc.metadata import Metadata, AlbumMetadata, Div, MetadataDict
 
 
 class MusicManager:
@@ -66,6 +66,7 @@ class MusicManager:
         self._source_type = self.get_object_type(path)
         if self._source_type:
             self.fetch_source()
+            self.source[0].auto_fill_tag()
             self.update_dict_diff()
         else:
             print("path not valid: {}".format(path))
@@ -118,8 +119,9 @@ class MusicManager:
                 self.dict_diff[tag] = DiffType.deleted
             else:
                 self.dict_diff[tag] = DiffType.overwrite
-            if isinstance(meta_t, Div) and isinstance(meta_s, Div):
-                self.dict_overwrite[tag] = False
+            # does not work like this, when existing data is cleared
+            # if isinstance(meta_t, Div) and isinstance(meta_s, Div):
+            #     self.dict_overwrite[tag] = False
 
     def get_object_type(self, path):
         path = os.path.expanduser(path)
@@ -222,20 +224,6 @@ class MusicManager:
         return Session()
     """
 
-
-class MetadataDict(dict):
-
-    def __init__(self, init_value=None):
-        super().__init__()
-        self._init_value = init_value
-        if not Metadata.class_initialized:
-            Metadata.init_class()
-        for key in Metadata.list_tags:
-            self[key] = init_value
-
-    def reset(self):
-        for key in list(self):
-            self[key] = self._init_value
 
 class OverwriteDict(MetadataDict):
 

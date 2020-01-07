@@ -2,30 +2,58 @@ import yaml
 import os
 import mutagen
 import mimetypes
+import re
+
+class MetadataDict(dict):
+
+    def __init__(self, init_value=None):
+        super().__init__()
+        self._init_value = init_value
+        if not Metadata.class_initialized:
+            Metadata.init_class()
+        for key in Metadata.list_tags:
+            self[key] = init_value
+
+    def reset(self):
+        for key in list(self):
+            self[key] = self._init_value
+
 
 class Metadata:
 
+    dry_run = False
     class_initialized = False
     path_config_yaml = "config.yaml"
     write_empty = True
+
+    dict_config = None
+    list_tags_sorted = None
+    list_tags = None
+    dict_tags_id3 = None
+    dict_tags_str = None
+    dict_auto_fill_org = None
+    dict_auto_fill_rules = None
 
     @classmethod
     def init_class(cls):
         dicts = cls.get_dictionaries(cls.path_config_yaml)
         cls.dict_config = dicts.get("dict_config")
-        cls.list_displ_tags = dicts.get("list_displ_tags")
+        # list_tags_sorted can contain none, while list_tags should not
+        cls.list_tags_sorted = dicts.get("list_tags_sorted")
         cls.list_tags = dicts.get("list_tags")
         cls.dict_tags_id3 = dicts.get("dict_tags_id3")
         cls.dict_tags_str = dicts.get("dict_tags_str")
+        cls.dict_auto_fill_rules = dicts.get("dict_auto_fill_rules")
         cls.class_initialized = True
 
     @classmethod
     def get_dictionaries(cls, path=None):
-
+        # TODO autfill riles
         list_displ_tags = [None] * 20
         list_tags = list()
         dict_tags_id3 = dict()
         dict_tags_str = dict()
+        dict_auto_fill_rules = dict()
 
         if not path:
             path = cls.path_config_yaml
@@ -38,6 +66,8 @@ class Metadata:
             pos = value[0]
             id3_tag = value[1]
             assertions = value[2]
+            if len(value) == 4:
+                dict_auto_fill_rules[key] = value[3]
 
             list_tags.append(key)
             list_displ_tags[pos-1] = key
@@ -56,14 +86,14 @@ class Metadata:
 
         return {
             "dict_config": dict_config,
-            "list_displ_tags": list_displ_tags,
+            "list_tags_sorted": list_displ_tags,
             "list_tags": list_tags,
             "dict_tags_id3": dict_tags_id3,
             "dict_tags_str": dict_tags_str,
+            "dict_auto_fill_rules": dict_auto_fill_rules,
         }
 
-
-    def __init__(self, file, read_tag=True):
+    def __init__(self, file, read_tag=True, autofill=False):
         """
         file can be None, this is tu support album Metadata
 
@@ -88,9 +118,34 @@ class Metadata:
         if file and read_tag:
             self.read_tag()
 
+        self.dict_auto_fill_org = None
+
     @property
     def file_name(self):
         return os.path.splitext(os.path.basename(self._file_path))[0]
+
+    def auto_fill_tag(self):
+        if not self.dict_auto_fill_org:
+            self.dict_auto_fill_org = MetadataDict(init_value=False)
+        for tag in list(Metadata.dict_auto_fill_rules):
+            rule = self.dict_auto_fill_rules.get(tag)
+            val_test = self.dict_data.get(rule[0])
+            val_regex = rule[1]
+            try:
+                val_parse = self.dict_data.get(rule[2])
+            except KeyError:
+                val_parse = rule[2]
+            if val_regex is None:
+                if isinstance(val_test, Empty):
+                    self.dict_auto_fill_org[tag] = self.dict_data[tag]
+                    self.dict_data[tag] = val_parse
+            elif isinstance(val_regex, str):
+                m = re.search(val_regex, val_test)
+                if m:
+                    self.dict_auto_fill_org[tag] = self.dict_data[tag]
+                    self.dict_data[tag] = eval(val_parse)
+
+
 
     def read_tag(self):
         if isinstance(self._file, mutagen.mp3.MP3):
@@ -112,10 +167,12 @@ class Metadata:
             try:
                 val = self.dummy_dict.pop(id3_frame).text[0]
             except KeyError:  # raised when tag is not filled
-                val = None
+                val = Empty()
 
             if isinstance(val, mutagen.id3.ID3TimeStamp):
                 val = val.text
+            elif Empty.is_empty(val):
+                val = Empty()
 
             self.dict_data[key] = val
 
@@ -166,8 +223,8 @@ class Metadata:
                         val = ret_val
                 val = ret_val[0]
 
-            if val == "":  # TODO and list of strings which are empty
-                val = None
+            if Empty.is_empty(val):
+                val = Empty()
 
             self.dict_data[key] = val
 
@@ -207,7 +264,9 @@ class Metadata:
 
                     self._file.tags.add(tmp)
 
-        self._file.save(v1=2, v2_version=4)
+        if not Metadata.dry_run:
+            print("write")
+            #self._file.save(v1=2, v2_version=4)
 
     def __write_tag_flac(self, remove_other=True):
 
@@ -221,17 +280,20 @@ class Metadata:
 
             val = self.dict_data.get(tag)
 
-            if val is None:
+            if Empty.is_empty(val):
                 if Metadata.write_empty:
-                    val = ""
+                    val = Empty.value
                 else:
                     continue
 
             self._file.tags[tag] = val
 
-        self._file.save()
+        if not Metadata.dry_run:
+            print("write")
+            #self._file.save()
 
-    def import_tag(self, source_meta, whitelist=None, blacklist=None, remove_other=False):
+    def import_tag(self, source_meta, whitelist=None, blacklist=None,
+                   remove_other=False):
         """import metadata from source meta object"""
         tags = Metadata.process_white_and_blacklist(whitelist, blacklist)
         for tag in self.list_tags:
@@ -257,7 +319,7 @@ class Metadata:
     @staticmethod
     def check_is_audio(file):
         mimetype = mimetypes.guess_type(file)
-        if mimetype[0] and "audio"in mimetype[0]:
+        if mimetype[0] and "audio" in mimetype[0]:
             return True
         else:
             return False
@@ -275,10 +337,22 @@ class AlbumMetadata(Metadata):
                 self.list_metadata.append(Metadata(file_path))
         self.read_tag()
 
+        self.dict_auto_fill_org = None
+
+    def auto_fill_tag(self):
+        if not self.dict_auto_fill_org:
+            self.dict_auto_fill_org = MetadataDict(init_value=False)
+        for metadata in self.list_metadata:
+            metadata.auto_fill_tag()
+        self.__compare_tags()
+
     def read_tag(self):
         for metadata in self.list_metadata:
             metadata.read_tag()
-        for key in list(metadata.dict_data):
+        self.__compare_tags()
+
+    def __compare_tags(self):
+        for key in AlbumMetadata.list_tags:
             first = True
             for metadata in self.list_metadata:
                 data = metadata.dict_data.get(key)
@@ -311,7 +385,33 @@ class AlbumMetadata(Metadata):
                         remove_other=remove_other)
 
 
-class Div:
+class Empty(object):
+
+    value = ""
+
+    def __repr__(self):
+        return "<none>"
+
+    def __eq__(self, other):
+        if isinstance(other, Empty):
+            return True
+        else:
+            return False
+
+    @staticmethod
+    def is_empty(text):
+        if text is None or isinstance(text, Empty) or text.strip() == "":
+            return True
+        else:
+            return False
+
+    #@property
+    #def value(self):
+    #    return Empty.value
+
+
+
+class Div(object):
 
     def __init__(self, key=None, list_metadata=None):
         self._dict_values = dict()
@@ -368,6 +468,7 @@ def fuu():
 
     print(mfs, m3, mf)
 
+
 def bar():
     mas = AlbumMetadata(
         "/home/johannes/Desktop/MusicManager/media/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/")
@@ -376,6 +477,7 @@ def bar():
     mat.import_tag(mas)
 
     print(mat)
+
 
 if __name__ == "__main__":
     fuu()

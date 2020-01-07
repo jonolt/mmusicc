@@ -18,10 +18,16 @@ ALBUMARTIST:
 - 4
 - TPE2
 - - ALBUM ARTIST
+- - ALBUMARTIST
+  - Null
+  - ARTIST
 TRACKNUMBER:
 - 5
 - TRCK
 - []
+- - TRACKNUMBER
+  - (?P<track>\d*)\/(?P<tracktot>\d*)
+  - str(int(regex.track))
 TITLE:
 - 6
 - TIT2
@@ -38,7 +44,10 @@ COMMENT:
 - 9
 - COMM
 - - COMMENT
-- - DESCRIPTION
+  - DESCRIPTION
+- - COMMENT
+  - Null
+  - ARTIST
 BPM:
 - 10
 - TBPM
@@ -67,4 +76,7 @@ TRACKTOTAL:
 - 16
 - TTOT
 - - TOTALTRACKS
+- - TRACKNUMBER
+  - (\d*)\/(\d*)
+  - str(int(regex[1]))
 
