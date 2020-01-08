@@ -1,82 +1,100 @@
-#TAG:    Vorbis Tag
-#- 0     Position
-#- TAG   ID3 Tag
-#- - TAG Assertions
+# Special Treatment of ID3 USer.defined test TXXX frame(s):
+#    if a TXXX frame is specified as ID3 tag, the Vorbis assertion list is used
+#    to identify the tag, so that variants and duplicates are also detected.
+#    Data is written with the Vorbis tag as description.
+#
+# List object holding all options, order is important, entries can be empty.
+#
+# Vorbis Tag* TAG:
+# 0           - 0     Position in TUI
+# 1           - TAG   ID3 Tag (TXXX if no ID3 frame exists)
+# 2 optional  - - TAG Assertions vorbis and ID3 custom tag
+#               - TAG Assertions vorbis and ID3 custom tag
+#               - TAG Assertions vorbis and ID3 custom tag
+# 3 optional  - - Autofill source tag to run logic test or regex on
+#               - Autofill data acquisition regex or Null
+#               - Autofill parser write Tag or string.Formatter (with regex named groups)
+#
+# *names of how the tags to be written in vorbis comment or TXXX description
+#  can be adjusted to emerson's personal taste
+#
+
 ALBUM:
 - 1
 - TALB
-- []
+
 YEAR:
 - 2
 - TDRC
 - - DATE
+
 ARTIST:
 - 3
 - TPE1
-- []
+
 ALBUMARTIST:
 - 4
 - TPE2
 - - ALBUM ARTIST
+  - PERFORMER
 - - ALBUMARTIST
   - Null
   - ARTIST
-TRACKNUMBER:
+
+ALBUMARTISTSORT:
 - 5
+- TSO2
+- - ALBUM ARTIST
+- - ALBUMARTISTSORT
+  - Null
+  - ARTIST
+
+TRACKNUMBER:
+- 6
 - TRCK
 - []
 - - TRACKNUMBER
   - (?P<track>\d*)\/(?P<tracktot>\d*)
   - str(int(regex.track))
+
 TITLE:
-- 6
-- TIT2
-- []
-GENRE:
 - 7
-- TCON
-- []
-LYRICS:
+- TIT2
+
+GENRE:
 - 8
+- TCON
+
+LYRICS:
+- 9
 - USLT
 - - UNSYNCEDLYRICS
+
 COMMENT:
-- 9
+- 10
 - COMM
 - - COMMENT
   - DESCRIPTION
-- - COMMENT
-  - Null
-  - ARTIST
+
 BPM:
-- 10
-- TBPM
-- []
-COMPOSER:
 - 11
+- TBPM
+
+COMPOSER:
+- 12
 - TCOM
 - []
+
 DISCNUMBER:
 - 12
 - TPOS
 - []
+
 ISRC:
 - 13
 - TSRC
 - []
+
 DISCID:
 - 14
-- DIID
-- []
-DISCTOTAL:
-- 15
-- DTOT
-- []
-TRACKTOTAL:
-- 16
-- TTOT
-- - TOTALTRACKS
-- - TRACKNUMBER
-  - (\d*)\/(\d*)
-  - str(int(regex[1]))
-
+- TXXX

@@ -1,26 +1,6 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Mon Dec 23 12:30:45 2019
-
-@author: johannes
-
-
-"""
 import os
 import enum
 
-import mutagen
-import sqlalchemy
-import yaml
-from mutagen.flac import FLAC
-from mutagen.id3 import ID3
-from sqlalchemy import Column, String, Integer
-from sqlalchemy import orm
-from sqlalchemy.ext.declarative import declarative_base
-from sqlalchemy import text
-
-from mmusicc.tui import Tui
 from mmusicc import tui
 from mmusicc.metadata import Metadata, AlbumMetadata, Div, MetadataDict
 
@@ -209,21 +189,6 @@ class MusicManager:
             if not self.source:
                 print("source not defined")
 
-    """
-    @staticmethod
-    def create_session(db_file):
-        #create a session and the db-file if not exist
-        if not os.path.exists(db_file):
-            if not os.path.exists(os.path.basename(db_file)):
-                os.makedirs(os.path.basename(db_file))
-        engine = 'sqlite:///' + db_file
-        some_engine = sqlalchemy.create_engine(engine)
-        Base.metadata.create_all(some_engine,
-                                 Base.metadata.tables.values(), checkfirst=True)
-        Session = orm.sessionmaker(bind=some_engine)
-        return Session()
-    """
-
 
 class OverwriteDict(MetadataDict):
 
@@ -285,42 +250,9 @@ class MediaType(enum.Enum):
     folder = 3,
     undefined = 42
 
+
 class DiffType(enum.Enum):
     unchanged = 1,  # normal
     overwrite = 2,  # red
     deleted = 3,    # magenta
     new = 4,        # green
-
-"""
-if __name__ == "__main__":
-
-    project_folder = "/home/johannes/Desktop/MusicManager"
-    source_root = "/home/johannes/Desktop/MusicManager/media"
-    target_root = "/home/johannes/Desktop/MusicManager/test"
-    # source_root = target_root
-    # source_root = "/home/johannes/Drives/SteamLinux/Music_20191225"
-    #source_root = "/home/johannes/CloudStation/Music/MusicMp3"
-    #project_folder = source_root
-
-    # Metadata.load_tag_association_yaml(project_folder)
-    # Metadata.save_tag_association_yaml(project_folder)
-
-    db_file = os.path.join(project_folder, 'mmproject.db3')
-    #if os.path.exists(db_file):
-    #    os.remove(db_file)
-
-    gen = os.walk(source_root)
-
-
-    #mm.source_path = "/home/johannes/Desktop/MusicManager/media/Abrahma/Reflections_In_The_Bowels_Of_A_Bird_(2015)"
-    #print(len(mm.source))
-    #mm.source_path = "/home/johannes/Desktop/MusicManager/media/Infected_Rain"
-    #print(len(mm.source))
-    #mm.source_path = "/home/johannes/Desktop/MusicManager/media"
-    #print(len(mm.source))
-    #mm.source_path = "/home/johannes/Desktop/MusicManager/mmproject.db3"
-    #print(len(mm.source))
-
-    #mm.scan_tags(gen)
-    #mm.write_tags()
-"""
