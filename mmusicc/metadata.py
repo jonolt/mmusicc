@@ -21,6 +21,9 @@ class MetadataDict(dict):
 
 
 class Metadata:
+    # TODO use puddletag as library: source/puddlestuff/audioinfo/id3.py
+    #                                source/puddlestuff/audioinfo/vorbis.py
+
     dry_run = False
     class_initialized = False
     path_config_yaml = "config.yaml"
@@ -192,11 +195,11 @@ class Metadata:
             if frame_id == "APIC":
                 continue
 
-            if frame_id == "TIPL":
+            if frame_id in ["TIPL", "TMCL", "IPLS"]:
                 val = frame.people
                 if isinstance(val, list):
                     flat_list = [item for sublist in val for item in sublist]
-                    val = '|'.join(flat_list)
+                    val = '\n'.join(flat_list)
             else:
                 val = frame.text
                 if isinstance(val, list):
@@ -267,7 +270,7 @@ class Metadata:
                             j += 1
                         i += 1
                     if join:
-                        ret_val = ';'.join(ret_val)
+                        ret_val = '\n'.join(ret_val)
                 val = ret_val[0]
 
             if Empty.is_empty(val):
@@ -379,16 +382,11 @@ class Metadata:
             return False
 
 
-class AlbumMetadata(Metadata):
+class GroupMetadata(Metadata):
 
-    def __init__(self, path_album):
+    def __init__(self, list_metadata):
         super().__init__(None)
-        self.list_metadata = list()
-        for file in os.listdir(path_album):
-            Metadata.check_is_audio(file)
-            if Metadata.check_is_audio(file):
-                file_path = os.path.join(path_album, file)
-                self.list_metadata.append(Metadata(file_path))
+        self.list_metadata = list_metadata
         self.read_tag()
 
         self.dict_auto_fill_org = None
@@ -406,7 +404,7 @@ class AlbumMetadata(Metadata):
         self.__compare_tags()
 
     def __compare_tags(self):
-        for key in AlbumMetadata.list_tags:
+        for key in GroupMetadata.list_tags:
             first = True
             for metadata in self.list_metadata:
                 data = metadata.dict_data.get(key)
@@ -437,6 +435,18 @@ class AlbumMetadata(Metadata):
                         whitelist=whitelist,
                         blacklist=blacklist,
                         remove_other=remove_other)
+
+
+class AlbumMetadata(GroupMetadata):
+
+    def __init__(self, path_album):
+        list_metadata = list()
+        for file in os.listdir(path_album):
+            Metadata.check_is_audio(file)
+            if Metadata.check_is_audio(file):
+                file_path = os.path.join(path_album, file)
+                list_metadata.append(Metadata(file_path))
+        super().__init__(list_metadata)
 
 
 class Empty(object):
@@ -519,9 +529,9 @@ def fuu():
 
 
 def bar():
-    mas = AlbumMetadata(
+    mas = GroupMetadata(
         "/home/johannes/Desktop/MusicManager/media/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/")
-    mat = AlbumMetadata(
+    mat = GroupMetadata(
         "/home/johannes/Desktop/MusicManager/test/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/")
     mat.import_tag(mas)
 

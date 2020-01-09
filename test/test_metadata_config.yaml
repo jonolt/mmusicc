@@ -68,7 +68,7 @@ ARRANGER:
   - Null
   - ARTIST
 - []
-- str_arranger_A|str_arranger_B
+- "str_arranger_A\nstr_arranger_B"
 
 ARTIST:
 - 6
