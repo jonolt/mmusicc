@@ -21,8 +21,6 @@ class MetadataDict(dict):
 
 
 class Metadata:
-    # TODO use puddletag as library: source/puddlestuff/audioinfo/id3.py
-    #                                source/puddlestuff/audioinfo/vorbis.py
 
     dry_run = False
     class_initialized = False
@@ -506,38 +504,3 @@ class Div(object):
 #    def add_dict(self, dict):
 #        """dict<obj:val>"""
 #        pass
-
-
-def fuu():
-    whitelist = None
-    whitelist = ["ALBUM"]
-
-    mfs = Metadata(
-        "/home/johannes/Desktop/MusicManager/media/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/01_Only_The_Fear.flac")
-    m3 = Metadata(
-        "/home/johannes/Desktop/MusicManager/test/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/01_Only_The_Fear.mp3")
-    mf = Metadata(
-        "/home/johannes/Desktop/MusicManager/test/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/01_Only_The_Fear.flac")
-
-    m3.import_tag(mfs, whitelist=whitelist, remove_other=True)
-    # m3.write_tag()
-
-    mf.import_tag(mfs, whitelist=whitelist, remove_other=True)
-    # mf.write_tag()
-
-    print(mfs, m3, mf)
-
-
-def bar():
-    mas = GroupMetadata(
-        "/home/johannes/Desktop/MusicManager/media/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/")
-    mat = GroupMetadata(
-        "/home/johannes/Desktop/MusicManager/test/The_Mariana_Hollow/The_Abandoned_Parade_(2019)/")
-    mat.import_tag(mas)
-
-    print(mat)
-
-
-if __name__ == "__main__":
-    fuu()
-    bar()
