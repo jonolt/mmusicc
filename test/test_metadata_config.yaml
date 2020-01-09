@@ -1,0 +1,258 @@
+# Special Treatment of ID3 USer.defined test TXXX frame(s):
+#    if a TXXX frame is specified as ID3 tag, the Vorbis assertion list is used
+#    to identify the tag, so that variants and duplicates are also detected.
+#    Data is written with the Vorbis tag as description.
+#
+# List object holding all options, order is important, entries can be empty.
+#
+# Vorbis Tag* TAG:
+# 0           - 0     Position in TUI
+# 1           - TAG   ID3 Tag (TXXX if no ID3 frame exists)
+# 2 optional  - - TAG Assertions vorbis and ID3 custom tag
+#               - TAG Assertions vorbis and ID3 custom tag
+#               - TAG Assertions vorbis and ID3 custom tag
+# 3 optional  - - Autofill source tag to run logic test or regex on
+#               - Autofill data acquisition regex or Null
+#               - Autofill parser write Tag or string.Formatter (with regex named groups)
+# 4 optional  - Reserved spce for additional function
+# 5 optional  - control answer for unittest assert with given test files
+#
+# *names of how the tags to be written in vorbis comment or TXXX description
+#  can be adjusted to emerson's personal taste
+#
+
+ALBUM:
+- 1
+- TALB
+- []
+- []
+- []
+- str_album
+
+ALBUMARTIST:
+- 2
+- TPE2
+- - ALBUM ARTIST
+  - PERFORMER
+- - ALBUMARTIST
+  - Null
+  - ARTIST
+- []
+- str_albumartist
+
+ALBUMARTISTSORT:
+- 3
+- TSO2
+- - ALBUM ARTIST
+- - ALBUMARTISTSORT
+  - Null
+  - ARTIST
+- []
+- str_albumartistsort
+
+ALBUMSORT:
+- 4
+- TSOA
+- - ALBUM ARTIST
+- - ALBUMARTISTSORT
+  - Null
+  - ARTIST
+- []
+- str_albumsort
+
+ARRANGER:
+- 5
+- TIPL
+- - ALBUM ARTIST
+- - ALBUMARTISTSORT
+  - Null
+  - ARTIST
+- []
+- "str_arranger_A\nstr_arranger_B"
+
+ARTIST:
+- 6
+- TPE1
+- []
+- []
+- []
+- str_artist
+
+ARTISTSORT:
+- 7
+- TSOP
+- - ALBUM ARTIST
+- - ALBUMARTISTSORT
+  - Null
+  - ARTIST
+- []
+- str_artistsort
+
+BPM:
+- 8
+- TBPM
+- []
+- []
+- []
+- "128"
+
+COMMENT:
+- 9
+- COMM
+- - COMMENT
+- - COMMENT
+  - Null
+  - ARTIST
+- []
+- str_comment
+
+COMPOSER:
+- 11
+- TCOM
+- []
+- []
+- []
+- str_composer
+
+DATE:
+- 12
+- TDRC
+- - DATE
+- []
+- []
+- "2020"
+
+DESCRIPTION:
+- 13
+- TXXX
+- - DESCRIPTION
+  - QuodLibet::description
+- - COMMENT
+  - Null
+  - ARTIST
+- []
+- str_description
+
+DISCID:
+- 14
+- TXXX
+- []
+- []
+- []
+- str_discid
+
+DISCNUMBER:
+- 15
+- TPOS
+- []
+- []
+- []
+- "2"
+
+GENRE:
+- 16
+- TCON
+- []
+- []
+- []
+- str_genre
+
+ISRC:
+- 17
+- TSRC
+- []
+- []
+- []
+- QZES81947811
+
+LYRICS:
+- 18
+- USLT
+- - UNSYNCEDLYRICS
+- []
+- []
+- str_lyrics
+
+ORIGINALALBUM:
+- 19
+- TOAL
+- []
+- []
+- []
+- str_originalalbum
+
+ORIGINALARTIST:
+- 21
+- TOPE
+- []
+- []
+- []
+- str_originalartist
+
+ORIGINALDATE:
+- 22
+- TDOR
+- []
+- []
+- []
+- "2000-01-01"
+
+PART:
+- 23
+- TSST
+- []
+- []
+- []
+- str_part
+
+TITLE:
+- 24
+- TIT2
+- []
+- []
+- []
+- str_title
+
+TRACKNUMBER:
+- 25
+- TRCK
+- []
+- - TRACKNUMBER
+  - (?P<track>\d*)\/(?P<tracktot>\d*)
+  - str(int(regex.track))
+- []
+- "3"
+
+# List of common ID3 frames
+# "TIT1": "grouping",
+# "TIT2": "Title",
+# "TIT3": "version",
+# "TPE1": "artist",
+# "TPE2": "performer",
+# "TPE3": "conductor",
+# "TPE4": "arranger",
+# "TEXT": "lyricist",
+# "TCOM": "composer",
+# "TENC": "encodedby",
+# "TALB": "album",
+# "TRCK": "Tracknumber",
+# "TPOS": "discnumber",
+# "TSRC": "isrc",
+# "TCOP": "copyright",
+# "TPUB": "organization",
+# "TSST": "discsubtitle",
+# "TOLY": "author",
+# "TMOO": "mood",
+# "TBPM": "bpm",
+# "TDRC": "date",
+# "TDOR": "originaldate",
+# "TOAL": "originalalbum",
+# "TOPE": "originalartist",
+# "WOAR": "website",
+# "TSOP": "artistsort",
+# "TSOA": "albumsort",
+# "TSOT": "Titlesort",
+# "TSO2": "albumartistsort",
+# "TSOC": "composersort",
+# "TMED": "media",
+# "TCMP": "compilation",
