@@ -4,7 +4,7 @@ import sys
 import time
 import unittest
 
-from mmusicc.metadata import Metadata, AlbumMetadata, Div, Empty
+from mmusicc.metadata import Metadata, AlbumMetadata, Div
 
 path_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, path_root)
