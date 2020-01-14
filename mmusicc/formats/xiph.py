@@ -1,9 +1,10 @@
 import mutagen
-from mutagen.flac import FLAC, FLACNoHeaderError
+from mutagen.flac import FLAC
 from mutagen.oggvorbis import OggVorbis
 
-from ._audio import AudioFile
-from ._misc import AudioFileError
+from mmusicc.formats._audio import AudioFile
+from mmusicc.formats._misc import AudioFileError
+from mmusicc.formats._util import scan_dictionary
 
 extensions = [".ogg", ".oga", ".flac"]
 # loader   see bottom
@@ -17,8 +18,20 @@ class MutagenVCFile(AudioFile):
 
     can_change_images = True
 
-    def __init__(self):
-        super().__init__()
+    def __init__(self, file_path, audio):
+        super().__init__(file_path)
+        self._file = audio
+
+    def file_read(self):
+
+        dummy_dict = dict(self._file.tags.copy())
+
+        self.unprocessed_tag.update(
+            scan_dictionary(dummy_dict, self.dict_meta,
+                            MutagenVCFile.dict_tags_str))
+
+    def file_save(self):
+        pass
 
 
 class OggFile(MutagenVCFile):
@@ -46,18 +59,11 @@ def loader(filename):
     Raises:
         AudioFileError
     """
-
     audio = mutagen.File(filename, options=ogg_formats)
-    if audio is None and FLAC is not None:
-        # FLAC with ID3
-        try:
-            audio = FLAC(filename)
-        except FLACNoHeaderError:
-            pass
     if audio is None:
         raise AudioFileError("file type could not be determined")
-    Kind = type(audio)
-    for klass in globals().values():
-        if Kind is getattr(klass, 'MutagenType', None):
-            return klass(filename, audio)
+    mutagen_type = type(audio)
+    for xiph in [FLACFile, OggFile]:
+        if mutagen_type is getattr(xiph, "MutagenType", None):
+            return xiph(filename, audio)
     raise AudioFileError("file type could not be determined")

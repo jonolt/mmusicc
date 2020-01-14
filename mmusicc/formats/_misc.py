@@ -54,17 +54,6 @@ def init():
                 mimes.update(type_.mimes)
             module_names.append(name.split(".")[-1])
 
-        # Migrate pre-0.16 library, which was using an undocumented "feature".
-        sys.modules[name.replace(".", "/")] = form
-        # Migrate old layout
-        if name.startswith("quodlibet."):
-            sys.modules[name.split(".", 1)[1]] = form
-
-    # This can be used for the quodlibet.desktop file
-    desktop_mime_types = "MimeType=" + \
-        ";".join(sorted({m.split(";")[0] for m in mimes})) + ";"
-    print(desktop_mime_types)
-
     s = ", ".join(sorted(module_names))
     print("Supported formats: %s" % s)
 
