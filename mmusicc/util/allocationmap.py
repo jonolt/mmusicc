@@ -2,18 +2,26 @@ import yaml
 import os
 
 
-def get_dictionaries(path=None):
-    list_tui_tags = list()
-    list_tags = list()
-    dict_tags_id3 = dict()
-    dict_id3_tags = dict()
-    dict_tags_str = dict()
-    dict_auto_fill_rules = dict()
-    dict_test_read = None
+list_tui_tags = list()
+list_tags = list()
+dict_tags_id3 = dict()
+dict_id3_tags = dict()
+dict_tags_str = dict()
+dict_str_tags = dict()
+dict_auto_fill_rules = dict()
 
-    if not path:
-        path = os.path.abspath("../config.yaml")
 
+def init_allocationmap(path):
+
+    global list_tui_tags
+    global list_tags
+    global dict_tags_id3
+    global dict_id3_tags
+    global dict_tags_str
+    global dict_str_tags
+    global dict_auto_fill_rules
+
+    path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(path):
         raise FileNotFoundError("config file not found '{}'".format(path))
     with open(path, 'r') as f:
@@ -39,11 +47,6 @@ def get_dictionaries(path=None):
         if len(value) >= 5:
             # placeholder for additional future
             pass
-        # test answer string
-        if len(value) == 6:
-            if not dict_test_read:
-                dict_test_read = dict()
-            dict_test_read[key] = value[5]
 
         list_tags.append(key)
         list_tui_tags[pos - 1] = key
@@ -55,19 +58,10 @@ def get_dictionaries(path=None):
         for val in assertions:
             strings.append(val)
         dict_tags_str[key] = strings
+        for string in strings:
+            dict_str_tags[string] = key
 
     i = len(list_tui_tags) - 1
     while list_tui_tags[i] is None:
         list_tui_tags.pop(i)
         i -= 1
-
-    return {
-        "dict_config": dict_config,
-        "list_tags_sorted": list_tui_tags,
-        "list_tags": list_tags,
-        "dict_tags_id3": dict_tags_id3,
-        "dict_id3_tags": dict_id3_tags,
-        "dict_tags_str": dict_tags_str,
-        "dict_auto_fill_rules": dict_auto_fill_rules,
-        "dict_test_read": dict_test_read,
-    }

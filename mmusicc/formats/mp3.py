@@ -2,8 +2,9 @@
 import mutagen
 
 from mmusicc.formats._audio import AudioFile
-from mmusicc.formats._util import scan_dictionary
+from mmusicc.formats._util import scan_dictionary, text_parser_get
 from mmusicc.metadata import Empty
+from mmusicc.util.allocationmap import dict_id3_tags
 
 # from ._constants import PATH
 
@@ -48,9 +49,9 @@ class MP3File(AudioFile):
                 tags_txxx[frame.desc] = val
             else:
                 try:
-                    tag_key = MP3File.dict_id3_tags.get(frame_id)
+                    tag_key = dict_id3_tags.get(frame_id)
                     if tag_key:
-                        self.dict_meta[tag_key] = val
+                        self.dict_meta[tag_key] = text_parser_get(val)
                     else:
                         raise KeyError("just to run exception code ;-)")
                 except KeyError:
@@ -58,8 +59,7 @@ class MP3File(AudioFile):
 
         if len(tags_txxx) > 0:
             self.unprocessed_tag.update(
-                scan_dictionary(tags_txxx, self.dict_meta,
-                                MP3File.dict_tags_str))
+                scan_dictionary(tags_txxx, self.dict_meta, ignore_none=True))
 
     def file_save(self):
         pass

@@ -5,6 +5,7 @@ import senf
 from mmusicc.util import importhelper
 
 
+# noinspection PyProtectedMember
 def get_module_dir(module=None):
     """Returns the absolute path of a module. If no module is given
     the one this is called from is used.

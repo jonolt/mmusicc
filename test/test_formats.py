@@ -36,16 +36,6 @@ class MyTestCase(unittest.TestCase):
         for m in ["audio/ogg; codecs=vorbis", "audio/vorbis", "audio/mp3"]:
             self.assertIn(m, formats.mimes)
 
-    def test_something2(self):
-        path_source = os.path.join(path_test, "test_read.mp3")
-        audio = formats.MusicFile(path_source)
-        audio.file_read()
-        print(audio.dict_meta)
-        path_source_2 = os.path.join(path_test, "test_read.flac")
-        audio_2 = formats.MusicFile(path_source_2)
-        audio_2.file_read()
-        print(audio.dict_meta)
-
 
 if __name__ == '__main__':
     unittest.main(failfast=True)

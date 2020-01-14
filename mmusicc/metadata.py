@@ -1,8 +1,10 @@
-import yaml
-import os
-import mutagen
 import mimetypes
+import os
 import re
+
+from mmusicc.formats import MusicFile
+import mmusicc.util.allocationmap as am
+from mmusicc.util.path import hash_filename
 
 
 class MetadataDict(dict):
@@ -10,9 +12,7 @@ class MetadataDict(dict):
     def __init__(self, init_value=None):
         super().__init__()
         self._init_value = init_value
-        if not Metadata.class_initialized:
-            Metadata.init_class()
-        for key in Metadata.list_tags:
+        for key in am.list_tags:
             self[key] = init_value
 
     def reset(self):
@@ -23,142 +23,81 @@ class MetadataDict(dict):
 class Metadata:
 
     dry_run = False
-    class_initialized = False
     path_config_yaml = "config.yaml"
     write_empty = True
-
-    dict_config = None
-    list_tags_sorted = None
-    list_tags = None
-    dict_tags_id3 = None
-    dict_id3_tags = None
-    dict_tags_str = None
-    dict_auto_fill_org = None
-    dict_auto_fill_rules = None
-    dict_test_read = None
-
-    @classmethod
-    def init_class(cls):
-        dicts = cls.get_dictionaries(cls.path_config_yaml)
-        cls.dict_config = dicts.get("dict_config")
-        # list_tags_sorted can contain none, while list_tags should not
-        cls.list_tags_sorted = dicts.get("list_tags_sorted")
-        cls.list_tags = dicts.get("list_tags")
-        cls.dict_tags_id3 = dicts.get("dict_tags_id3")
-        cls.dict_id3_tags = dicts.get("dict_id3_tags")
-        cls.dict_tags_str = dicts.get("dict_tags_str")
-        cls.dict_auto_fill_rules = dicts.get("dict_auto_fill_rules")
-        cls.dict_test_read = dicts.get("dict_test_read")
-        cls.class_initialized = True
-
-    @classmethod
-    def get_dictionaries(cls, path=None):
-
-        list_tui_tags = [None] * 20
-        list_tags = list()
-        dict_tags_id3 = dict()
-        dict_id3_tags = dict()
-        dict_tags_str = dict()
-        dict_auto_fill_rules = dict()
-        dict_test_read = None
-
-        if not path:
-            path = cls.path_config_yaml
-
-        if not os.path.exists(path):
-            raise FileNotFoundError("config file not found")
-        with open(path, 'r') as f:
-            dict_config = yaml.safe_load(f)
-        max_pos = max(dict_config.values(), key=lambda x: int(x[0]))[0]
-        if len(list_tui_tags) < max_pos:
-            list_tui_tags = [None] * max_pos
-        for key, value in dict_config.items():
-            key = key.casefold()
-            pos = value[0]
-            id3_tag = value[1]
-            if len(value) >= 3:
-                assertions = set([v.casefold() for v in value[2]])
-            else:
-                assertions = set()
-            if len(value) >= 4:
-                if value[3]:
-                    if len(value[3]) == 3:
-                        value[3][0] = value[3][0].casefold()
-                        if not value[3][1]:
-                            value[3][2] = value[3][2].casefold()
-                    dict_auto_fill_rules[key] = value[3]
-            if len(value) >= 5:
-                # placeholder for additional future
-                pass
-            # test answer string
-            if len(value) == 6:
-                if not dict_test_read:
-                    dict_test_read = dict()
-                dict_test_read[key] = value[5]
-
-            list_tags.append(key)
-            list_tui_tags[pos - 1] = key
-            dict_tags_id3[key] = id3_tag
-            dict_id3_tags[id3_tag] = key
-            strings = []
-            if key not in assertions:
-                strings.append(key)
-            for val in assertions:
-                strings.append(val)
-            dict_tags_str[key] = strings
-
-        i = len(list_tui_tags) - 1
-        while list_tui_tags[i] is None:
-            list_tui_tags.pop(i)
-            i -= 1
-
-        return {
-            "dict_config": dict_config,
-            "list_tags_sorted": list_tui_tags,
-            "list_tags": list_tags,
-            "dict_tags_id3": dict_tags_id3,
-            "dict_id3_tags": dict_id3_tags,
-            "dict_tags_str": dict_tags_str,
-            "dict_auto_fill_rules": dict_auto_fill_rules,
-            "dict_test_read": dict_test_read,
-        }
 
     def __init__(self, file, read_tag=True):
         """
         file can be None, this is tu support album Metadata
 
-        :param file: fuu
         """
-        if not Metadata.class_initialized:
-            Metadata.init_class()
+
+        if not am.list_tags:
+            am.init_allocationmap(Metadata.path_config_yaml)
+
+        self._audio = None
+        self._database = None
+
+        self.dict_data = MetadataDict()
+
         if not file:
             pass
         elif os.path.exists(file):
-            self._file_path = file
-            self._file = mutagen.File(self._file_path)
-            # TODO what happens if file contains no tag?
+            self.link_file(file)
         else:
             raise FileNotFoundError("Error File does not exist")
 
-        self.dict_data = dict()
-        for tag in Metadata.list_tags:
-            self.dict_data[tag] = None
-
-        self.unprocessed_tags = None
         if file and read_tag:
             self.read_tag()
 
         self.dict_auto_fill_org = None
 
     @property
-    def file_name(self):
-        return os.path.splitext(os.path.basename(self._file_path))[0]
+    def audio_file_linked(self):
+        if self._audio:
+            return True
+        return False
+
+    @property
+    def database_linked(self):
+        if self._database:
+            return True
+        return False
+
+    @property
+    def audio_file_path(self):
+        return self._audio.file_path
+
+    @property
+    def audio_file_path_hash(self):
+        return hash_filename(self.audio_file_path)
+
+    def link_file(self, file_path):
+        # TODO check if file is database or audio and call func accordingly
+        self._audio = MusicFile(file_path)
+
+    def read_tag(self):
+        if not self._audio:
+            raise Exception("no file linked")
+        self._audio.file_read()
+        self.dict_data.update(self._audio.dict_meta)
+
+    def import_tag(self, source_meta, whitelist=None, blacklist=None,
+                   remove_other=False):
+        """import metadata from source meta object"""
+        tags = Metadata.process_white_and_blacklist(whitelist, blacklist)
+        for tag in am.list_tags:
+            if tag in tags:
+                self.dict_data[tag] = source_meta.dict_data[tag]
+            else:
+                if remove_other:
+                    self.dict_data[tag] = None
 
     def auto_fill_tag(self):
         if not self.dict_auto_fill_org:
             self.dict_auto_fill_org = MetadataDict(init_value=False)
-        for tag in list(Metadata.dict_auto_fill_rules):
-            rule = self.dict_auto_fill_rules.get(tag)
+        for tag in list(am.dict_auto_fill_rules):
+            rule = am.dict_auto_fill_rules.get(tag)
             val_test = self.dict_data.get(rule[0])
             val_regex = rule[1]
             try:
@@ -177,191 +116,10 @@ class Metadata:
                     self.dict_auto_fill_org[tag] = self.dict_data[tag]
                     self.dict_data[tag] = eval(val_parse)
 
-    def read_tag(self):
-        self.unprocessed_tags = dict()
-        if isinstance(self._file, mutagen.mp3.MP3):
-            self.__read_tag_mp3()
-        if isinstance(self._file, mutagen.flac.FLAC):
-            self.__read_tag_flac()
-
-    def __read_tag_mp3(self):
-
-        tags_txxx = dict()
-
-        for frame in self._file.values():
-            frame_id = frame.FrameID
-            if frame_id == "APIC":
-                continue
-
-            if frame_id in ["TIPL", "TMCL", "IPLS"]:
-                val = frame.people
-                if isinstance(val, list):
-                    flat_list = [item for sublist in val for item in sublist]
-                    val = '\n'.join(flat_list)
-            else:
-                val = frame.text
-                if isinstance(val, list):
-                    if len(val) == 1:
-                        val = val[0]
-                if isinstance(val, mutagen.id3.ID3TimeStamp):
-                    val = val.text
-                elif Empty.is_empty(val):
-                    val = Empty()
-
-            if frame_id == "TXXX":
-                tags_txxx[frame.desc] = val
-            else:
-                try:
-                    tag_key = Metadata.dict_id3_tags.get(frame_id)
-                    if tag_key:
-                        self.dict_data[tag_key] = val
-                    else:
-                        raise KeyError("just to run exception code ;-)")
-                except KeyError:
-                    self.unprocessed_tags[frame.HashKey] = val
-
-        if len(tags_txxx) > 0:
-            self.__read_tag_flac(dict_tags=tags_txxx, ignore_none=True)
-
-    def __read_tag_flac(self, join=True, dict_tags=None, ignore_none=False):
-
-        if not dict_tags:
-            if not self._file.tags:
-                return
-            dummy_dict = dict(self._file.tags.copy())
-        else:
-            dummy_dict = dict_tags
-
-        dummy_dict = {k.casefold(): v for k, v in dummy_dict.items()}
-
-        for key in list(self.dict_data):
-            ret_val = []
-            ret_key = []
-            for k in Metadata.dict_tags_str.get(key):
-                try:
-                    val = dummy_dict.pop(k)
-                    if val:
-                        ret_val.append(val)
-                        ret_key.append(k)
-                except KeyError:
-                    continue
-            if len(ret_val) == 0:
-                val = None
-            else:
-                # take the list and check if entries a double
-                if len(ret_val) > 1:
-                    i = 0
-                    j = 0
-                    while i < len(ret_val):
-                        while j < len(ret_val):
-                            if i == j:
-                                j += 1
-                                continue
-                            if ret_val[i] == ret_val[j]:
-                                print(
-                                    "dropped duplicate pair {}:{}"
-                                    + ", cheeping {}:{}"
-                                    .format(ret_val[i], ret_key[i],
-                                            ret_val[j],
-                                            ret_key[j]))
-                                ret_val.remove(ret_val[i])
-                            j += 1
-                        i += 1
-                    if join:
-                        ret_val = '\n'.join(ret_val)
-                val = ret_val[0]
-
-            if Empty.is_empty(val):
-                val = Empty()
-
-            if ignore_none and Empty.is_empty(val):
-                continue
-
-            self.dict_data[key] = val
-
-        if dummy_dict:
-            self.unprocessed_tags.update(dummy_dict)
-
-        # TODO maybe replace ignore non with read_mp3_sub_func and use the
-        #  variable also, to add "TXXX:" in front of all dummy dict keys
-
-    def write_tag(self, remove_other=True):
-        """write tag to files if remove_other, clear all existing tags
-        first, else overwrite them
-        """
-        if isinstance(self._file, mutagen.mp3.MP3):
-            self.__write_tag_mp3(remove_other=remove_other)
-        if isinstance(self._file, mutagen.flac.FLAC):
-            self.__write_tag_flac(remove_other=remove_other)
-
-    def __write_tag_mp3(self, remove_other=True):
-
-        if self._file.tags and remove_other:
-            self._file.tags = mutagen.id3.ID3()
-
-        for tag in self.list_tags:
-            val = self.dict_data.get(tag)
-            if Empty.is_empty(val) and not Metadata.write_empty:
-                continue
-            if val:
-                if Empty.is_empty(val):
-                    val = Empty.value
-                id3_tag = Metadata.dict_tags_id3.get(tag)
-                try:
-                    self._file.tags[id3_tag] = val
-                except TypeError:
-                    try:
-                        mutagen_id3 = eval("mutagen.id3.%s" % id3_tag)
-                        tmp = mutagen_id3(text=val)
-                    except AttributeError:
-                        mutagen_id3 = mutagen.id3.TXXX
-                        tmp = mutagen_id3(desc=tag, text=val)
-
-                    self._file.tags.add(tmp)
-
-        if not Metadata.dry_run:
-            print("write mp3")
-            self._file.save(v1=2, v2_version=4)
-
-    def __write_tag_flac(self, remove_other=True):
-
-        if self._file.tags and remove_other:
-            self._file.delete()
-
-        if self._file.tags is None:
-            self._file.add_tags()
-
-        for tag in self.list_tags:
-
-            val = self.dict_data.get(tag)
-
-            if Empty.is_empty(val):
-                if Metadata.write_empty:
-                    val = Empty.value
-                else:
-                    continue
-
-            self._file.tags[tag] = val
-
-        if not Metadata.dry_run:
-            print("write flac")
-            self._file.save()
-
-    def import_tag(self, source_meta, whitelist=None, blacklist=None,
-                   remove_other=False):
-        """import metadata from source meta object"""
-        tags = Metadata.process_white_and_blacklist(whitelist, blacklist)
-        for tag in self.list_tags:
-            if tag in tags:
-                self.dict_data[tag] = source_meta.dict_data[tag]
-            else:
-                if remove_other:
-                    self.dict_data[tag] = None
-
     @staticmethod
     def process_white_and_blacklist(whitelist, blacklist):
         if not whitelist:
-            whitelist = Metadata.list_tags
+            whitelist = am.list_tags
         if blacklist:
             for t in blacklist:
                 try:
@@ -402,7 +160,7 @@ class GroupMetadata(Metadata):
         self.__compare_tags()
 
     def __compare_tags(self):
-        for key in GroupMetadata.list_tags:
+        for key in am.list_tags:
             first = True
             for metadata in self.list_metadata:
                 data = metadata.dict_data.get(key)
@@ -461,10 +219,10 @@ class Empty(object):
 
     @staticmethod
     def is_empty(text):
-        if text is None or isinstance(text, Empty) or text.strip() == "":
-            return True
-        else:
-            return False
+        if text is None or isinstance(text, Empty):
+            if isinstance(text, str) and text.strip() == "":
+                return True
+        return False
 
 
 class Div(object):
@@ -500,7 +258,3 @@ class Div(object):
 
     def add_value(self, obj, val):
         self._dict_values[obj] = val
-
-#    def add_dict(self, dict):
-#        """dict<obj:val>"""
-#        pass
