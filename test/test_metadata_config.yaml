@@ -27,7 +27,6 @@ ALBUM:
 - []
 - []
 - []
-- str_album
 
 ALBUMARTIST:
 - 2
@@ -38,7 +37,6 @@ ALBUMARTIST:
   - Null
   - ARTIST
 - []
-- str_albumartist
 
 ALBUMARTISTSORT:
 - 3
@@ -48,7 +46,6 @@ ALBUMARTISTSORT:
   - Null
   - ARTIST
 - []
-- str_albumartistsort
 
 ALBUMSORT:
 - 4
@@ -58,7 +55,6 @@ ALBUMSORT:
   - Null
   - ARTIST
 - []
-- str_albumsort
 
 ARRANGER:
 - 5
@@ -68,7 +64,6 @@ ARRANGER:
   - Null
   - ARTIST
 - []
-- "str_arranger_A\nstr_arranger_B"
 
 ARTIST:
 - 6
@@ -76,7 +71,6 @@ ARTIST:
 - []
 - []
 - []
-- str_artist
 
 ARTISTSORT:
 - 7
@@ -86,7 +80,6 @@ ARTISTSORT:
   - Null
   - ARTIST
 - []
-- str_artistsort
 
 BPM:
 - 8
@@ -94,7 +87,6 @@ BPM:
 - []
 - []
 - []
-- "128"
 
 COMMENT:
 - 9
@@ -104,7 +96,6 @@ COMMENT:
   - Null
   - ARTIST
 - []
-- str_comment
 
 COMPOSER:
 - 11
@@ -112,7 +103,6 @@ COMPOSER:
 - []
 - []
 - []
-- str_composer
 
 DATE:
 - 12
@@ -120,7 +110,6 @@ DATE:
 - - DATE
 - []
 - []
-- "2020"
 
 DESCRIPTION:
 - 13
@@ -131,7 +120,6 @@ DESCRIPTION:
   - Null
   - ARTIST
 - []
-- str_description
 
 DISCID:
 - 14
@@ -139,7 +127,6 @@ DISCID:
 - []
 - []
 - []
-- str_discid
 
 DISCNUMBER:
 - 15
@@ -147,7 +134,6 @@ DISCNUMBER:
 - []
 - []
 - []
-- "2"
 
 GENRE:
 - 16
@@ -155,7 +141,6 @@ GENRE:
 - []
 - []
 - []
-- str_genre
 
 ISRC:
 - 17
@@ -163,7 +148,6 @@ ISRC:
 - []
 - []
 - []
-- QZES81947811
 
 LYRICS:
 - 18
@@ -171,7 +155,6 @@ LYRICS:
 - - UNSYNCEDLYRICS
 - []
 - []
-- str_lyrics
 
 ORIGINALALBUM:
 - 19
@@ -179,7 +162,6 @@ ORIGINALALBUM:
 - []
 - []
 - []
-- str_originalalbum
 
 ORIGINALARTIST:
 - 21
@@ -187,7 +169,6 @@ ORIGINALARTIST:
 - []
 - []
 - []
-- str_originalartist
 
 ORIGINALDATE:
 - 22
@@ -195,7 +176,6 @@ ORIGINALDATE:
 - []
 - []
 - []
-- "2000-01-01"
 
 PART:
 - 23
@@ -203,7 +183,6 @@ PART:
 - []
 - []
 - []
-- str_part
 
 TITLE:
 - 24
@@ -211,7 +190,6 @@ TITLE:
 - []
 - []
 - []
-- str_title
 
 TRACKNUMBER:
 - 25
@@ -221,7 +199,6 @@ TRACKNUMBER:
   - (?P<track>\d*)\/(?P<tracktot>\d*)
   - str(int(regex.track))
 - []
-- "3"
 
 # List of common ID3 frames
 # "TIT1": "grouping",
