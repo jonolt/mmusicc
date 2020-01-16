@@ -1,3 +1,4 @@
+import logging
 import os
 import sys
 import importlib.util as import_util
@@ -12,7 +13,7 @@ def load_dir_modules(path, package):
     try:
         modules = [e[0] for e in get_importables(path)]
     except OSError:
-        print("%r not found" % path)
+        logging.error("%r not found" % path)
         return []
 
     # get_importables can yield py and pyc for the same module
@@ -24,7 +25,7 @@ def load_dir_modules(path, package):
         try:
             mod = load_module(name, package, path)
         except Exception as ex:
-            print(ex)
+            logging.error(ex)
             continue
         if mod:
             loaded.append(mod)

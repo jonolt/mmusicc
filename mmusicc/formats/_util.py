@@ -1,3 +1,4 @@
+import logging
 from mmusicc.metadata import Empty
 from mmusicc.util.allocationmap import dict_str_tags
 
@@ -32,7 +33,7 @@ def scan_dictionary(dict_tags, dict_data, ignore_none=False):
                         j += 1
                         continue
                     if kv_pairs[i][1] == kv_pairs[j][1]:
-                        print(
+                        logging.info(
                             "dropped duplicate pair {}:{}"
                             + ", cheeping {}:{}"
                             .format(kv_pairs[i][1], kv_pairs[i][2],

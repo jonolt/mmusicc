@@ -3,6 +3,7 @@ import os
 import senf
 
 from mmusicc.util import importhelper
+from mmusicc.util.logger import init_logger
 
 
 # noinspection PyProtectedMember

@@ -1,3 +1,4 @@
+import logging
 import os
 
 from mmusicc import util
@@ -47,7 +48,8 @@ def init():
             module_names.append(name.split(".")[-1])
 
     s = ", ".join(sorted(module_names))
-    print("Supported formats: %s" % s)
+
+    logging.info("Initialized modules. Supported formats: {}.".format(s))
 
     if not loaders:
         raise SystemExit("No formats found!")
@@ -57,7 +59,6 @@ def get_loader(filename):
     """Returns a callable which takes a filename and returns
     AudioFile or raises AudioFileError, or returns None.
     """
-
     ext = os.path.splitext(filename)[-1]
     return loaders.get(ext.lower())
 
@@ -65,12 +66,11 @@ def get_loader(filename):
 # noinspection PyPep8Naming
 def MusicFile(filename):
     """Returns a AudioFile instance or None"""
-
     loader = get_loader(filename)
     if loader is not None:
         return loader(filename)
     else:
-        print("Filetype not supported")
+        logging.error("Filetype not supported")
 
 
 def ext_supported(filename):

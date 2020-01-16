@@ -5,7 +5,8 @@ import time
 import unittest
 
 from mmusicc.metadata import Metadata, AlbumMetadata, Div
-import mmusicc.formats as formats
+# from mmusicc import init
+import mmusicc
 
 path_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, path_root)
@@ -46,7 +47,7 @@ class TestMetadata(unittest.TestCase):
         Metadata.path_config_yaml = "test_metadata_config.yaml"
         print("Creating new test folder at {}".format(path_test))
         shutil.copytree(path_media, path_test)
-        formats.init()
+        mmusicc.init()
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -87,7 +88,4 @@ class TestMetadata(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    try:
-        unittest.main()
-    finally:
-        TestMetadata.tearDownClass()
+    unittest.main()

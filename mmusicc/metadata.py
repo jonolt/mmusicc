@@ -1,3 +1,4 @@
+import logging
 import mimetypes
 import os
 import re
@@ -125,7 +126,7 @@ class Metadata:
                 try:
                     whitelist.pop(whitelist.index(t))
                 except ValueError:
-                    print("warning {} not in whitelist".format(t))
+                    logging.warning("warning {} not in whitelist".format(t))
                     continue
         return whitelist
 
