@@ -33,39 +33,39 @@ class MP3File(AudioFile):
                 continue
 
             if frame_id in PAIRED_TEXT_FRAMES:
-                val = frame.people
-                if isinstance(val, list):
+                tag_val = frame.people
+                if isinstance(tag_val, list):
                     # val = [item for sublist in val for item in sublist]
                     flat_list = list()
-                    for sublist in val:
+                    for sublist in tag_val:
                         if sublist[0] == u'':
                             flat_list.append(sublist[1])
                         elif sublist[1] == u'':
                             flat_list.append(sublist[0])
                         else:
                             flat_list.extend(sublist)
-                    val = flat_list
+                    tag_val = flat_list
             else:
-                val = frame.text
-                if isinstance(val, list):
-                    if len(val) == 1:
-                        val = val[0]
-                if isinstance(val, mutagen.id3.ID3TimeStamp):
-                    val = val.text
-                elif Empty.is_empty(val):
-                    val = Empty()
+                tag_val = frame.text
+                if isinstance(tag_val, list):
+                    if len(tag_val) == 1:
+                        tag_val = tag_val[0]
+                if isinstance(tag_val, mutagen.id3.ID3TimeStamp):
+                    tag_val = tag_val.text
+                elif Empty.is_empty(tag_val):
+                    tag_val = Empty()
 
             if frame_id == "TXXX":
-                tags_txxx[frame.desc] = val
+                tags_txxx[frame.desc] = tag_val
             else:
                 try:
                     tag_key = dict_id3_tags.get(frame_id)
                     if tag_key:
-                        self.dict_meta[tag_key] = text_parser_get(val)
+                        self.dict_meta[tag_key] = text_parser_get(tag_val)
                     else:
                         raise KeyError("just to run exception code ;-)")
                 except KeyError:
-                    self.unprocessed_tag[frame.HashKey] = val
+                    self.unprocessed_tag[frame.HashKey] = tag_val
 
         if len(tags_txxx) > 0:
             self.unprocessed_tag.update(
@@ -83,17 +83,17 @@ class MP3File(AudioFile):
 
         if audio.tags is None:
             audio.add_tags()
-        tag = audio.tags
+        tags = audio.tags
 
         if remove_existing:
-            for t in list(tag):
-                del(tag[t])
+            for t in list(tags):
+                del(tags[t])
 
-        for tag, value in self.dict_meta.items():
-            id3_tag = dict_tags_id3.get(tag)
+        for tag_key, value in self.dict_meta.items():
+            id3_tag = dict_tags_id3.get(tag_key)
             frame = eval("mutagen.id3.{}()".format(id3_tag))
             if frame.FrameID == "TXXX":
-                frame.desc = tag
+                frame.desc = tag_key
             MP3File.set_frame_text(frame, value)
             audio.tags.add(frame)
 

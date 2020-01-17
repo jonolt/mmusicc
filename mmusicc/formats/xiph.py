@@ -28,17 +28,17 @@ class MutagenVCFile(AudioFile):
         dict_tmp = dict()
         tags = self._file.tags.copy()
         for tag in tags:
-            if tag[0] in dict_tmp:
-                if isinstance(dict_tmp[tag[0]], str):
-                    dict_tmp[tag[0]] = [dict_tmp[tag[0]]]
-                dict_tmp[tag[0]].append(tag[1])
+            tag_key = tag[0]
+            tag_val = tag[1]
+            if tag_key in dict_tmp:
+                if isinstance(dict_tmp[tag_key], str):
+                    dict_tmp[tag_key] = [dict_tmp[tag_key]]
+                dict_tmp[tag_key].append(tag_val)
             else:
-                dict_tmp[tag[0]] = tag[1]
-
-        dummy_dict = dict_tmp  # dict(self._file.tags.copy())
+                dict_tmp[tag_key] = tag_val
 
         self.unprocessed_tag.update(
-            scan_dictionary(dummy_dict, self.dict_meta, dict_tags_str))
+            scan_dictionary(dict_tmp, self.dict_meta, dict_tags_str))
 
     def file_save(self, remove_existing=False):
 

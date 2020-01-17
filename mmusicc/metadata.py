@@ -49,7 +49,7 @@ class Metadata:
             raise FileNotFoundError("Error File does not exist")
 
         if file and read_tag:
-            self.read_tag()
+            self.read_tags()
 
         self.dict_auto_fill_org = None
 
@@ -77,20 +77,20 @@ class Metadata:
         # TODO check if file is database or audio and call func accordingly
         self._audio = MusicFile(file_path)
 
-    def read_tag(self):
+    def read_tags(self):
         if not self._audio:
             raise Exception("no file linked")
         self._audio.file_read()
         self.dict_data.update(self._audio.dict_meta)
 
-    def write_tag(self, remove_other=True):
+    def write_tags(self, remove_other=True):
         if remove_other:
             self._audio.dict_meta = dict()
         self._audio.dict_meta.update(self.dict_data)
         self._audio.file_save(remove_existing=remove_other)
 
-    def import_tag(self, source_meta, whitelist=None, blacklist=None,
-                   remove_other=False):
+    def import_tags(self, source_meta, whitelist=None, blacklist=None,
+                    remove_other=False):
         """import metadata from source meta object"""
         tags = Metadata.process_white_and_blacklist(whitelist, blacklist)
         for tag in am.list_tags:
@@ -100,7 +100,7 @@ class Metadata:
                 if remove_other:
                     self.dict_data[tag] = None
 
-    def auto_fill_tag(self):
+    def auto_fill_tags(self):
         if not self.dict_auto_fill_org:
             self.dict_auto_fill_org = MetadataDict(init_value=False)
         for tag in list(am.dict_auto_fill_rules):
@@ -150,20 +150,20 @@ class GroupMetadata(Metadata):
     def __init__(self, list_metadata):
         super().__init__(None)
         self.list_metadata = list_metadata
-        self.read_tag()
+        self.read_tags()
 
         self.dict_auto_fill_org = None
 
-    def auto_fill_tag(self):
+    def auto_fill_tags(self):
         if not self.dict_auto_fill_org:
             self.dict_auto_fill_org = MetadataDict(init_value=False)
         for metadata in self.list_metadata:
-            metadata.auto_fill_tag()
+            metadata.auto_fill_tags()
         self.__compare_tags()
 
-    def read_tag(self):
+    def read_tags(self):
         for metadata in self.list_metadata:
-            metadata.read_tag()
+            metadata.read_tags()
         self.__compare_tags()
 
     def __compare_tags(self):
@@ -181,19 +181,19 @@ class GroupMetadata(Metadata):
                         self.dict_data[key] = Div(key, self.list_metadata)
                         break
 
-    def write_tag(self, remove_other=True):
+    def write_tags(self, remove_other=True):
         for metadata in self.list_metadata:
-            metadata.write_tag(remove_other=remove_other)
+            metadata.write_tags(remove_other=remove_other)
 
-    def import_tag(self, source_meta, whitelist=None, blacklist=None,
-                   remove_other=False):
+    def import_tags(self, source_meta, whitelist=None, blacklist=None,
+                    remove_other=False):
 
         # tags = Metadata.process_white_and_blacklist(whitelist, blacklist)
 
         for metadata_self in self.list_metadata:
             for metadata_source in source_meta.list_metadata:
                 if metadata_self.file_name == metadata_source.file_name:
-                    metadata_self.import_tag(
+                    metadata_self.import_tags(
                         metadata_source,
                         whitelist=whitelist,
                         blacklist=blacklist,

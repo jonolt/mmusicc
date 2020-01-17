@@ -113,14 +113,14 @@ class TestMetadata(unittest.TestCase):
         path_source = os.path.join(path_test, "test_read.mp3")
         source = Metadata(path_source)
         append_2(source.dict_data)
-        source.write_tag(remove_other=True)
+        source.write_tags(remove_other=True)
         self.read_and_compare_file(path_source, dict_answer_2)
 
     def test_0102_save_file_flac(self):
         path_source = os.path.join(path_test, "test_read.flac")
         source = Metadata(path_source)
         append_2(source.dict_data)
-        source.write_tag(remove_other=True)
+        source.write_tags(remove_other=True)
         self.read_and_compare_file(path_source, dict_answer_2)
 
     def read_and_compare_file(self, path, cmp_dict, exclude=None):

@@ -1,7 +1,6 @@
 import logging
 
-from mmusicc.formats._constants import *
-from mmusicc.util.path import hash_filename
+from mmusicc.util.path import PATH, hash_filename
 
 
 class AudioFile:

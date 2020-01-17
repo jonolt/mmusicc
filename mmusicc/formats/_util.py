@@ -20,19 +20,19 @@ def scan_dictionary(dict_tags, dict_data, ignore_none=False):
 
     for key_str in list(dict_dummy):
         try:
-            key = dict_str_tags[key_str]
+            tag_key = dict_str_tags[key_str]
         except KeyError:
             continue
         try:
-            val = dict_dummy.pop(key_str)
-            if val:
-                if key not in dict_tmp:
-                    dict_tmp[key] = list()
-                dict_tmp[key].append((key_str, val))
+            tag_val = dict_dummy.pop(key_str)
+            if tag_val:
+                if tag_key not in dict_tmp:
+                    dict_tmp[tag_key] = list()
+                dict_tmp[tag_key].append((key_str, tag_val))
         except KeyError:
             continue
 
-    for key, kv_pairs in dict_tmp.items():
+    for tag_key, kv_pairs in dict_tmp.items():
         if len(kv_pairs) > 1:
             # take the list and check if entries a double
             i = 0
@@ -51,18 +51,18 @@ def scan_dictionary(dict_tags, dict_data, ignore_none=False):
                         kv_pairs.remove(kv_pairs[i])
                     j += 1
                 i += 1
-            val = [kv_pairs[i][1] for i in range(len(kv_pairs))]
+            tag_val = [kv_pairs[i][1] for i in range(len(kv_pairs))]
         else:
-            val = kv_pairs[0][1]
-            val = text_parser_get(val)
+            tag_val = kv_pairs[0][1]
+            tag_val = text_parser_get(tag_val)
 
-        if Empty.is_empty(val):
-            val = Empty()
+        if Empty.is_empty(tag_val):
+            tag_val = Empty()
 
-        if ignore_none and Empty.is_empty(val):
+        if ignore_none and Empty.is_empty(tag_val):
             continue
 
-        dict_data[key] = val
+        dict_data[tag_key] = tag_val
 
     return dict_dummy
 

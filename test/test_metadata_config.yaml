@@ -14,7 +14,7 @@
 # 3 optional  - - Autofill source tag to run logic test or regex on
 #               - Autofill data acquisition regex or Null
 #               - Autofill parser write Tag or string.Formatter (with regex named groups)
-# 4 optional  - Reserved spce for additional function
+# 4 optional  - Reserved space for additional function
 # 5 optional  - control answer for unittest assert with given test files
 #
 # *names of how the tags to be written in vorbis comment or TXXX description
