@@ -10,3 +10,18 @@ mmusicc shall not replace a metadata editor but provide methods for automated sy
 
 - Program internal, all tags and assertion values are saved lowercase (casefold), except ID3 tags which are uppercase.
 
+
+### Behaviour Metadata
+
+2) multivalues are internally saved as list
+2) multiple values in one string, which are divided by a char, will be extracted to multivalues and saved as in 1, when char is given. TODO global split char
+
+#### xiph
+
+1) multivalues of a key are writen as multiple texts, 
+
+#### mp3
+
+2) no format checking of values (e.g. TimeStampTextFrame)
+1) paired text frames are extracted to a flat list
+2) the flat list of paired text frames is writen as [u'', list[i]]

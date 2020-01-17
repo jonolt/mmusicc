@@ -1,16 +1,17 @@
-# from mutagen.mp3 import MP3
+# import logging
 import mutagen
 
 from mmusicc.formats._audio import AudioFile
-from mmusicc.formats._util import scan_dictionary, text_parser_get
+from mmusicc.formats._util import (scan_dictionary, text_parser_get,
+                                   join_str_list)
 from mmusicc.metadata import Empty
-from mmusicc.util.allocationmap import dict_id3_tags
-
-# from ._constants import PATH
+from mmusicc.util.allocationmap import dict_id3_tags, dict_tags_id3
 
 extensions = [".mp3", ".mp2", ".mp1", ".mpg", ".mpeg"]
 # loader   see bottom
 # types    see bottom
+
+PAIRED_TEXT_FRAMES = ["TIPL", "TMCL", "IPLS"]
 
 
 class MP3File(AudioFile):
@@ -31,10 +32,19 @@ class MP3File(AudioFile):
             if frame_id == "APIC":
                 continue
 
-            if frame_id in ["TIPL", "TMCL", "IPLS"]:
+            if frame_id in PAIRED_TEXT_FRAMES:
                 val = frame.people
                 if isinstance(val, list):
-                    val = [item for sublist in val for item in sublist]
+                    # val = [item for sublist in val for item in sublist]
+                    flat_list = list()
+                    for sublist in val:
+                        if sublist[0] == u'':
+                            flat_list.append(sublist[1])
+                        elif sublist[1] == u'':
+                            flat_list.append(sublist[0])
+                        else:
+                            flat_list.extend(sublist)
+                    val = flat_list
             else:
                 val = frame.text
                 if isinstance(val, list):
@@ -61,8 +71,65 @@ class MP3File(AudioFile):
             self.unprocessed_tag.update(
                 scan_dictionary(tags_txxx, self.dict_meta, ignore_none=True))
 
-    def file_save(self):
-        pass
+    def file_save(self, remove_existing=False, remove_v1=False):
+
+        if not self.check_file_path():
+            self._file.tags.filename = self.file_path
+
+        if self._file.tags is None:
+            self._file.add_tags()
+
+        audio = self._file
+
+        if audio.tags is None:
+            audio.add_tags()
+        tag = audio.tags
+
+        if remove_existing:
+            for t in list(tag):
+                del(tag[t])
+
+        for tag, value in self.dict_meta.items():
+            id3_tag = dict_tags_id3.get(tag)
+            frame = eval("mutagen.id3.{}()".format(id3_tag))
+            if frame.FrameID == "TXXX":
+                frame.desc = tag
+            MP3File.set_frame_text(frame, value)
+            audio.tags.add(frame)
+
+        if remove_v1:
+            v1 = 0  # ID3v1 tags will be removed
+        else:  # 1  # ID3v1 tags will be updated  but not added
+            v1 = 2  # ID3v1 tags will be created and / or updated
+
+        audio.save(v1=v1, v2_version=4, v23_sep=None)
+
+    @staticmethod
+    def set_frame_text(frame, text):
+        if frame.FrameID in PAIRED_TEXT_FRAMES:  # hasattr(frame, "people"):
+            paired_text = list()
+            if isinstance(text, str):
+                text = [text]
+            for t in text:
+                if isinstance(t, str):
+                    paired_text.append([u'', t])
+                elif isinstance(t, list) and len(t) == 2:
+                    paired_text.append(t)
+                else:
+                    raise ValueError("cant parse paired text")
+            frame.people = mutagen.id3.PairedTextFrame(
+                mutagen.id3.Encoding.UTF8, paired_text).people
+        else:
+            if isinstance(text, list):
+                text = join_str_list(text)
+            frame.text = text
+        frame.encoding = mutagen.id3.Encoding.UTF8
+        try:
+            lang = frame.lang
+            if not lang:
+                frame.lang = "XXX"
+        except AttributeError:
+            pass
 
 
 loader = MP3File

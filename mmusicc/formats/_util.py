@@ -1,6 +1,14 @@
 import logging
+
 from mmusicc.metadata import Empty
 from mmusicc.util.allocationmap import dict_str_tags
+
+SPLIT_CHAR = ['|', '\n', ";"]
+JOIN_CHAR = ";"
+
+
+def join_str_list(str_list):
+    return JOIN_CHAR.join(str_list)
 
 
 def scan_dictionary(dict_tags, dict_data, ignore_none=False):
@@ -18,7 +26,9 @@ def scan_dictionary(dict_tags, dict_data, ignore_none=False):
         try:
             val = dict_dummy.pop(key_str)
             if val:
-                dict_tmp[key] = [(key_str, val)]
+                if key not in dict_tmp:
+                    dict_tmp[key] = list()
+                dict_tmp[key].append((key_str, val))
         except KeyError:
             continue
 
@@ -65,7 +75,7 @@ def text_parser_get(text):
         return tmp_text
     elif isinstance(text, str):
         # TODO replace char list with constant
-        for c in ['|', '\n']:
+        for c in SPLIT_CHAR:
             tmp_text = text.split(c)
             if len(tmp_text) > 0:
                 text = tmp_text

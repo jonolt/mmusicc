@@ -3,8 +3,8 @@ import mimetypes
 import os
 import re
 
-from mmusicc.formats import MusicFile
 import mmusicc.util.allocationmap as am
+from mmusicc.formats import MusicFile
 from mmusicc.util.path import hash_filename
 
 
@@ -82,6 +82,12 @@ class Metadata:
             raise Exception("no file linked")
         self._audio.file_read()
         self.dict_data.update(self._audio.dict_meta)
+
+    def write_tag(self, remove_other=True):
+        if remove_other:
+            self._audio.dict_meta = dict()
+        self._audio.dict_meta.update(self.dict_data)
+        self._audio.file_save(remove_existing=remove_other)
 
     def import_tag(self, source_meta, whitelist=None, blacklist=None,
                    remove_other=False):

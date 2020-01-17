@@ -25,13 +25,38 @@ class MutagenVCFile(AudioFile):
 
     def file_read(self):
 
-        dummy_dict = dict(self._file.tags.copy())
+        dict_tmp = dict()
+        tags = self._file.tags.copy()
+        for tag in tags:
+            if tag[0] in dict_tmp:
+                if isinstance(dict_tmp[tag[0]], str):
+                    dict_tmp[tag[0]] = [dict_tmp[tag[0]]]
+                dict_tmp[tag[0]].append(tag[1])
+            else:
+                dict_tmp[tag[0]] = tag[1]
+
+        dummy_dict = dict_tmp  # dict(self._file.tags.copy())
 
         self.unprocessed_tag.update(
             scan_dictionary(dummy_dict, self.dict_meta, dict_tags_str))
 
-    def file_save(self):
-        pass
+    def file_save(self, remove_existing=False):
+
+        self.check_file_path()
+
+        if self._file.tags is None:
+            self._file.add_tags()
+
+        audio = self._file
+        new_tag = self.dict_meta
+
+        if remove_existing:
+            to_remove = [z for z in audio if z not in new_tag]
+            for z in to_remove:
+                del (audio[z])
+
+        self._file.update(new_tag)
+        self._file.save()
 
 
 class OggFile(MutagenVCFile):

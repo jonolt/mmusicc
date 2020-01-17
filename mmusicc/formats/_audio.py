@@ -1,17 +1,16 @@
+import logging
+
 from mmusicc.formats._constants import *
 from mmusicc.util.path import hash_filename
 
 
 class AudioFile:
 
-    # TODO put in config file
-    chars_split = ['|', '\n']
-    char_join = ['|']  # only for mp3 an when flac join is true
-
     def __init__(self, file_path):
         self.set_file_path(file_path)
         self.dict_meta = dict()
         self.unprocessed_tag = dict()
+        self._file = None
 
     @property
     def file_path(self):
@@ -25,9 +24,13 @@ class AudioFile:
     def file_read(self):
         raise NotImplementedError
 
-    def file_save(self):
+    def file_save(self, remove_existing=False):
         raise NotImplementedError
 
-    def import_tag(self):
-        """Import tag from other audio file"""
-        pass
+    def check_file_path(self):
+        file_path = self.file_path
+        if self.file_path != self._file.filename:
+            self._file.filename = file_path
+            logging.warning("File paths do not match!")
+            return False
+        return True
