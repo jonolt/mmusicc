@@ -61,16 +61,16 @@ dict_answer_2 = append_2(dict_answer.copy())
 
 
 class TestMetadata(unittest.TestCase):
-
     assert_counter = 0
     assert_counter_single = 0
     assert_counter_single_list = list()
+    path_database = os.path.join(path_test, "metadb.db")
 
     @classmethod
     def setUpClass(cls):
-        Metadata.path_config_yaml = "test_metadata_config.yaml"
         print("Creating new test folder at {}".format(path_test))
         shutil.copytree(path_media, path_test)
+        Metadata.path_config_yaml = "test_metadata_config.yaml"
         cls.assert_counter = 0
         mmusicc.init()
 
@@ -102,12 +102,12 @@ class TestMetadata(unittest.TestCase):
     def test_0011_load_album_mp3(self):
         """check if all metadata is loaded correctly from file to dict"""
         path_source = os.path.join(path_test, "mp3")
-        self.album_tests(path_source)
+        self.album_tests(AlbumMetadata(path_source))
 
     def test_0012_load_album_flac(self):
         """check if all metadata is loaded correctly from file to dict"""
         path_source = os.path.join(path_test, "flac")
-        self.album_tests(path_source)
+        self.album_tests(AlbumMetadata(path_source))
 
     def test_0101_save_file_mp3(self):
         path_source = os.path.join(path_test, "test_read.mp3")
@@ -123,6 +123,40 @@ class TestMetadata(unittest.TestCase):
         source.write_tags(remove_other=True)
         self.read_and_compare_file(path_source, dict_answer_2)
 
+    def test_1000_database_is_there(self):
+        m = Metadata(None)
+        Metadata.link_database(TestMetadata.path_database)
+        self.assertTrue(os.path.exists(TestMetadata.path_database))
+        self.assertTrue(Metadata.database_linked)
+        Metadata.unlink_database()
+        self.assertFalse(Metadata._database_linked())
+        Metadata.link_database(TestMetadata.path_database)
+        self.assertTrue(m.database_linked)
+
+    def test_1001_database_write(self):
+        path_source = os.path.join(path_test, "test_read.flac")
+        source = Metadata(path_source)
+        source.save_tags_db()
+
+    def test_1101_database_write_album(self):
+        path_source = os.path.join(path_test, "flac")
+        am = AlbumMetadata(path_source)
+        am.save_tags_db()
+
+    def test_1011_database_read(self):
+        path_source = os.path.join(path_test, "test_read.flac")
+        new_source = Metadata(None)
+        path_new_source = os.path.join(path_test, "test_empty.flac")
+        new_source.set_file_path(path_new_source)
+        new_source.load_tags_db(path_source)
+        self.read_and_compare_file(path_source, dict_answer_2)
+
+    def test_1111_database_read_album(self):
+        path_source = os.path.join(path_test, "flac")
+        am = AlbumMetadata(path_source)
+        am.read_tags()
+        self.album_tests(am)
+
     def read_and_compare_file(self, path, cmp_dict, exclude=None):
         source = Metadata(path)
         self.read_and_compare(source, cmp_dict, exclude=exclude)
@@ -136,9 +170,8 @@ class TestMetadata(unittest.TestCase):
             self.assertEqual(cmp_dict.get(tag), meta.dict_data.get(tag))
             TestMetadata.assert_counter_single += 1
 
-    def album_tests(self, path):
+    def album_tests(self, meta):
         divs = ["title", "tracknumber"]
-        meta = AlbumMetadata(path)
         self.read_and_compare(meta, dict_answer, exclude=divs)
         for tag in divs:
             self.assertIsInstance(meta.dict_data.get(tag), Div)

@@ -4,8 +4,12 @@ import os
 import re
 
 import mmusicc.util.allocationmap as am
+from mmusicc.database import MetaDB
 from mmusicc.formats import MusicFile
-from mmusicc.util.path import hash_filename
+from mmusicc.util.path import PATH, hash_filename
+
+
+# TODO move filepath to Metadata
 
 
 class MetadataDict(dict):
@@ -27,6 +31,8 @@ class Metadata:
     path_config_yaml = "config.yaml"
     write_empty = True
 
+    _database = None
+
     def __init__(self, file, read_tag=True):
         """
         file can be None, this is tu support album Metadata
@@ -37,14 +43,13 @@ class Metadata:
             am.init_allocationmap(Metadata.path_config_yaml)
 
         self._audio = None
-        self._database = None
 
         self.dict_data = MetadataDict()
 
         if not file:
             pass
         elif os.path.exists(file):
-            self.link_file(file)
+            self.link_audio_file(file)
         else:
             raise FileNotFoundError("Error File does not exist")
 
@@ -54,36 +59,65 @@ class Metadata:
         self.dict_auto_fill_org = None
 
     @property
+    def database_linked(self):
+        return Metadata._database_linked()
+
+    @classmethod
+    def _database_linked(cls):
+        if cls._database:
+            return True
+        return False
+
+    @classmethod
+    def link_database(cls, file_path):
+        if not cls._database:
+            cls._database = MetaDB(file_path)
+        else:
+            raise Exception("Database already linked")
+
+    @classmethod
+    def unlink_database(cls):
+        if cls._database:
+            cls._database = None
+        else:
+            raise Exception("No Database linked")
+
+    @property
+    def file_path(self):
+        return getattr(self, PATH)
+
+    def set_file_path(self, path):
+        tmp_fn_hash = hash_filename(path)
+        for key in hash_filename(path):
+            setattr(self, key, tmp_fn_hash[key])
+
+    @property
+    def file_path_set(self):
+        if self.file_path:
+            return True
+        return False
+
+    @property
     def audio_file_linked(self):
         if self._audio:
             return True
         return False
 
-    @property
-    def database_linked(self):
-        if self._database:
-            return True
-        return False
-
-    @property
-    def audio_file_path(self):
-        return self._audio.file_path
-
-    @property
-    def audio_file_path_hash(self):
-        return hash_filename(self.audio_file_path)
-
-    def link_file(self, file_path):
-        # TODO check if file is database or audio and call func accordingly
+    def link_audio_file(self, file_path):
+        self.set_file_path(file_path)
         self._audio = MusicFile(file_path)
 
-    def read_tags(self):
+    def read_tags(self, remove_other=False):
         if not self._audio:
             raise Exception("no file linked")
         self._audio.file_read()
+        if remove_other:
+            self.dict_data.reset()
         self.dict_data.update(self._audio.dict_meta)
 
     def write_tags(self, remove_other=True):
+        if not self._audio:
+            raise Exception("no file linked")
         if remove_other:
             self._audio.dict_meta = dict()
         self._audio.dict_meta.update(self.dict_data)
@@ -99,6 +133,27 @@ class Metadata:
             else:
                 if remove_other:
                     self.dict_data[tag] = None
+
+    def load_tags_db(self, primary_key=None, whitelist=None, blacklist=None,
+                     remove_other=False):
+        if not primary_key:
+            if self.file_path_set:
+                primary_key = self.file_path
+        tags = Metadata.process_white_and_blacklist(whitelist, blacklist)
+        if not Metadata._database:
+            raise Exception("no database linked")
+        else:
+            if remove_other:
+                self.dict_data.reset()
+            self.dict_data.update(self._database.read_meta(primary_key, tags))
+
+    def save_tags_db(self):
+        if not Metadata._database:
+            raise Exception("no database linked")
+        if self.file_path_set:
+            self._database.insert_meta(self.dict_data, self.file_path)
+        else:
+            pass
 
     def auto_fill_tags(self):
         if not self.dict_auto_fill_org:
@@ -161,9 +216,9 @@ class GroupMetadata(Metadata):
             metadata.auto_fill_tags()
         self.__compare_tags()
 
-    def read_tags(self):
+    def read_tags(self, remove_other=False):
         for metadata in self.list_metadata:
-            metadata.read_tags()
+            metadata.read_tags(remove_other=remove_other)
         self.__compare_tags()
 
     def __compare_tags(self):
@@ -198,6 +253,18 @@ class GroupMetadata(Metadata):
                         whitelist=whitelist,
                         blacklist=blacklist,
                         remove_other=remove_other)
+
+    def load_tags_db(self, primary_key=None, whitelist=None, blacklist=None,
+                     remove_other=False):
+        for metadata in self.list_metadata:
+            metadata.load_tags_db(primary_key=primary_key,
+                                  whitelist=whitelist,
+                                  blacklist=blacklist,
+                                  remove_other=remove_other)
+
+    def save_tags_db(self):
+        for metadata in self.list_metadata:
+            metadata.save_tags_db()
 
 
 class AlbumMetadata(GroupMetadata):
