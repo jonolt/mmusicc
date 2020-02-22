@@ -124,6 +124,10 @@ class TestMetadata(unittest.TestCase):
         self.read_and_compare_file(path_source, dict_answer_2)
 
     def test_1000_database_is_there(self):
+        """
+        test the linking and unlinking of a database,
+        also test opening an existing (empty) database.
+        """
         m = Metadata(None)
         Metadata.link_database(TestMetadata.path_database)
         self.assertTrue(os.path.exists(TestMetadata.path_database))
@@ -134,16 +138,21 @@ class TestMetadata(unittest.TestCase):
         self.assertTrue(m.database_linked)
 
     def test_1001_database_write(self):
+        """test write metadata of a single file to the database"""
         path_source = os.path.join(path_test, "test_read.flac")
         source = Metadata(path_source)
         source.save_tags_db()
 
     def test_1101_database_write_album(self):
+        """test write multiple metadata of a album to the database"""
         path_source = os.path.join(path_test, "flac")
         am = AlbumMetadata(path_source)
         am.save_tags_db()
 
     def test_1011_database_read(self):
+        """test reading the database entry of flac file and saving the metadata
+        to a new file (and if the values are as expected)
+        """
         path_source = os.path.join(path_test, "test_read.flac")
         new_source = Metadata(None)
         path_new_source = os.path.join(path_test, "test_empty.flac")
@@ -152,6 +161,9 @@ class TestMetadata(unittest.TestCase):
         self.read_and_compare_file(path_source, dict_answer_2)
 
     def test_1111_database_read_album(self):
+        """test reading the database entry of album folder
+        (and if the values are as expected)
+        """
         path_source = os.path.join(path_test, "flac")
         am = AlbumMetadata(path_source)
         am.read_tags()
