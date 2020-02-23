@@ -1,8 +1,9 @@
-import logging.config
 import logging
+import logging.config
 
 
 def init_logger(level):
+    """Initialise Python Logger (function may be extended in future)"""
     # noinspection PyPep8
     config = {
         "version": 1,

@@ -55,25 +55,24 @@ def init():
         raise SystemExit("No formats found!")
 
 
-def get_loader(filename):
+def get_loader(file_path):
     """Returns a callable which takes a filename and returns
     AudioFile or raises AudioFileError, or returns None.
     """
-    ext = os.path.splitext(filename)[-1]
+    ext = os.path.splitext(file_path)[-1]
     return loaders.get(ext.lower())
 
 
 # noinspection PyPep8Naming
-def MusicFile(filename):
+def MusicFile(file_path):
     """Returns a AudioFile instance or None"""
-    loader = get_loader(filename)
+    loader = get_loader(file_path)
     if loader is not None:
-        return loader(filename)
+        return loader(file_path)
     else:
-        logging.error("Filetype not supported")
+        logging.error("FileType not supported")
 
 
-def ext_supported(filename):
+def ext_supported(file_path):
     """Returns True if the file extension is supported"""
-
-    return get_loader(filename) is not None
+    return get_loader(file_path) is not None

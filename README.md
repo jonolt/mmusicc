@@ -1,11 +1,16 @@
 ## Metadata Music Control
 
-mmusicc is a lightweight audio file and metadata control and synchronization program to transfer the changes in a master music library to a derived music library.  New files or albums are converted and created with ffmpeg, changed metadata only is copied to. The individual tags and their processing can be freely selected by each user via a configuration file. There should also be preconfigured configurations. ID3 tags are possibly processed before. There will be a simple Autofill feature which will be only applied to source files, and fill empty fields from pattern.
+mmusicc is a lightweight audio file and metadata control and synchronization program to transfer the changes made in a master music library to a derived music library. ~~New files or albums are converted using ffmpeg.~~ When the file already exits, the metadata is compared und updated if it has changed. The individual tags and their processing can be freely selected by each user via a configuration file. A simple Autofill future can be used to fix small consistency errors, which rules are also editable in the config file. To Synchronize multiple folders at once, the folder structure, directory- and file-names must be identical at source and target, this should be given when this tool is used to one-way sync the master directory. Data can also be exported to or imported from a database e.g. for a metadata backup.
 
-The folder structure and directory/file names must be identical, this should be given when this toll is used to one-way sync the parent directory.
+mmusicc shall not replace a metadata editor and only provides methods for automated syncing of large music libraries.
 
-mmusicc shall not replace a metadata editor but provide methods for automated syncing of large music libraries.
+mmusicc's source code is inspired by the two music tag programs [quodlibet](https://github.com/quodlibet/quodlibet) and [puddletag](https://github.com/keithgg/puddletag) and uses some code fragments of those.
 
+mmusicc is still under development and is not yet suitable for productive use, yet.
+
+---
+## Programming Info
+Some notes for programming.
 ### Conventions
 
 - Program internal, all tags and assertion values are saved lowercase (casefold), except ID3 tags which are uppercase.
@@ -25,7 +30,7 @@ meta      | m          | Metadata containing audio and datab
 
 ### Behaviour Metadata
 
-2) multivalues are internally saved as list
+1) multivalues are internally saved as list
 2) multiple values in one string, which are divided by a char, will be extracted to multivalues and saved as in 1, when char is given. TODO global split char
 
 #### xiph
@@ -34,6 +39,6 @@ meta      | m          | Metadata containing audio and datab
 
 #### mp3
 
-2) no format checking of values (e.g. TimeStampTextFrame)
-1) paired text frames are extracted to a flat list
-2) the flat list of paired text frames is writen as [u'', list[i]]
+1) no format checking of values (e.g. TimeStampTextFrame)
+2) paired text frames are extracted to a flat list
+3) the flat list of paired text frames is writen as [u'', list[i]]

@@ -9,10 +9,13 @@ from mmusicc.formats import MusicFile
 from mmusicc.util.path import PATH, hash_filename
 
 
-# TODO move filepath to Metadata
-
-
 class MetadataDict(dict):
+    """Dictionary containing tags as keys, values can be reset.
+
+    Args:
+        init_value (object, optional): initial value of all values,
+            defaults to None.
+    """
 
     def __init__(self, init_value=None):
         super().__init__()
@@ -26,6 +29,16 @@ class MetadataDict(dict):
 
 
 class Metadata:
+    """Class containing Metadata Information,
+
+    either from a linked file or loaded from a database.
+
+    Args:
+        file_path  (str, optional): path to an supported audio file, can be set
+            later with 'link_audio_file()' too. Defaults to None.
+        read tags (bool, optional): enables automatic reading of metadata from
+            file. Defaults to True.
+    """
 
     dry_run = False
     path_config_yaml = "config.yaml"
@@ -33,11 +46,7 @@ class Metadata:
 
     _database = None
 
-    def __init__(self, file, read_tag=True):
-        """
-        file can be None, this is tu support album Metadata
-
-        """
+    def __init__(self, file_path=None, read_tag=True):
 
         if not am.list_tags:
             am.init_allocationmap(Metadata.path_config_yaml)
@@ -46,14 +55,14 @@ class Metadata:
 
         self.dict_data = MetadataDict()
 
-        if not file:
+        if not file_path:
             pass
-        elif os.path.exists(file):
-            self.link_audio_file(file)
+        elif os.path.exists(file_path):
+            self.link_audio_file(file_path)
         else:
             raise FileNotFoundError("Error File does not exist")
 
-        if file and read_tag:
+        if file_path and read_tag:
             self.read_tags()
 
         self.dict_auto_fill_org = None
@@ -108,16 +117,35 @@ class Metadata:
         self._audio = MusicFile(file_path)
 
     def read_tags(self, remove_other=False):
+        """read metadata from linked audio file
+
+        Args:
+            remove_other (bool, optional): If False, overwrites only new tag
+            values read from the file and lets others unchanged. If True,
+            resets dictionary to initial state, which removes already exiting
+            tag values. Defaults to False.
+        Raises:
+            Exception: if no file is linked
+        """
         if not self._audio:
-            raise Exception("no file linked")
+            raise Exception("no file_path linked")
         self._audio.file_read()
         if remove_other:
             self.dict_data.reset()
         self.dict_data.update(self._audio.dict_meta)
 
     def write_tags(self, remove_other=True):
+        """write metadata to linked audio file
+
+        Args:
+            remove_other (bool, optional): If False, overwrites only new
+            tag values writen the file and lets others unchanged. If True,
+            clears all metadata from file before writing. Defaults to False.
+        Raises:
+            Exception: if no file is linked
+        """
         if not self._audio:
-            raise Exception("no file linked")
+            raise Exception("no file_path linked")
         if remove_other:
             self._audio.dict_meta = dict()
         self._audio.dict_meta.update(self.dict_data)
@@ -125,7 +153,20 @@ class Metadata:
 
     def import_tags(self, source_meta, whitelist=None, blacklist=None,
                     remove_other=False):
-        """import metadata from source meta object"""
+        """Imports metadata from another Metadata object.
+
+        Args:
+            source_meta          (Metadata): Metadata object containing the
+                tags to be imported.
+            whitelist (list<str>, optional): whitelist of tags to be imported.
+                If None, loads all tags (except blacklisted). Defaults to None.
+            blacklist (list<str>, optional): blacklist of tags not to be
+                imported. Applied after whitelist. If None, no tags are
+                blacklisted. Defaults to None.
+            remove_other   (bool, optional): If False, overwrites only new
+                tag values and lets others unchanged. If True, deletes all
+                other tag values, which are not imported. Defaults to False.
+        """
         tags = Metadata.process_white_and_blacklist(whitelist, blacklist)
         for tag in am.list_tags:
             if tag in tags:
@@ -136,6 +177,23 @@ class Metadata:
 
     def load_tags_db(self, primary_key=None, whitelist=None, blacklist=None,
                      remove_other=False):
+        """Imports metadata from the database.
+
+        Args:
+            primary_key          (str): unique identifier of the item which
+                data has to be loaded (eg. Filepath).
+            whitelist (list<str>, optional): whitelist of tags to be imported.
+                If None, loads all tags (except blacklisted). Defaults to None.
+            blacklist (list<str>, optional): blacklist of tags not to be
+                imported. Applied after whitelist. If None, no tags are
+                blacklisted. Defaults to None.
+            remove_other   (bool, optional): If False, overwrites only new
+                tag values and lets others unchanged. If True, deletes all
+                other tag values, which are not imported. Defaults to False.
+
+            Raises:
+             Exception: if no database linked to class
+            """
         if not primary_key:
             if self.file_path_set:
                 primary_key = self.file_path
@@ -148,6 +206,14 @@ class Metadata:
             self.dict_data.update(self._database.read_meta(primary_key, tags))
 
     def save_tags_db(self):
+        """saves all tags to database.
+
+         This is the secure way. Data not wanted does not have to be loaded,
+         but all data can still be accessed in case it is needed again.
+
+         Raises:
+             Exception: if no database linked to class
+         """
         if not Metadata._database:
             raise Exception("no database linked")
         if self.file_path_set:
@@ -156,6 +222,12 @@ class Metadata:
             pass
 
     def auto_fill_tags(self):
+        """Automatic fill/autocomplete tags with in config file defined rules.
+
+        This future is intended to fix small consistency errors in metadata,
+        like missing album artists or leading 0 before a single digit
+        tracknumber.
+        """
         if not self.dict_auto_fill_org:
             self.dict_auto_fill_org = MetadataDict(init_value=False)
         for tag in list(am.dict_auto_fill_rules):
@@ -180,6 +252,21 @@ class Metadata:
 
     @staticmethod
     def process_white_and_blacklist(whitelist, blacklist):
+        """creates a whitelist from one whitelist and one blacklist.
+
+        Blacklist is processed after whitelist and will remove whitelisted
+        items.
+
+        Args:
+            whitelist (list<str>): whitelist of tags to be imported. Loads all
+                tags if None.
+            blacklist (list<str>): blacklist of tags not to be imported. These
+                items are removed from the whitelist. If none, whitelist is
+                returned unprocessed.
+
+        Returns:
+            list<str>: whitelist after applying blacklisting.
+        """
         if not whitelist:
             whitelist = am.list_tags
         if blacklist:
@@ -193,6 +280,7 @@ class Metadata:
 
     @staticmethod
     def check_is_audio(file):
+        """Return True if file is a audio file."""
         mimetype = mimetypes.guess_type(file)
         if mimetype[0] and "audio" in mimetype[0]:
             return True
@@ -201,6 +289,17 @@ class Metadata:
 
 
 class GroupMetadata(Metadata):
+    """Class holding one ore many Metadata Objects. Subclasses Metadata and
+
+    overwrites Metadata functions so that you don't have to care if you have a
+    File or a Folder (like an album). Tags in dict are a summary of the tags of
+    the contained metadata. If all values of a tag are identical the value is
+    used, otherwise a Div object is created which indicates different values
+    (and also got a list of all the differences).
+
+    Args:
+        list_metadata (list<Metadata>): list of Metadata objects
+    """
 
     def __init__(self, list_metadata):
         super().__init__(None)
@@ -210,6 +309,7 @@ class GroupMetadata(Metadata):
         self.dict_auto_fill_org = None
 
     def auto_fill_tags(self):
+        """Super-Method applied to all Objects in list. See Metadata."""
         if not self.dict_auto_fill_org:
             self.dict_auto_fill_org = MetadataDict(init_value=False)
         for metadata in self.list_metadata:
@@ -217,11 +317,16 @@ class GroupMetadata(Metadata):
         self.__compare_tags()
 
     def read_tags(self, remove_other=False):
+        """See super function"""
         for metadata in self.list_metadata:
             metadata.read_tags(remove_other=remove_other)
         self.__compare_tags()
 
     def __compare_tags(self):
+        """compares tag values of all objects in list and creates a Div object,
+        which indicates different values (and also got a list of all the
+        differences).
+        """
         for key in am.list_tags:
             first = True
             for metadata in self.list_metadata:
@@ -237,12 +342,20 @@ class GroupMetadata(Metadata):
                         break
 
     def write_tags(self, remove_other=True):
+        """Super-Method applied to all Objects in list. See Metadata."""
         for metadata in self.list_metadata:
             metadata.write_tags(remove_other=remove_other)
 
     def import_tags(self, source_meta, whitelist=None, blacklist=None,
                     remove_other=False):
+        """Super-Method applied to all Objects in list. See Metadata.
 
+        Args:
+            source_meta (GroupMetadata): group metadata object.
+            whitelist (list<str>, optional): See Metadata.import_tags().
+            blacklist (list<str>, optional): See Metadata.import_tags().
+            remove_other   (bool, optional): See Metadata.import_tags().
+        """
         # tags = Metadata.process_white_and_blacklist(whitelist, blacklist)
 
         for metadata_self in self.list_metadata:
@@ -256,6 +369,7 @@ class GroupMetadata(Metadata):
 
     def load_tags_db(self, primary_key=None, whitelist=None, blacklist=None,
                      remove_other=False):
+        """Super-Method applied to all Objects in list. See Metadata."""
         for metadata in self.list_metadata:
             metadata.load_tags_db(primary_key=primary_key,
                                   whitelist=whitelist,
@@ -263,11 +377,18 @@ class GroupMetadata(Metadata):
                                   remove_other=remove_other)
 
     def save_tags_db(self):
+        """Super-Method applied to all Objects in list. See Metadata."""
         for metadata in self.list_metadata:
             metadata.save_tags_db()
 
 
 class AlbumMetadata(GroupMetadata):
+    """Special case of GroupMetadata where Metadata list is created from a
+    Folder/Album path.
+
+    Args:
+        path_album: filepath of album or folder to be accessed as group.
+    """
 
     def __init__(self, path_album):
         list_metadata = list()
@@ -280,6 +401,12 @@ class AlbumMetadata(GroupMetadata):
 
 
 class Empty(object):
+    """object representing a tag without an value.
+
+    It is a placeholder to be able to change the character/object which
+    represents the Emptiness in the Database or at mutagen.
+    """
+
     value = ""
 
     def __repr__(self):
@@ -300,6 +427,17 @@ class Empty(object):
 
 
 class Div(object):
+    """
+    Object Representing a group different values. Provides rich comparison.
+
+    Still Under Construction.
+
+    Args:
+        key                      (str, optional): dictionary key which values
+            to represent
+        list_metadata (list<Metadata>, optional): list of Metadata object
+            containing the values.
+    """
 
     def __init__(self, key=None, list_metadata=None):
         self._dict_values = dict()

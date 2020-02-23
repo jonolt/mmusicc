@@ -1,24 +1,31 @@
-import yaml
 import os
 
+import yaml
 
 list_tui_tags = list()
 list_tags = list()
-dict_tags_id3 = dict()
-dict_id3_tags = dict()
-dict_tags_str = dict()
-dict_str_tags = dict()
+dict_tag_id3 = dict()  # id3 from tag
+dict_id3_tag = dict()  # tag from id3
+dict_strs_tag = dict()  # tags (as list) from str
+dict_tag_str = dict()  # str from tags
 dict_auto_fill_rules = dict()
 
 
 def init_allocationmap(path):
+    """initialize allocation map from config file.
+
+    Creates dicts as lookup tables as global variables.
+
+    Args:
+        path (str): path of yaml file containing the allocation table
+    """
 
     global list_tui_tags
     global list_tags
-    global dict_tags_id3
-    global dict_id3_tags
-    global dict_tags_str
-    global dict_str_tags
+    global dict_tag_id3
+    global dict_id3_tag
+    global dict_strs_tag
+    global dict_tag_str
     global dict_auto_fill_rules
 
     path = os.path.abspath(os.path.expanduser(path))
@@ -50,16 +57,16 @@ def init_allocationmap(path):
 
         list_tags.append(key)
         list_tui_tags[pos - 1] = key
-        dict_tags_id3[key] = id3_tag
-        dict_id3_tags[id3_tag] = key
+        dict_tag_id3[key] = id3_tag
+        dict_id3_tag[id3_tag] = key
         strings = []
         if key not in assertions:
             strings.append(key)
         for val in assertions:
             strings.append(val)
-        dict_tags_str[key] = strings
+        dict_strs_tag[key] = strings
         for string in strings:
-            dict_str_tags[string] = key
+            dict_tag_str[string] = key
 
     i = len(list_tui_tags) - 1
     while list_tui_tags[i] is None:

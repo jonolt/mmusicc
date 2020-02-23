@@ -1,26 +1,48 @@
 import logging
 
 from mmusicc.metadata import Empty
-from mmusicc.util.allocationmap import dict_str_tags
+from mmusicc.util.allocationmap import dict_tag_str
 
 SPLIT_CHAR = ['|', '\n', ";"]
 JOIN_CHAR = ";"
 
 
 def join_str_list(str_list):
+    """joins a list of strings with a globally defined separator
+
+    used for recombining multiple values in one tag field (e.g. Composer).
+
+    Args:
+        str_list (list<str>): list of strings to be joined
+    """
     return JOIN_CHAR.join(str_list)
 
 
 def scan_dictionary(dict_tags, dict_data, ignore_none=False):
+    """Scan a dictionary (dict_tags) for tags and fill dict_data with them.
 
+    Args:
+        dict_tags             (dict): dictionary (tag_str: value) items to be
+            imported.
+        dict_data             (dict): dictionary to be filled with imported tag
+            values.
+        ignore_none (bool, optional): if True, skip emtpy values, otherwise
+            write an empty value (Empty Instance). Defaults to False.
+    Returns:
+        dict<str, str>: dictionary with all tags whose name could not be
+            associated with.
+    """
+
+    # Make a copy of the source dictionary, so it is unchanged
     dict_dummy = dict_tags.copy()
     dict_dummy = {k.casefold(): v for k, v in dict_dummy.items()}
 
     dict_tmp = dict()
 
+    # find a tag for each key in scanned dictionary
     for key_str in list(dict_dummy):
         try:
-            tag_key = dict_str_tags[key_str]
+            tag_key = dict_tag_str[key_str]
         except KeyError:
             continue
         try:
@@ -68,13 +90,19 @@ def scan_dictionary(dict_tags, dict_data, ignore_none=False):
 
 
 def text_parser_get(text):
+    """splits a text string at globally defined split chars (recursive).
+
+    Args:
+        text (str): source string to be split.
+    Returns:
+        list<str>: List of strings.
+    """
     if isinstance(text, list):
         tmp_text = list()
         for t in text:
             tmp_text.append(text_parser_get(t))
         return tmp_text
     elif isinstance(text, str):
-        # TODO replace char list with constant
         for c in SPLIT_CHAR:
             tmp_text = text.split(c)
             if len(tmp_text) > 0:
