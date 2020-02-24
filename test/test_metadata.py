@@ -70,9 +70,8 @@ class TestMetadata(unittest.TestCase):
     def setUpClass(cls):
         print("Creating new test folder at {}".format(path_test))
         shutil.copytree(path_media, path_test)
-        Metadata.path_config_yaml = "test_metadata_config.yaml"
         cls.assert_counter = 0
-        mmusicc.init()
+        mmusicc.init("test_metadata_config.yaml")
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -156,7 +155,7 @@ class TestMetadata(unittest.TestCase):
         path_source = os.path.join(path_test, "test_read.flac")
         new_source = Metadata(None)
         path_new_source = os.path.join(path_test, "test_empty.flac")
-        new_source.set_file_path(path_new_source)
+        new_source.link_audio_file(path_new_source)
         new_source.load_tags_db(path_source)
         self.read_and_compare_file(path_source, dict_answer_2)
 

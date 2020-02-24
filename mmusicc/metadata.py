@@ -95,7 +95,7 @@ class Metadata:
     def file_path(self):
         return getattr(self, PATH)
 
-    def set_file_path(self, path):
+    def _set_file_path(self, path):
         tmp_fn_hash = hash_filename(path)
         for key in hash_filename(path):
             setattr(self, key, tmp_fn_hash[key])
@@ -113,7 +113,7 @@ class Metadata:
         return False
 
     def link_audio_file(self, file_path):
-        self.set_file_path(file_path)
+        self._set_file_path(file_path)
         self._audio = MusicFile(file_path)
 
     def read_tags(self, remove_other=False):
@@ -298,12 +298,22 @@ class GroupMetadata(Metadata):
     (and also got a list of all the differences).
 
     Args:
-        list_metadata (list<Metadata>): list of Metadata objects
+        list_metadata (list<Metadata> or list<str>): list of Metadata objects
+            or file paths.
     """
 
     def __init__(self, list_metadata):
         super().__init__(None)
-        self.list_metadata = list_metadata
+        if isinstance(list_metadata[0], Metadata):
+            self.list_metadata = list_metadata
+        else:
+            self.list_metadata = list()
+            for file_path in list_metadata:
+                if Metadata.check_is_audio(file_path):
+                    self.list_metadata.append(Metadata(file_path))
+                else:
+                    logging.warning("File '{}' is no audio file"
+                                    .format(file_path))
         self.read_tags()
 
         self.dict_auto_fill_org = None
@@ -360,6 +370,7 @@ class GroupMetadata(Metadata):
 
         for metadata_self in self.list_metadata:
             for metadata_source in source_meta.list_metadata:
+                # noinspection PyUnresolvedReferences
                 if metadata_self.file_name == metadata_source.file_name:
                     metadata_self.import_tags(
                         metadata_source,
@@ -384,7 +395,7 @@ class GroupMetadata(Metadata):
 
 class AlbumMetadata(GroupMetadata):
     """Special case of GroupMetadata where Metadata list is created from a
-    Folder/Album path.
+    Folder/Album path. Skips non audio files.
 
     Args:
         path_album: filepath of album or folder to be accessed as group.
@@ -393,10 +404,9 @@ class AlbumMetadata(GroupMetadata):
     def __init__(self, path_album):
         list_metadata = list()
         for file in os.listdir(path_album):
-            Metadata.check_is_audio(file)
-            if Metadata.check_is_audio(file):
-                file_path = os.path.join(path_album, file)
-                list_metadata.append(Metadata(file_path))
+            file_path = os.path.join(path_album, file)
+            if Metadata.check_is_audio(file_path):
+                list_metadata.append(file_path)
         super().__init__(list_metadata)
 
 
