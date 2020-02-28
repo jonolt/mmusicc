@@ -30,6 +30,10 @@ def init():
 
     global mimes, loaders, types
 
+    if loaders:
+        logging.debug("Formats Already Initialized, Skipping.")
+        return
+
     base = util.get_module_dir()
     formats = util.importhelper.load_dir_modules(base, package=__package__)
 

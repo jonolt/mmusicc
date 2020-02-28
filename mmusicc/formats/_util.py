@@ -67,9 +67,9 @@ def scan_dictionary(dict_tags, dict_data, ignore_none=False):
                     if kv_pairs[i][1] == kv_pairs[j][1]:
                         logging.info(
                             "dropped duplicate pair {}:{}"
-                            + ", cheeping {}:{}"
-                            .format(kv_pairs[i][1], kv_pairs[i][2],
-                                    kv_pairs[j][1], kv_pairs[j][2]))
+                            ", keeping {}:{}"
+                            .format(kv_pairs[i][0], kv_pairs[i][1],
+                                    kv_pairs[j][0], kv_pairs[j][1]))
                         kv_pairs.remove(kv_pairs[i])
                     j += 1
                 i += 1

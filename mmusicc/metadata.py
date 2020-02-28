@@ -28,7 +28,38 @@ class MetadataDict(dict):
             self[key] = self._init_value
 
 
-class Metadata:
+class MetadataMeta(type):
+
+    # def __init__(cls, *args, **kwargs):
+    def __init__(cls, name, bases, nmspc):
+        super(MetadataMeta, cls).__init__(name, bases, nmspc)
+        cls._dry_run = False
+        # cls._delete_existing = False
+
+    @property
+    def dry_run(cls):
+        return cls._dry_run
+
+    @dry_run.setter
+    def dry_run(cls, value):
+        cls._dry_run = value
+        if cls._dry_run:
+            logging.log(25, "Running in Dry Run mode. "
+                            "No data will be written.")
+
+    # prep for future class property
+    # @property
+    # def delete_existing(cls):
+    #     return cls._delete_existing
+    #
+    # @delete_existing.setter
+    # def delete_existing(cls, value):
+    #     cls._delete_existing = value
+    #     if cls._dry_run:
+    #         logging.log(25, "Existing Metadata will be deleted!")
+
+
+class Metadata(metaclass=MetadataMeta):
     """Class containing Metadata Information,
 
     either from a linked file or loaded from a database.
@@ -40,8 +71,6 @@ class Metadata:
             file. Defaults to True.
     """
 
-    dry_run = False
-    path_config_yaml = "config.yaml"
     write_empty = True
 
     _database = None
@@ -49,7 +78,7 @@ class Metadata:
     def __init__(self, file_path=None, read_tag=True):
 
         if not am.list_tags:
-            am.init_allocationmap(Metadata.path_config_yaml)
+            raise Exception("MmusicC not initialized! Please Initialize first")
 
         self._audio = None
 
@@ -134,7 +163,7 @@ class Metadata:
             self.dict_data.reset()
         self.dict_data.update(self._audio.dict_meta)
 
-    def write_tags(self, remove_other=True):
+    def write_tags(self, remove_other=False):
         """write metadata to linked audio file
 
         Args:
@@ -371,7 +400,7 @@ class GroupMetadata(Metadata):
         for metadata_self in self.list_metadata:
             for metadata_source in source_meta.list_metadata:
                 # noinspection PyUnresolvedReferences
-                if metadata_self.file_name == metadata_source.file_name:
+                if metadata_self.file_path == metadata_source.file_path:
                     metadata_self.import_tags(
                         metadata_source,
                         whitelist=whitelist,

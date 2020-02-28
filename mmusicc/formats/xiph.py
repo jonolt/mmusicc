@@ -62,6 +62,9 @@ class VCFile(AudioFile):
 
         audio = self._file
         new_tag = self.dict_meta
+        for key in list(new_tag):
+            if not new_tag[key]:
+                new_tag[key] = ""
 
         if remove_existing:
             to_remove = [z for z in audio if z not in new_tag]

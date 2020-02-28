@@ -4,6 +4,11 @@ import logging.config
 
 def init_logger(level):
     """Initialise Python Logger (function may be extended in future)"""
+
+    if len(logging.getLogger().handlers):
+        logging.debug("Logger Already Initialized, Skipping.")
+        return
+
     # noinspection PyPep8
     config = {
         "version": 1,

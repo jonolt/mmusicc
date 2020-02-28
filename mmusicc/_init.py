@@ -2,27 +2,38 @@ import logging
 
 
 def init(path_config):
-    """initialize all modules, which must be initialized"""
-    _init_logging()
+    """initialize all modules, which must be initialized
+
+    can be done individually too.
+
+    Args:
+        path_config (str): path to allocation map config yaml file. Can be
+            None, use at own risk!
+    """
+    init_logging()
     logging.log(25, "testing mmusicc log level. remove in future commit")
-    _init_formats()
-    logging.debug("Initialized mmusicc")
-    _init_allocationmap(path_config)
-    logging.debug("Initialized _init_allocationmap")
+    init_formats()
+    if path_config:
+        init_allocationmap(path_config)
 
 
-def _init_allocationmap(path_config):
+def init_allocationmap(path_config):
+    """initialize allocation map of tags.
+
+    Args:
+        path_config (str): path to allocation map config yaml file
+    """
     from mmusicc.util import allocationmap
     allocationmap.init_allocationmap(path_config)
 
 
-def _init_formats():
+def init_formats():
     """initialize formats module"""
     from mmusicc.formats import init
     init()
 
 
-def _init_logging():
+def init_logging():
     """initialize logger"""
     from mmusicc.util import init_logger
     init_logger(logging.DEBUG)

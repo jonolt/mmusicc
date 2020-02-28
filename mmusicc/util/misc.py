@@ -1,10 +1,20 @@
+import mimetypes
 import os
 
 from mmusicc.metadata import Metadata, GroupMetadata, AlbumMetadata
 
 
+def check_is_audio(file):
+    """Return True if file is a audio file."""
+    mimetype = mimetypes.guess_type(file)
+    if mimetype[0] and "audio" in mimetype[0]:
+        return True
+    else:
+        return False
+
+
 # noinspection PyPep8Naming
-def PathLoader(path):
+def PathLoader(path, is_album=False):
     """loads content path is pointing at. can be:
 
         - a single file
@@ -21,6 +31,8 @@ def PathLoader(path):
             return AlbumMetadata(path)
         else:
             raise FileNotFoundError
+    elif is_album:
+        return AlbumMetadata(path)
     else:
         listOfFiles = set()
         for p in path:
@@ -39,6 +51,7 @@ def PathLoader(path):
             if not Metadata.check_is_audio(path):
                 listOfFiles.remove(path)
         if len(listOfFiles) > 0:
-            GroupMetadata(list(listOfFiles))
+            return GroupMetadata(list(listOfFiles))
         else:
             print("no audio files found in path '{}'".format(path))
+            return None

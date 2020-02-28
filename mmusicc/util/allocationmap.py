@@ -1,3 +1,4 @@
+import logging
 import os
 
 import yaml
@@ -27,6 +28,10 @@ def init_allocationmap(path):
     global dict_strs_tag
     global dict_tag_str
     global dict_auto_fill_rules
+
+    if len(list_tags) > 0:
+        logging.debug("allocationmap Already Initialized, Skipping.")
+        return
 
     path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(path):
@@ -72,3 +77,6 @@ def init_allocationmap(path):
     while list_tui_tags[i] is None:
         list_tui_tags.pop(i)
         i -= 1
+
+    logging.debug("allocationmap Initialized, found tags: {}"
+                  .format(list_tags))
