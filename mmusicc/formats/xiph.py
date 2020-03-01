@@ -5,7 +5,7 @@ from mutagen.oggvorbis import OggVorbis
 from mmusicc.formats._audio import AudioFile
 from mmusicc.formats._misc import AudioFileError
 from mmusicc.formats._util import scan_dictionary
-from mmusicc.util.allocationmap import dict_strs_tag
+from mmusicc.util.allocationmap import dict_tag2strs
 
 extensions = [".ogg", ".oga", ".flac"]
 # loader   see bottom
@@ -46,7 +46,7 @@ class VCFile(AudioFile):
                 dict_tmp[tag_key] = tag_val
 
         self.unprocessed_tag.update(
-            scan_dictionary(dict_tmp, self.dict_meta, dict_strs_tag))
+            scan_dictionary(dict_tmp, self.dict_meta, dict_tag2strs))
 
     def file_save(self, remove_existing=False):
         """saves file tags to AudioFile from tag dictionary.

@@ -127,26 +127,25 @@ class TestMetadata(unittest.TestCase):
         test the linking and unlinking of a database,
         also test opening an existing (empty) database.
         """
-        m = Metadata(None)
         Metadata.link_database(TestMetadata.path_database)
         self.assertTrue(os.path.exists(TestMetadata.path_database))
-        self.assertTrue(Metadata.database_linked)
+        self.assertTrue(Metadata.is_linked_database)
         Metadata.unlink_database()
-        self.assertFalse(Metadata._database_linked())
+        self.assertFalse(Metadata.is_linked_database)
         Metadata.link_database(TestMetadata.path_database)
-        self.assertTrue(m.database_linked)
+        self.assertTrue(Metadata.is_linked_database)
 
     def test_1001_database_write(self):
         """test write metadata of a single file to the database"""
         path_source = os.path.join(path_test, "test_read.flac")
         source = Metadata(path_source)
-        source.save_tags_db()
+        source.export_tags_to_db()
 
     def test_1101_database_write_album(self):
         """test write multiple metadata of a album to the database"""
         path_source = os.path.join(path_test, "flac")
         am = AlbumMetadata(path_source)
-        am.save_tags_db()
+        am.export_tags_to_db()
 
     def test_1011_database_read(self):
         """test reading the database entry of flac file and saving the metadata
@@ -154,9 +153,10 @@ class TestMetadata(unittest.TestCase):
         """
         path_source = os.path.join(path_test, "test_read.flac")
         new_source = Metadata(None)
-        path_new_source = os.path.join(path_test, "test_empty.flac")
+        path_new_source = os.path.join(path_test, "test_read.flac")
         new_source.link_audio_file(path_new_source)
-        new_source.load_tags_db(path_source)
+        new_source.import_tags_from_db()
+        # new_source.import_tags_from_db(path_source)
         self.read_and_compare_file(path_source, dict_answer_2)
 
     def test_1111_database_read_album(self):
@@ -165,7 +165,7 @@ class TestMetadata(unittest.TestCase):
         """
         path_source = os.path.join(path_test, "flac")
         am = AlbumMetadata(path_source)
-        am.read_tags()
+        am.import_tags_from_db()
         self.album_tests(am)
 
     def read_and_compare_file(self, path, cmp_dict, exclude=None):

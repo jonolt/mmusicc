@@ -90,7 +90,7 @@ class MetaDB:
         """
         with self._engine.connect() as conn:
             foo_col = Column("_primary_key")
-            result = conn.execute(self.tags.
+            result = conn.execute(self.pickle_tags.
                                   select().
                                   where(foo_col == primary_key)).first()
             if result:
@@ -101,3 +101,8 @@ class MetaDB:
                         dict_data_tmp.pop(key)
                 return dict_data_tmp
             return None
+
+    def get_list_of_primary_keys(self):
+        with self._engine.connect() as conn:
+            result = list(conn.execute("SELECT _primary_key FROM tags"))
+            return [s[0] for s in result]

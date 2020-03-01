@@ -5,11 +5,12 @@ import yaml
 
 list_tui_tags = list()
 list_tags = list()
-dict_tag_id3 = dict()  # id3 from tag
-dict_id3_tag = dict()  # tag from id3
-dict_strs_tag = dict()  # tags (as list) from str
-dict_tag_str = dict()  # str from tags
+dict_tag2id3 = dict()   # tag: id3
+dict_id32tag = dict()   # id3: tag
+dict_tag2strs = dict()  # tag: strs (list)
+dict_str2tag = dict()   # str: tag
 dict_auto_fill_rules = dict()
+# TODO variable naming
 
 
 def init_allocationmap(path):
@@ -23,10 +24,10 @@ def init_allocationmap(path):
 
     global list_tui_tags
     global list_tags
-    global dict_tag_id3
-    global dict_id3_tag
-    global dict_strs_tag
-    global dict_tag_str
+    global dict_tag2id3
+    global dict_id32tag
+    global dict_tag2strs
+    global dict_str2tag
     global dict_auto_fill_rules
 
     if len(list_tags) > 0:
@@ -62,16 +63,16 @@ def init_allocationmap(path):
 
         list_tags.append(key)
         list_tui_tags[pos - 1] = key
-        dict_tag_id3[key] = id3_tag
-        dict_id3_tag[id3_tag] = key
+        dict_tag2id3[key] = id3_tag
+        dict_id32tag[id3_tag] = key
         strings = []
         if key not in assertions:
             strings.append(key)
         for val in assertions:
             strings.append(val)
-        dict_strs_tag[key] = strings
+        dict_tag2strs[key] = strings
         for string in strings:
-            dict_tag_str[string] = key
+            dict_str2tag[string] = key
 
     i = len(list_tui_tags) - 1
     while list_tui_tags[i] is None:

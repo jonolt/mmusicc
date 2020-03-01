@@ -1,11 +1,11 @@
 import logging
-import mimetypes
 import os
 import re
 
 import mmusicc.util.allocationmap as am
 from mmusicc.database import MetaDB
 from mmusicc.formats import MusicFile
+from mmusicc.util.misc import check_is_audio
 from mmusicc.util.path import PATH, hash_filename
 
 
@@ -34,6 +34,7 @@ class MetadataMeta(type):
     def __init__(cls, name, bases, nmspc):
         super(MetadataMeta, cls).__init__(name, bases, nmspc)
         cls._dry_run = False
+        cls._database = None
         # cls._delete_existing = False
 
     @property
@@ -46,6 +47,24 @@ class MetadataMeta(type):
         if cls._dry_run:
             logging.log(25, "Running in Dry Run mode. "
                             "No data will be written.")
+
+    @property
+    def is_linked_database(cls):
+        if cls._database:
+            return True
+        return False
+
+    def link_database(cls, file_path):
+        if not cls._database:
+            cls._database = MetaDB(file_path)
+        else:
+            raise Exception("Database already linked")
+
+    def unlink_database(cls):
+        if cls._database:
+            cls._database = None
+        else:
+            raise Exception("No Database linked")
 
     # prep for future class property
     # @property
@@ -95,30 +114,6 @@ class Metadata(metaclass=MetadataMeta):
             self.read_tags()
 
         self.dict_auto_fill_org = None
-
-    @property
-    def database_linked(self):
-        return Metadata._database_linked()
-
-    @classmethod
-    def _database_linked(cls):
-        if cls._database:
-            return True
-        return False
-
-    @classmethod
-    def link_database(cls, file_path):
-        if not cls._database:
-            cls._database = MetaDB(file_path)
-        else:
-            raise Exception("Database already linked")
-
-    @classmethod
-    def unlink_database(cls):
-        if cls._database:
-            cls._database = None
-        else:
-            raise Exception("No Database linked")
 
     @property
     def file_path(self):
@@ -204,13 +199,16 @@ class Metadata(metaclass=MetadataMeta):
                 if remove_other:
                     self.dict_data[tag] = None
 
-    def load_tags_db(self, primary_key=None, whitelist=None, blacklist=None,
-                     remove_other=False):
+    def import_tags_from_db(self,
+                            primary_key=None,
+                            whitelist=None,
+                            blacklist=None,
+                            remove_other=False,):
         """Imports metadata from the database.
 
         Args:
-            primary_key          (str): unique identifier of the item which
-                data has to be loaded (eg. Filepath).
+            primary_key         (str, None): unique identifier of the item
+                which data has to be loaded (eg. Filepath).
             whitelist (list<str>, optional): whitelist of tags to be imported.
                 If None, loads all tags (except blacklisted). Defaults to None.
             blacklist (list<str>, optional): blacklist of tags not to be
@@ -223,18 +221,41 @@ class Metadata(metaclass=MetadataMeta):
             Raises:
              Exception: if no database linked to class
             """
+
         if not primary_key:
             if self.file_path_set:
-                primary_key = self.file_path
+                keys = self._database.get_list_of_primary_keys()
+                key_str, ext = os.path.splitext(self.file_path)
+                subs = None
+                # tries to get a unique match beginning at leave
+                while len(keys) > 1:
+                    key_str, sub = os.path.split(key_str)
+                    if subs:
+                        subs = os.path.join(sub, subs)
+                    else:
+                        subs = sub
+                    keys = [path for path in keys if subs in path]
+                    # for path in keys:
+                    #     if subs not in path:
+                    #         keys.remove(path)
+                if len(keys) == 0:
+                    raise KeyError("could not find matching entry")
+                primary_key = keys[0]
+
         tags = Metadata.process_white_and_blacklist(whitelist, blacklist)
         if not Metadata._database:
             raise Exception("no database linked")
         else:
             if remove_other:
                 self.dict_data.reset()
-            self.dict_data.update(self._database.read_meta(primary_key, tags))
+            data = self._database.read_meta(primary_key, tags)
+            if data:
+                self.dict_data.update(data)
+            else:
+                logging.warning("database read failed, no data imported. "
+                                "File might not be in database")
 
-    def save_tags_db(self):
+    def export_tags_to_db(self, root_dir=None):
         """saves all tags to database.
 
          This is the secure way. Data not wanted does not have to be loaded,
@@ -297,24 +318,16 @@ class Metadata(metaclass=MetadataMeta):
             list<str>: whitelist after applying blacklisting.
         """
         if not whitelist:
-            whitelist = am.list_tags
+            whitelist = am.list_tags.copy()
         if blacklist:
             for t in blacklist:
                 try:
                     whitelist.pop(whitelist.index(t))
                 except ValueError:
-                    logging.warning("warning {} not in whitelist".format(t))
+                    logging.warning("Warning can not remove {}. "
+                                    "It is not in the whitelist.".format(t))
                     continue
         return whitelist
-
-    @staticmethod
-    def check_is_audio(file):
-        """Return True if file is a audio file."""
-        mimetype = mimetypes.guess_type(file)
-        if mimetype[0] and "audio" in mimetype[0]:
-            return True
-        else:
-            return False
 
 
 class GroupMetadata(Metadata):
@@ -338,7 +351,7 @@ class GroupMetadata(Metadata):
         else:
             self.list_metadata = list()
             for file_path in list_metadata:
-                if Metadata.check_is_audio(file_path):
+                if check_is_audio(file_path):
                     self.list_metadata.append(Metadata(file_path))
                 else:
                     logging.warning("File '{}' is no audio file"
@@ -407,19 +420,22 @@ class GroupMetadata(Metadata):
                         blacklist=blacklist,
                         remove_other=remove_other)
 
-    def load_tags_db(self, primary_key=None, whitelist=None, blacklist=None,
-                     remove_other=False):
+    def import_tags_from_db(self,
+                            whitelist=None,
+                            blacklist=None,
+                            remove_other=False,
+                            root_dir=None):
         """Super-Method applied to all Objects in list. See Metadata."""
         for metadata in self.list_metadata:
-            metadata.load_tags_db(primary_key=primary_key,
-                                  whitelist=whitelist,
-                                  blacklist=blacklist,
-                                  remove_other=remove_other)
+            metadata.import_tags_from_db(primary_key=None,
+                                         whitelist=whitelist,
+                                         blacklist=blacklist,
+                                         remove_other=remove_other)
 
-    def save_tags_db(self):
+    def export_tags_to_db(self, root_dir=None):
         """Super-Method applied to all Objects in list. See Metadata."""
         for metadata in self.list_metadata:
-            metadata.save_tags_db()
+            metadata.export_tags_to_db()
 
 
 class AlbumMetadata(GroupMetadata):
@@ -434,7 +450,7 @@ class AlbumMetadata(GroupMetadata):
         list_metadata = list()
         for file in os.listdir(path_album):
             file_path = os.path.join(path_album, file)
-            if Metadata.check_is_audio(file_path):
+            if check_is_audio(file_path):
                 list_metadata.append(file_path)
         super().__init__(list_metadata)
 

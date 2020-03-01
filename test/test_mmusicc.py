@@ -6,15 +6,16 @@ import unittest
 from mmusicc import MmusicC
 
 path_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-path_media = os.path.join(path_root, "media/TestMusicLib")
+path_media_A = os.path.join(path_root, "media/TestMusicLib_flac")
+path_media_B = os.path.join(path_root, "media/TestMusicLib_mp3")
 
 
 class TestMmusicC(unittest.TestCase):
 
     def setUp(self) -> None:
         self.td = tempfile.TemporaryDirectory()
-        self.paths_work = os.path.join(self.td.name, "TestMusicLib")
-        shutil.copytree(path_media, self.paths_work)
+        shutil.copytree(path_media_A, os.path.join(self.td.name, "TestMusicLib_flac"))
+        shutil.copytree(path_media_B, os.path.join(self.td.name, "TestMusicLib_mp3"))
         os.chdir(self.td.name)
         os.mkdir("newone")
         print("Temporary working directory: {}".format(os.getcwd()))
@@ -22,21 +23,9 @@ class TestMmusicC(unittest.TestCase):
     def tearDown(self) -> None:
         self.td.cleanup()
 
-    def _test_help(self):
+    def test_help(self):
         with self.assertRaises(SystemExit) as cm:
             MmusicC("--help".split())
-        the_exception = cm.exception
-        self.assertEqual(the_exception.code, 0)
-        with self.assertRaises(SystemExit) as cm:
-            MmusicC("file --help".split())
-        the_exception = cm.exception
-        self.assertEqual(the_exception.code, 0)
-        with self.assertRaises(SystemExit) as cm:
-            MmusicC("album --help".split())
-        the_exception = cm.exception
-        self.assertEqual(the_exception.code, 0)
-        with self.assertRaises(SystemExit) as cm:
-            MmusicC("lib --help".split())
         the_exception = cm.exception
         self.assertEqual(the_exception.code, 0)
 
@@ -48,65 +37,67 @@ class TestMmusicC(unittest.TestCase):
 
     def test_sync_files(self):
         with self.assertRaises(SystemExit) as cm:
-            MmusicC("file -s TestMusicLib/artist_puddletag/album_good_(2018)/01_track1.flac -t 01_track1.flac".split())
+            MmusicC("-s TestMusicLib_flac/artist_puddletag/album_good_(2018)/01_track1.flac -t 01_track1.mp3".split())
         self.assertEqual(cm.exception.code, 0)
-        self.assertTrue(os.path.exists("01_track1.flac"))
+        self.assertTrue(os.path.exists("01_track1.mp3"))
+        with self.assertRaises(SystemExit) as cm:
+            MmusicC("-s TestMusicLib_flac/artist_puddletag/album_good_(2018)/02_track2.flac -t . -f .mp3".split())
+        self.assertEqual(cm.exception.code, 0)
+        self.assertTrue(os.path.exists("02_track2.mp3"))
 
     def test_sync_albums(self):
         with self.assertRaises(SystemExit) as cm:
-            MmusicC("album -s TestMusicLib/artist_puddletag/album_good_(2018) -t newone/artist_puddletag/album_good_(2018) -f flac".split())
+            MmusicC("--album -s TestMusicLib_flac/artist_puddletag/album_good_(2018) -t newone/artist_puddletag/album_good_(2018) -f mp3".split())
         self.assertEqual(cm.exception.code, 0)
         self.assertTrue(os.path.exists("newone/artist_puddletag/album_good_(2018)"))
 
     def test_sync_lib(self):
         with self.assertRaises(SystemExit) as cm:
-            MmusicC("lib -s TestMusicLib -t TestLibMp3 -f flac".split())
+            MmusicC("-s TestMusicLib_flac -t TestMusicLib_mp3 -f mp3".split())
         self.assertEqual(cm.exception.code, 0)
-        self.assertTrue(os.path.exists("TestLibMp3/artist_puddletag/album_good_(2018)/01_track1.flac"))
-        self.assertTrue(os.path.exists("TestLibMp3/various_artists/album_best_hits_compilation_(2010)/CD_02/01_track1.flac"))
+        self.assertTrue(os.path.exists("TestMusicLib_mp3/artist_puddletag/album_good_(2018)/01_track1.mp3"))
+        self.assertTrue(os.path.exists("TestMusicLib_mp3/various_artists/album_best_hits_compilation_(2010)/CD_02/01_track1.mp3"))
 
     def test_sync_lib_dry_run(self):
         with self.assertRaises(SystemExit) as cm:
-            MmusicC("lib -s TestMusicLib -t TestLibMp3 --only-files --dry-run -f flac".split())
+            MmusicC("-s TestMusicLib_flac -t TestMusicLib_mp3 --only-files --dry-run -f mp3".split())
         self.assertEqual(cm.exception.code, 0)
-        self.assertFalse(os.path.exists("TestLibMp3/artist_puddletag/album_good_(2018)/01_track1.flac"))
-        self.assertFalse(os.path.exists("TestLibMp3/various_artists/album_best_hits_compilation_(2010)/CD_02/01_track1.flac"))
+        self.assertFalse(os.path.exists("TestMusicLib_mp3/artist_puddletag/album_good_(2018)/01_track1.mp3"))
+        self.assertFalse(os.path.exists("TestMusicLib_mp3/various_artists/album_best_hits_compilation_(2010)/CD_02/01_track1.mp3"))
 
-    def _test_sync_to_db(self):
-        pass
+    def test_sync_to_db(self):
+        with self.assertRaises(SystemExit) as cm:
+            MmusicC("-s TestMusicLib_flac -tdb fuubar.db".split())
+        self.assertEqual(cm.exception.code, 0)
+        self.assertTrue(os.path.exists("fuubar.db"))
 
-    def _test_sync_from_db(self):
-        pass
+    def test_sync_from_db(self):
+        with self.assertRaises(SystemExit) as cm:
+            MmusicC("-sdb TestMusicLib_flac/testMusicLib.db -t TestMusicLib_flac".split())
+        self.assertEqual(cm.exception.code, 0)
 
-    def _test_load_file_list(self):
-        self.assertTrue(True)
-        ps = TestMmusicC.convert2abspath([
-            "media/flac/1-str_title_A.flac",
-            "media/flac/2-str_title_B.flac",
-            "media/flac/3-str_title_C.flac"])
-        pt = TestMmusicC.convert2abspath([
-            "media/mp3/1-str_title_A.mp3",
-            "media/mp3/2-str_title_B.mp3",
-            "media/mp3/3-str_title_C.mp3"])
-        MmusicC("-s {} -t {}".format(ps, pt).split())
-
-    def _test_load_mix(self):
-        self.assertTrue(True)
-        MmusicC("-s media -t media/mp3".split())
-
-    @staticmethod
-    def convert2abspath(paths):
-        if isinstance(paths, str):
-            return TestMmusicC._convert2abspath(paths)
-        else:
-            abs_paths = list()
-            for p in paths:
-                abs_paths.append(TestMmusicC._convert2abspath(p))
-            return " ".join(abs_paths)
-
-    @staticmethod
-    def _convert2abspath(path):
-        return os.path.abspath(path)
+    def test_white_and_black_list(self):
+        with self.assertRaises(SystemExit) as cm:
+            MmusicC(("-s TestMusicLib_flac/test_metadata/test_it_(2020)/1-str_title_A.flac "
+                     "-t TestMusicLib_mp3/test_metadata/test_it_(2020)/1-str_title_A.mp3 "
+                     "--only-meta "
+                     "--black-list-tags album title artist track").split()
+                    )
+        self.assertEqual(cm.exception.code, 0)
+        with self.assertRaises(SystemExit) as cm:
+            MmusicC(["-s", "TestMusicLib_flac/test_metadata/test_it_(2020)/1-str_title_A.flac",
+                     "-t", "TestMusicLib_mp3/test_metadata/test_it_(2020)/1-str_title_A.mp3",
+                     "--only-meta",
+                     "--white-list-tags", "TestMusicLib_flac/whitelist.txt"]
+                    )
+        self.assertEqual(cm.exception.code, 0)
+        with self.assertRaises(SystemExit) as cm:
+            MmusicC(("-s TestMusicLib_flac/test_metadata/test_it_(2020)/1-str_title_A.flac "
+                     "-t TestMusicLib_mp3/test_metadata/test_it_(2020)/1-str_title_A.mp3 "
+                     "--only-meta "
+                     "--black-list-tags album title artist track fuubar").split()
+                    )
+        self.assertEqual(cm.exception.code, 2)
 
 
 if __name__ == '__main__':

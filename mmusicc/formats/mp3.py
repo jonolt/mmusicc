@@ -4,7 +4,7 @@ from mmusicc.formats._audio import AudioFile
 from mmusicc.formats._util import (scan_dictionary, text_parser_get,
                                    join_str_list)
 from mmusicc.metadata import Empty
-from mmusicc.util.allocationmap import dict_id3_tag, dict_tag_id3
+from mmusicc.util.allocationmap import dict_id32tag, dict_tag2id3
 
 extensions = [".mp3", ".mp2", ".mp1", ".mpg", ".mpeg"]
 # loader   see bottom
@@ -70,7 +70,7 @@ class MP3File(AudioFile):
                 tags_txxx[frame.desc] = tag_val
             else:
                 try:
-                    tag_key = dict_id3_tag.get(frame_id)
+                    tag_key = dict_id32tag.get(frame_id)
                     if tag_key:
                         self.dict_meta[tag_key] = text_parser_get(tag_val)
                     else:
@@ -108,7 +108,9 @@ class MP3File(AudioFile):
                 del(tags[t])
 
         for tag_key, value in self.dict_meta.items():
-            id3_tag = dict_tag_id3.get(tag_key)
+            if not value:
+                continue
+            id3_tag = dict_tag2id3.get(tag_key)
             frame = eval("mutagen.id3.{}()".format(id3_tag))
             if frame.FrameID == "TXXX":
                 frame.desc = tag_key

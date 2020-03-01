@@ -52,7 +52,7 @@ ALBUMARTISTSORT:
 TRACKNUMBER:
 - 6
 - TRCK
-- []
+- - TRACK
 - - TRACKNUMBER
   - (?P<track>\d*)\/(?P<tracktot>\d*)
   - str(int(regex.track))
