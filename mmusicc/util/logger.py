@@ -2,7 +2,7 @@ import logging
 import logging.config
 
 
-def init_logger(level):
+def init_logger(level=25):
     """Initialise Python Logger (function may be extended in future)"""
 
     if len(logging.getLogger().handlers):
@@ -34,4 +34,4 @@ def init_logger(level):
     }
     logging.config.dictConfig(config)
     logging.debug("Initialized logger")
-    logging.addLevelName(25, "MMUSICC")
+    logging.addLevelName(25, "mmusicc")

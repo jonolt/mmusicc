@@ -54,14 +54,14 @@ class FFmpeg(object):
             else:
                 raise
 
-        catchers = ["Input #0,", "Stream #0:0 -> #0:0", "Output #0,"]
+        catchers = ["Input #0", "Stream #0:", "Output #0"]
 
-        i_catch = 0
         for line in process_result.stderr.decode().split('\n'):
-            if catchers[i_catch] in line:
-                logging.info(line.strip())
-                if i_catch < len(catchers)-1:
-                    i_catch += 1
+            for catch in catchers:
+                if catch in line:
+                    logging.log(25, line.strip())
+
+        logging.debug(process_result.stderr.decode())
 
         if process_result.returncode != 0:
             raise FFRuntimeError(self.cmd,

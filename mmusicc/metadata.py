@@ -5,7 +5,7 @@ import re
 import mmusicc.util.allocationmap as am
 from mmusicc.database import MetaDB
 from mmusicc.formats import MusicFile
-from mmusicc.util.misc import check_is_audio
+from mmusicc.util.misc import check_is_audio, process_white_and_blacklist
 from mmusicc.util.path import PATH, hash_filename
 
 
@@ -191,7 +191,7 @@ class Metadata(metaclass=MetadataMeta):
                 tag values and lets others unchanged. If True, deletes all
                 other tag values, which are not imported. Defaults to False.
         """
-        tags = Metadata.process_white_and_blacklist(whitelist, blacklist)
+        tags = process_white_and_blacklist(whitelist, blacklist)
         for tag in am.list_tags:
             if tag in tags:
                 self.dict_data[tag] = source_meta.dict_data[tag]
@@ -242,7 +242,7 @@ class Metadata(metaclass=MetadataMeta):
                     raise KeyError("could not find matching entry")
                 primary_key = keys[0]
 
-        tags = Metadata.process_white_and_blacklist(whitelist, blacklist)
+        tags = process_white_and_blacklist(whitelist, blacklist)
         if not Metadata._database:
             raise Exception("no database linked")
         else:
@@ -299,35 +299,6 @@ class Metadata(metaclass=MetadataMeta):
                 if m:
                     self.dict_auto_fill_org[tag] = self.dict_data[tag]
                     self.dict_data[tag] = eval(val_parse)
-
-    @staticmethod
-    def process_white_and_blacklist(whitelist, blacklist):
-        """creates a whitelist from one whitelist and one blacklist.
-
-        Blacklist is processed after whitelist and will remove whitelisted
-        items.
-
-        Args:
-            whitelist (list<str>): whitelist of tags to be imported. Loads all
-                tags if None.
-            blacklist (list<str>): blacklist of tags not to be imported. These
-                items are removed from the whitelist. If none, whitelist is
-                returned unprocessed.
-
-        Returns:
-            list<str>: whitelist after applying blacklisting.
-        """
-        if not whitelist:
-            whitelist = am.list_tags.copy()
-        if blacklist:
-            for t in blacklist:
-                try:
-                    whitelist.pop(whitelist.index(t))
-                except ValueError:
-                    logging.warning("Warning can not remove {}. "
-                                    "It is not in the whitelist.".format(t))
-                    continue
-        return whitelist
 
 
 class GroupMetadata(Metadata):

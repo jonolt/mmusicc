@@ -10,7 +10,8 @@ from mmusicc._init import init_formats, init_logging, init_allocationmap
 from mmusicc.formats import loaders as audio_loader
 from mmusicc.metadata import Metadata, AlbumMetadata
 from mmusicc.util.ffmpeg import FFmpeg
-from mmusicc.util.misc import check_is_audio, swap_base
+from mmusicc.util.misc import check_is_audio, swap_base, \
+    process_white_and_blacklist
 from mmusicc.version import __version__ as package_version
 
 
@@ -24,7 +25,23 @@ class MmusicC:
             args (:list: string):
         """
 
-        init_logging()
+        pre_parser = argparse.ArgumentParser(add_help=False)
+        pre_parser.add_argument(
+            '-v', '--verbose',
+            action='count',
+            default=0
+        )
+        parsed, remaining = pre_parser.parse_known_args(args)
+        self.pre_result_verbose = parsed.verbose
+
+        if self.pre_result_verbose == 0:
+            log_level = 25
+        elif self.pre_result_verbose == 1:
+            log_level = logging.INFO
+        else:
+            log_level = logging.DEBUG
+
+        init_logging(log_level)
         init_formats()
 
         str_description = textwrap.dedent(
@@ -109,6 +126,19 @@ class MmusicC:
             help="do everything as usual, but without writing (file and "
                  "database). It is recommended to use with --only-meta or "
                  "--only-files, otherwise errors are likely.")
+        pg_general.add_argument(
+            '-v', '--verbose',
+            action='count',
+            default=0,
+            help='print log messages. can be stacked up to 2 (info, debug)'
+            # processed before argparser
+        )
+        # pg_general.add_argument(
+        #     '-q', '--quiet',
+        #     action='count',
+        #     default='0',
+        #     help='print log messages'
+        # )
 
         pg_conversion.add_argument(
             '-f', '--format',
@@ -156,27 +186,29 @@ class MmusicC:
         self.result = parser.parse_args(args)
 
         if not self.result.path_config:
-            path_this_file = os.path.dirname(os.path.dirname(
-                os.path.abspath(__file__)))
+            path_folder_this_file = os.path.dirname(os.path.abspath(__file__))
             self.result.path_config = \
-                os.path.join(path_this_file, "config.yaml")
-            # TODO find better way to locate the config file,
-            #  maybe change its position
+                os.path.join(path_folder_this_file, "data", "config.yaml")
 
-        init_allocationmap(self.result.path_config)
+        try:
+            init_allocationmap(self.result.path_config)
+        except FileNotFoundError:
+            parser.error("path to config file not found")
 
         self.run_files = not self.result.only_meta
         self.run_meta = not self.result.only_files
 
         db_url = None
         if self.result.source:
-            self.source = os.path.abspath(self.result.source)
+            self.source = os.path.abspath(
+                os.path.expanduser(self.result.source))
         else:
             self.source = None
             db_url = self.result.source_db
 
         if self.result.target:
-            self.target = os.path.abspath(self.result.target)
+            self.target = os.path.abspath(
+                os.path.expanduser(self.result.target))
         else:
             self.target = None
             db_url = self.result.target_db
@@ -188,6 +220,8 @@ class MmusicC:
 
         self.source_type = get_element_type(self.source)
         self.target_type = get_element_type(self.target)
+        logging.info("Source is '{}'. Target is '{}'.".
+                     format(self.source_type, self.target_type))
 
         if not (self.source or self.target) and self.run_files:
             parser.error("Target or source is database! I can only run meta!")
@@ -237,10 +271,15 @@ class MmusicC:
                 else:
                     self.blacklist = \
                         get_tag_from_str(self.result.black_list_tags)
-            # TODO maybe combine white and blacklist and print whitelist tags
         except KeyError as err:
             parser.error("Blacklist: {}. If input is file it is mot found."
                          .format(err))
+
+        # just fot the log
+        if self.whitelist or self.blacklist:
+            whitelist = \
+                process_white_and_blacklist(self.whitelist, self.blacklist)
+            logging.info("Tags to be Synced: {}".format(whitelist))
 
         if self.source_type == ElementType.file:
             # if source if file, target must be file to
@@ -256,8 +295,11 @@ class MmusicC:
             if self.result.album:
                 self.handle_album2album(self.source, self.target)
             else:
+                logging.debug("Walking through tree of directory '{}'"
+                              .format(self.source))
                 gen = os.walk(self.source, topdown=True)
                 for root, dirs, files in gen:
+                    logging.debug('Current root: {}'.format(root))
                     if len(dirs) == 0:
                         if self.target_type == ElementType.folder:
                             album_target = swap_base(self.source, self.target,

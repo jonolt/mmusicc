@@ -33,7 +33,7 @@ def init_formats():
     init()
 
 
-def init_logging():
+def init_logging(level=25):
     """initialize logger"""
     from mmusicc.util import init_logger
-    init_logger(logging.DEBUG)
+    init_logger(level=level)
