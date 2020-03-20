@@ -13,7 +13,7 @@ class MetaDB:
     When writing to the Database, always all data is written, while you can
     load only select which tags to load.
 
-    *https://docs.sqlalchemy.org/en/13/core/engines.html
+    https://docs.sqlalchemy.org/en/13/core/engines.html
 
     Args:
         database_url (str): database url following RFC-1738*. If the sting,

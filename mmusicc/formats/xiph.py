@@ -19,8 +19,8 @@ class VCFile(AudioFile):
     Instance created by loader (at the bottom of this code).
 
     Args:
-        file_path      (str): file path of represented audio file
-        audio (mutagen.File): file as mutagen file object
+        file_path      (str): file path of represented audio file.
+        audio (mutagen.File): file as mutagen file object.
     """
     format = "Unknown Mutagen + vorbiscomment"
     MutagenType = None

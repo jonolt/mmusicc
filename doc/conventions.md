@@ -1,5 +1,7 @@
-## Programming Info
-Some notes for programming.
+## internal
+
+Programming conventions, internal working mechanisms and metadata behaviour.
+
 ### Conventions
 
 - Program internal, all tags and assertion values are saved lowercase (casefold), except ID3 tags which are uppercase.

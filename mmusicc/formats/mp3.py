@@ -86,9 +86,9 @@ class MP3File(AudioFile):
         """saves file tags to AudioFile from tag dictionary.
 
         Args:
-            remove_existing (bool): if true clear all tags before writing.
-                Defaults to False.
-            remove_v1       (bool): If True, remove existing ID3.V1 tags.
+            remove_existing ('bool', optional): if true clear all tags before
+                writing. Defaults to False.
+            remove_v1       ('bool'): If True, remove existing ID3.V1 tags.
                 Defaults to False.
         """
         if not self.check_file_path():
@@ -126,12 +126,12 @@ class MP3File(AudioFile):
 
     @staticmethod
     def set_frame_text(frame, content):
-        """Writes content (str or list) into the specified frame.
+        """Writes content into the specified frame.
         Merges Multiple values, sets frame language.
 
         Args:
-            frame  (mutagen.id3.Frame): frame to be writen to.
-            content (str OR list<str>): content to be writen into the frame.
+            frame (mutagen.id3.Frame): frame to be writen to.
+            content  (str, list(str)): content to be writen into the frame.
         Raises:
             ValueError: if text can not be parsed.
         """
