@@ -4,13 +4,13 @@
 
    usage
    mmusicc
-   conventions
+   internals
 
 
 mmusicc
 ===================================
 
-.. mdinclude:: ../README.md
+.. include:: ../README.rst
 
 
 Indices and tables

@@ -29,10 +29,7 @@ author = 'Johannes N.'
 # ones.
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.viewcode',
-              'sphinx.ext.napoleon',
-              'm2r']
-
-source_suffix = ['.rst', '.md']
+              'sphinx.ext.napoleon']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
