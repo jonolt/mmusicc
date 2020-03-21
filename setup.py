@@ -2,7 +2,7 @@ import setuptools
 
 from mmusicc.version import __version__
 
-with open("README.md", "r") as fh:
+with open("README.rst", "r") as fh:
     long_description = fh.read()
 
 setuptools.setup(
@@ -15,7 +15,7 @@ setuptools.setup(
         "program to transfer the changes made in a master music library to a "
         "derived music library."),
     long_description=long_description,
-    long_description_content_type="text/markdown",
+    long_description_content_type="text/x-rst",
     url="https://github.com/jonolt/mmusicc",
     packages=setuptools.find_packages(),
     classifiers=[
