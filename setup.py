@@ -1,13 +1,17 @@
 import setuptools
 
-from mmusicc.version import __version__
 
 with open("README.rst", "r") as fh:
     long_description = fh.read()
 
+# https://packaging.python.org/guides/single-sourcing-package-version/
+version = {}
+with open("./mmusicc/version.py") as fp:
+    exec(fp.read(), version)
+
 setuptools.setup(
     name="mmusicc-jonolt",
-    version=__version__,
+    version=version['__version__'],
     author="Johannes N.",
     author_email="jonolt@mailbox.org",
     description=(
