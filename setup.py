@@ -30,10 +30,9 @@ setuptools.setup(
         "Environment :: Console :: Curses",
         "Intended Audience :: End Users/Desktop",
     ],
-    python_requires='>=3.7',
+    python_requires='>=3.5',
     package_data={'mmusicc': ['data/config.yaml']},
-    install_requires=['mutagen>=1.43.0', 'PyYAML>=5.3',
-                      'SQLAlchemy>=1.3.0', 'senf>=1.4.0'],
+    install_requires=['mutagen>=1.43.0', 'PyYAML>=5.3', 'SQLAlchemy>=1.3.0'],
     entry_points={
         "console_scripts": [
             "mmusicc = mmusicc.__main__:main",
