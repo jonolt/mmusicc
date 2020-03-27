@@ -3,9 +3,7 @@ usage
 
 Don't use it on your music library before version 0.3!
 
-.. highlight:: none
-
-.. code-block::
+.. code-block:: none
 
     usage: MmusicC (-s SOURCE | -sdb SOURCE_DB) (-t TARGET | -tdb TARGET_DB) [-h]
                    [--version] [--album] [--only-meta | --only-files] [--dry-run]
