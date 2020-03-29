@@ -34,7 +34,10 @@ class VCFile(AudioFile):
     def file_read(self):
         """reads file tags into AudioFile tag dictionary."""
         dict_tmp = dict()
-        tags = self._file.tags.copy()
+        if self._file.tags:
+            tags = self._file.tags.copy()
+        else:
+            tags = []
         for tag in tags:
             tag_key = tag[0]
             tag_val = tag[1]

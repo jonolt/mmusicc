@@ -1,7 +1,7 @@
-import pathlib
 import re
 import warnings
 
+import mutagen
 import pytest
 
 import mmusicc.formats
@@ -12,6 +12,8 @@ def test_audio_loaders_found(audio_loaders):
 
 
 def test_allocation_map_loaded(allocation_map):
+    # test not needed her but otherwise fixture will not load it
+    # might be moved to test_util if possible
     assert len(allocation_map.list_tags) > 0
 
 
@@ -25,6 +27,7 @@ def media_file(request, audio_files):
 
 
 # TODO find a way to load extension dynamically
+# TODO run tests per-class configuration
 @pytest.mark.parametrize("media_file",
                          [".mp3", ".flac"],
                          indirect=["media_file"])
@@ -35,10 +38,18 @@ class TestFormats:
 
     def test_write(self, media_file, metadata_write_tags):
         write_meta_to_file(media_file, metadata_write_tags)
-
-    # from test_read we already know that we reading works
-    def test_read_written(self, media_file, metadata_write_tags):
+        # from test_read we already know that we reading works
         read_and_compare_file(media_file, metadata_write_tags)
+
+    def test_read_no_header(self, media_file):
+        file_type = mutagen.File(media_file)
+        file_type.delete()
+        file_type.save()
+        read_and_compare_file(media_file, {})
+
+    def test_write_no_header(self, media_file, expected_metadata_read):
+        write_meta_to_file(media_file, expected_metadata_read)
+        read_and_compare_file(media_file, expected_metadata_read)
 
 
 def write_meta_to_file(path, dict_meta):
@@ -59,16 +70,15 @@ def read_and_compare_file(path, dict_answer, exclude=None):
 
 
 @pytest.fixture(scope="class")
-def audio_files(audio_loaders, test_media) -> dict:
+def audio_files(audio_loaders, dir_subpackages) -> dict:
     loaders = set(audio_loaders.values())
     extensions = set(audio_loaders.keys())
-    audio_file_dir = test_media.joinpath("source")
-    files = [p.name for p in audio_file_dir.glob("*.*")]
+    files = [p.name for p in dir_subpackages.glob("*.*")]
     regex = re.compile(r"formats_[\w\d]*.[\w\d]{3,4}")
     files = list(filter(regex.search, files))
     audio_files = dict()
     for f in files:
-        path = pathlib.Path(audio_file_dir, f)
+        path = dir_subpackages.joinpath(f)
         audio_files[path.suffix] = path
         extensions.remove(path.suffix)
         try:
