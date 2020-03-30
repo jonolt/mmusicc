@@ -83,7 +83,7 @@ class Metadata(metaclass=MetadataMeta):
 
     either from a linked file or loaded from a database.
 
-    TODO tag getter and setter only acces to variables --> protected dict data
+    TODO tag getter and setter only access to variables --> protected dict data
 
     Args:
         file_path  (str, optional): path to an supported audio file, can be set
@@ -119,7 +119,10 @@ class Metadata(metaclass=MetadataMeta):
 
     @property
     def file_path(self):
-        return getattr(self, PATH)
+        try:
+            return getattr(self, PATH)
+        except AttributeError:
+            return None
 
     def _set_file_path(self, path):
         tmp_fn_hash = hash_filename(path)
@@ -148,40 +151,30 @@ class Metadata(metaclass=MetadataMeta):
     def set_tag(self, str_tag, value):
         self.dict_data[str_tag] = value
 
-    def read_tags(self, remove_other=False):
+    def read_tags(self):
         """read metadata from linked audio file
 
-        Args:
-            remove_other (bool, optional): If False, overwrites only new tag
-            values read from the file and lets others unchanged. If True,
-            resets dictionary to initial state, which removes already exiting
-            tag values. Defaults to False.
         Raises:
             Exception: if no file is linked
         """
         if not self._audio:
             raise Exception("no file_path linked")
         self._audio.file_read()
-        if remove_other:
-            self.dict_data.reset()
         self.dict_data.update(self._audio.dict_meta)
 
-    def write_tags(self, remove_other=False):
+    def write_tags(self, remove_existing=False):
         """write metadata to linked audio file
 
         Args:
-            remove_other (bool, optional): If False, overwrites only new
-            tag values writen the file and lets others unchanged. If True,
-            clears all metadata from file before writing. Defaults to False.
+            remove_existing (bool, optional): If true clear all tags on file
+                before writing. Defaults to False.
         Raises:
             Exception: if no file is linked
         """
         if not self._audio:
             raise Exception("no file_path linked")
-        if remove_other:
-            self._audio.dict_meta = dict()
         self._audio.dict_meta.update(self.dict_data)
-        self._audio.file_save(remove_existing=remove_other)
+        self._audio.file_save(remove_existing=remove_existing)
 
     def import_tags(self, source_meta,
                     whitelist=None,
@@ -200,10 +193,14 @@ class Metadata(metaclass=MetadataMeta):
             skip_none      (bool, optional): If True, don't overwrite values in
                 target, which are None in source. Defaults to True.
         """
+        self._import_tags(source_meta.dict_data,
+                          whitelist, blacklist, skip_none)
+
+    def _import_tags(self, dict_meta, whitelist, blacklist, skip_none):
         tags = process_white_and_blacklist(whitelist, blacklist)
         for tag in am.list_tags:
             if tag in tags:
-                val = source_meta.dict_data[tag]
+                val = dict_meta[tag]
                 if not val and skip_none:
                     continue
                 self.dict_data[tag] = val
@@ -212,6 +209,7 @@ class Metadata(metaclass=MetadataMeta):
                             primary_key=None,
                             whitelist=None,
                             blacklist=None,
+                            skip_none=True
                             ):
         """Imports metadata from the database.
 
@@ -229,6 +227,8 @@ class Metadata(metaclass=MetadataMeta):
             blacklist (list<str>, optional): blacklist of tags not to be
                 imported. Applied after whitelist. If None, no tags are
                 blacklisted. Defaults to None.
+            skip_none      (bool, optional): If True, don't overwrite values in
+                target, which are None in source. Defaults to True.
 
             Raises:
              Exception: if no database linked to class
@@ -256,13 +256,12 @@ class Metadata(metaclass=MetadataMeta):
                     raise KeyError("could not find matching entry")
                 primary_key = keys[0]
 
-        tags = process_white_and_blacklist(whitelist, blacklist)
         if not Metadata._database:
             raise Exception("no database linked")
         else:
-            data = self._database.read_meta(primary_key, tags)
+            data = self._database.read_meta(primary_key)
             if data:
-                self.dict_data.update(data)
+                self._import_tags(data, whitelist, blacklist, skip_none)
             else:
                 logging.warning("database read failed, no data imported. "
                                 "File might not be in database")
@@ -358,10 +357,10 @@ class GroupMetadata(Metadata):
             metadata.auto_fill_tags()
         self.__compare_tags()
 
-    def read_tags(self, remove_other=False):
+    def read_tags(self):
         """See super function"""
         for metadata in self.list_metadata:
-            metadata.read_tags(remove_other=remove_other)
+            metadata.read_tags()
         self.__compare_tags()
 
     def __compare_tags(self):
@@ -383,10 +382,10 @@ class GroupMetadata(Metadata):
                         self.dict_data[key] = Div(key, self.list_metadata)
                         break
 
-    def write_tags(self, remove_other=True):
+    def write_tags(self, remove_existing=True):
         """Super-Method applied to all Objects in list. See Metadata."""
         for metadata in self.list_metadata:
-            metadata.write_tags(remove_other=remove_other)
+            metadata.write_tags(remove_existing=remove_existing)
 
     def import_tags(self, source_meta, whitelist=None, blacklist=None,
                     skip_none=True):
@@ -399,7 +398,7 @@ class GroupMetadata(Metadata):
             skip_none      (bool, optional): See Metadata.import_tags().
         """
         # tags = Metadata.process_white_and_blacklist(whitelist, blacklist)
-        # TODO change import procedure similar to primary key aquisition
+        # TODO change import procedure similar to primary key acquisition
         for metadata_self in self.list_metadata:
             for metadata_source in source_meta.list_metadata:
                 # noinspection PyUnresolvedReferences
@@ -409,17 +408,21 @@ class GroupMetadata(Metadata):
                         whitelist=whitelist,
                         blacklist=blacklist,
                         skip_none=skip_none)
+                    break
         self.__compare_tags()
 
     def import_tags_from_db(self,
                             whitelist=None,
                             blacklist=None,
-                            root_dir=None):
+                            root_dir=None,
+                            skip_none=True):
         """Super-Method applied to all Objects in list. See Metadata."""
         for metadata in self.list_metadata:
             metadata.import_tags_from_db(primary_key=None,
                                          whitelist=whitelist,
-                                         blacklist=blacklist)
+                                         blacklist=blacklist,
+                                         skip_none=skip_none
+                                         )
         self.__compare_tags()
 
     def export_tags_to_db(self, root_dir=None):

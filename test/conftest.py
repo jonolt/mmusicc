@@ -15,45 +15,17 @@ def dir_orig_data() -> pathlib.Path:
     return pathlib.Path(__file__).parent.joinpath("data")
 
 
-@pytest.fixture(scope="session")
-def expected_metadata_read(dir_orig_data) -> dict:
-    data = {}
-    with dir_orig_data.joinpath("read_expected_metadata.py").open("r") as fp:
-        exec(fp.read(), data)
-    return data.get("dict_answer")
-
-
-@pytest.fixture(scope="session")
-def metadata_write_tags(expected_metadata_read, exclude=None) -> dict:
-    _dict = expected_metadata_read.copy()
-    if not exclude:
-        exclude = []
-    for key in list(_dict):
-        if key in exclude:
-            continue
-        if not isinstance(_dict[key], str):
-            continue
-        try:
-            cur_int = int(_dict[key])
-            _dict[key] = str(cur_int + 1)
-        except ValueError:
-            if key == 'originaldate':
-                continue
-            _dict[key] = _dict[key] + "_2"
-    return _dict
-
-
-@pytest.fixture(scope="session")
-def audio_loaders() -> dict:
-    mmusicc.formats.init()
-    # equals: init_formats()
-    return mmusicc.formats.loaders
-
-
-@pytest.fixture(scope="session")
-def allocation_map(dir_orig_data):
+@pytest.fixture(scope="module")
+def allocation_map(request, dir_orig_data):
+    # if request.node.name == "test_formats.py":
+    #     path_config = "metadata_config.yaml"
+    # else:
+    #     path_config =
+    #           dir_orig_data.parent.parent.joinpath("data/config.yaml")
+    # TODO different allocation maps for test_formats and others?
+    path_config = "metadata_config.yaml"
     mmusicc.util.init_allocationmap(
-        str(dir_orig_data.joinpath("metadata_config.yaml")))
+        str(dir_orig_data.joinpath(path_config)))
     # equals: init_allocationmap(path_config)
     return mmusicc.util.allocationmap
 
@@ -87,7 +59,7 @@ def temp_database(tmp_path_factory):
 def dir_lib_a_flac(tmp_path_factory, dir_orig_data):
     temp_dir = tmp_path_factory.mktemp("A_flac")
     s_path = dir_orig_data.joinpath("music_lib", "A_flac")
-    res = copy_tree(str(s_path), str(temp_dir))
+    copy_tree(str(s_path), str(temp_dir))
     return temp_dir
 
 
@@ -95,5 +67,5 @@ def dir_lib_a_flac(tmp_path_factory, dir_orig_data):
 def dir_lib_b_mp3(tmp_path_factory, dir_orig_data):
     temp_dir = tmp_path_factory.mktemp("B_mp3")
     s_path = (dir_orig_data.joinpath("music_lib", "B_mp3"))
-    res = copy_tree(str(s_path), str(temp_dir))
+    copy_tree(str(s_path), str(temp_dir))
     return temp_dir

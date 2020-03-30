@@ -86,8 +86,8 @@ class MP3File(AudioFile):
         """saves file tags to AudioFile from tag dictionary.
 
         Args:
-            remove_existing ('bool', optional): if true clear all tags before
-                writing. Defaults to False.
+            remove_existing ('bool', optional): if true clear all tags on file
+                before writing. Defaults to False.
             remove_v1       ('bool'): If True, remove existing ID3.V1 tags.
                 Defaults to False.
         """

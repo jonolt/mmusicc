@@ -55,8 +55,8 @@ class VCFile(AudioFile):
         """saves file tags to AudioFile from tag dictionary.
 
         Args:
-            remove_existing (bool): if true clear all tags before writing.
-                Defaults to False.
+            remove_existing (bool): if true clear all tags on file before
+                writing. Defaults to False.
         """
         self.check_file_path()
 

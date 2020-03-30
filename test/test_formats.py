@@ -7,6 +7,43 @@ import pytest
 import mmusicc.formats
 
 
+@pytest.fixture(scope="module")
+def expected_metadata_read(dir_orig_data) -> dict:
+    data = {}
+    with dir_orig_data.joinpath("read_expected_metadata.py").open("r") as fp:
+        exec(fp.read(), data)
+    return data.get("dict_answer")
+
+
+@pytest.fixture(scope="module")
+def metadata_write_tags(expected_metadata_read, exclude=None) -> dict:
+    _dict = expected_metadata_read.copy()
+    if not exclude:
+        exclude = []
+    for key in list(_dict):
+        if key in exclude:
+            continue
+        if not isinstance(_dict[key], str):
+            continue
+        try:
+            cur_int = int(_dict[key])
+            _dict[key] = str(cur_int + 1)
+        except ValueError:
+            if key == 'originaldate':
+                continue
+            _dict[key] = _dict[key] + "_2"
+    return _dict
+
+
+@pytest.fixture(scope="module")
+def audio_loaders() -> dict:
+    mmusicc.formats.init()
+    # trigger skipping of initialisation
+    mmusicc.formats.init()
+    # equals: init_formats()
+    return mmusicc.formats.loaders
+
+
 def test_audio_loaders_found(audio_loaders):
     assert len(audio_loaders) > 0
 
@@ -36,10 +73,12 @@ class TestFormats:
     def test_read(self, media_file, expected_metadata_read):
         read_and_compare_file(media_file, expected_metadata_read)
 
-    def test_write(self, media_file, metadata_write_tags):
-        write_meta_to_file(media_file, metadata_write_tags)
+    @pytest.mark.parametrize("remove_existing", [True, False])
+    def test_write(self, media_file, metadata_write_tags, remove_existing):
+        write_meta_to_file(media_file, metadata_write_tags, remove_existing)
         # from test_read we already know that we reading works
         read_and_compare_file(media_file, metadata_write_tags)
+        # TODO actually test/assert remove_existing
 
     def test_read_no_header(self, media_file):
         file_type = mutagen.File(media_file)
@@ -48,14 +87,14 @@ class TestFormats:
         read_and_compare_file(media_file, {})
 
     def test_write_no_header(self, media_file, expected_metadata_read):
-        write_meta_to_file(media_file, expected_metadata_read)
+        write_meta_to_file(media_file, expected_metadata_read, True)
         read_and_compare_file(media_file, expected_metadata_read)
 
 
-def write_meta_to_file(path, dict_meta):
+def write_meta_to_file(path, dict_meta, remove_existing):
     m_file = mmusicc.formats.MusicFile(str(path))
     m_file.dict_meta = dict_meta
-    m_file.file_save(remove_existing=True)
+    m_file.file_save(remove_existing=remove_existing)
 
 
 def read_and_compare_file(path, dict_answer, exclude=None):
