@@ -174,7 +174,8 @@ class Metadata(metaclass=MetadataMeta):
         if not self._audio:
             raise Exception("no file_path linked")
         self._audio.dict_meta.update(self.dict_data)
-        self._audio.file_save(remove_existing=remove_existing)
+        if not Metadata.dry_run:
+            self._audio.file_save(remove_existing=remove_existing)
 
     def import_tags(self, source_meta,
                     whitelist=None,
@@ -278,7 +279,8 @@ class Metadata(metaclass=MetadataMeta):
         if not Metadata._database:
             raise Exception("no database linked")
         if self.file_path_set:
-            self._database.insert_meta(self.dict_data, self.file_path)
+            if not Metadata.dry_run:
+                self._database.insert_meta(self.dict_data, self.file_path)
         else:
             pass
 

@@ -17,15 +17,14 @@ def dir_orig_data() -> pathlib.Path:
 
 @pytest.fixture(scope="module")
 def allocation_map(request, dir_orig_data):
-    # if request.node.name == "test_formats.py":
-    #     path_config = "metadata_config.yaml"
-    # else:
-    #     path_config =
-    #           dir_orig_data.parent.parent.joinpath("data/config.yaml")
-    # TODO different allocation maps for test_formats and others?
-    path_config = "metadata_config.yaml"
+    if request.node.name == "test_formats.py":
+        path_config = "metadata_config.yaml"
+    else:
+        path_config = dir_orig_data.parent.parent.\
+            joinpath("mmusicc/data/config.yaml")
     mmusicc.util.init_allocationmap(
-        str(dir_orig_data.joinpath(path_config)))
+        str(dir_orig_data.joinpath(path_config)),
+        force=True)
     # equals: init_allocationmap(path_config)
     return mmusicc.util.allocationmap
 
@@ -53,6 +52,14 @@ def path_database(dir_subpackages):
 @pytest.fixture(scope="function")
 def temp_database(tmp_path_factory):
     return tmp_path_factory.mktemp("fuu").joinpath("database.db")
+
+
+@pytest.fixture(scope="function")
+def dir_lib_x_flac(tmp_path_factory, dir_orig_data):
+    temp_dir = tmp_path_factory.mktemp("lib_x")
+    s_path = dir_orig_data.joinpath("music_lib_x_flac")
+    copy_tree(str(s_path), str(temp_dir))
+    return temp_dir
 
 
 @pytest.fixture(scope="function")

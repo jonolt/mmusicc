@@ -5,14 +5,28 @@ import mutagen
 import pytest
 
 import mmusicc.formats
+import mmusicc.util.allocationmap
 
 
 @pytest.fixture(scope="module")
 def expected_metadata_read(dir_orig_data) -> dict:
-    data = {}
-    with dir_orig_data.joinpath("read_expected_metadata.py").open("r") as fp:
-        exec(fp.read(), data)
-    return data.get("dict_answer")
+    data = {'album': 'str_album',
+            'albumartist': 'str_albumartist',
+            'albumartistsort': 'str_albumartistsort',
+            'artist': 'str_artist',
+            'bpm': '128',
+            'comment': 'str_comment',
+            'composer': 'str_composer',
+            'date': '2020',
+            'discid': 'str_discid',
+            'discnumber': '2',
+            'genre': 'str_genre',
+            'isrc': 'QZES81947811',
+            'lyrics': 'str_lyrics',
+            'title': 'str_title',
+            'tracknumber': '3',
+            }
+    return data
 
 
 @pytest.fixture(scope="module")
@@ -48,9 +62,8 @@ def test_audio_loaders_found(audio_loaders):
     assert len(audio_loaders) > 0
 
 
-def test_allocation_map_loaded(allocation_map):
-    # test not needed her but otherwise fixture will not load it
-    # might be moved to test_util if possible
+def test_dummy_load_allocation_map(allocation_map):
+    # test not needed her but otherwise fixture (module level) will not load it
     assert len(allocation_map.list_tags) > 0
 
 
@@ -90,6 +103,12 @@ class TestFormats:
         write_meta_to_file(media_file, expected_metadata_read, True)
         read_and_compare_file(media_file, expected_metadata_read)
 
+    def test_multiple_tag_values(self, media_file):
+        val_dict = {"artist": ["fuu", "bar"]}
+        write_meta_to_file(media_file, val_dict, True)
+        m_file = read_and_compare_file(media_file, val_dict)
+        assert len(m_file.dict_meta) == 1
+
 
 def write_meta_to_file(path, dict_meta, remove_existing):
     m_file = mmusicc.formats.MusicFile(str(path))
@@ -106,6 +125,7 @@ def read_and_compare_file(path, dict_answer, exclude=None):
         if tag in exclude:
             continue
         assert dict_answer.get(tag) == m_file.dict_meta.get(tag)
+    return m_file
 
 
 @pytest.fixture(scope="class")

@@ -3,8 +3,8 @@ import logging
 from mmusicc.metadata import Empty
 from mmusicc.util.allocationmap import dict_str2tag
 
-SPLIT_CHAR = ['|', '\n', ";"]
-JOIN_CHAR = ";"
+SPLIT_CHAR = ['/', '\n', ';']
+JOIN_CHAR = ' / '
 
 
 def join_str_list(str_list):
@@ -92,10 +92,14 @@ def scan_dictionary(dict_tags, dict_data, ignore_none=False):
 def text_parser_get(text):
     """splits a text string at globally defined split chars (recursive).
 
+    Also strips whitespaces from the strings.
+
     Args:
-        text (str): source string to be split.
+        text (str or list<str>): source string to be split. Or source list
+            which contents to be split.
     Returns:
-        list<str>: List of strings.
+        str OR list<str>: String when single value in string else list of
+            values in string.
     """
     if isinstance(text, list):
         tmp_text = list()
@@ -105,12 +109,14 @@ def text_parser_get(text):
     elif isinstance(text, str):
         for c in SPLIT_CHAR:
             tmp_text = text.split(c)
-            if len(tmp_text) > 0:
+            if len(tmp_text) > 1:
                 text = tmp_text
                 break
-        if len(text) == 1:
-            return text[0]
+        if isinstance(text, str):
+            return text.strip()
+        elif len(text) == 1:
+            return text[0].strip()
         else:
-            return text
+            return [t.strip() for t in text]
     else:
         raise ValueError("text wrong value")
