@@ -29,13 +29,14 @@ author = 'Johannes N.'
 # ones.
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.viewcode',
-              'sphinx.ext.napoleon',
-              'm2r']
-
-source_suffix = ['.rst', '.md']
+              'sphinx.ext.napoleon']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
+
+# The document name of the “master” document, that is, the document that
+# contains the root toctree directive.
+master_doc = 'index'
 
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
