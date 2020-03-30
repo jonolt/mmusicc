@@ -1,6 +1,5 @@
-import sys
 import os
-import senf
+import sys
 
 from mmusicc.util import importhelper
 from mmusicc.util.logger import init_logger
@@ -16,5 +15,4 @@ def get_module_dir(module=None):
         file_path = sys._getframe(1).f_globals["__file__"]
     else:
         file_path = getattr(module, "__file__")
-    file_path = senf.path2fsn(file_path)
     return os.path.dirname(os.path.realpath(file_path))

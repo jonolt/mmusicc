@@ -1,13 +1,17 @@
 import setuptools
 
-from mmusicc.version import __version__
 
-with open("README.md", "r") as fh:
+with open("README.rst", "r") as fh:
     long_description = fh.read()
+
+# https://packaging.python.org/guides/single-sourcing-package-version/
+version = {}
+with open("./mmusicc/version.py") as fp:
+    exec(fp.read(), version)
 
 setuptools.setup(
     name="mmusicc-jonolt",
-    version=__version__,
+    version=version['__version__'],
     author="Johannes N.",
     author_email="jonolt@mailbox.org",
     description=(
@@ -15,7 +19,7 @@ setuptools.setup(
         "program to transfer the changes made in a master music library to a "
         "derived music library."),
     long_description=long_description,
-    long_description_content_type="text/markdown",
+    long_description_content_type="text/x-rst",
     url="https://github.com/jonolt/mmusicc",
     packages=setuptools.find_packages(),
     classifiers=[
@@ -30,10 +34,9 @@ setuptools.setup(
         "Environment :: Console :: Curses",
         "Intended Audience :: End Users/Desktop",
     ],
-    python_requires='>=3.7',
+    python_requires='>=3.5',
     package_data={'mmusicc': ['data/config.yaml']},
-    install_requires=['mutagen>=1.43.0', 'PyYAML>=5.3',
-                      'SQLAlchemy>=1.3.0', 'senf>=1.4.0'],
+    install_requires=['mutagen>=1.43.0', 'PyYAML>=5.3', 'SQLAlchemy>=1.3.0'],
     entry_points={
         "console_scripts": [
             "mmusicc = mmusicc.__main__:main",
