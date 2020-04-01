@@ -62,17 +62,31 @@ def dir_lib_x_flac(tmp_path_factory, dir_orig_data):
     return temp_dir
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture(scope="session")
 def dir_lib_a_flac(tmp_path_factory, dir_orig_data):
-    temp_dir = tmp_path_factory.mktemp("A_flac")
+    temp_dir = tmp_path_factory.mktemp("A_flac", numbered=False)
     s_path = dir_orig_data.joinpath("music_lib", "A_flac")
     copy_tree(str(s_path), str(temp_dir))
     return temp_dir
 
 
-@pytest.fixture(scope="class")
+@pytest.fixture(scope="session")
 def dir_lib_b_mp3(tmp_path_factory, dir_orig_data):
-    temp_dir = tmp_path_factory.mktemp("B_mp3")
+    temp_dir = tmp_path_factory.mktemp("B_mp3", numbered=False)
     s_path = (dir_orig_data.joinpath("music_lib", "B_mp3"))
     copy_tree(str(s_path), str(temp_dir))
     return temp_dir
+
+
+@pytest.fixture(scope="session")
+def dir_lib_c_mp3(tmp_path_factory, dir_orig_data):
+    # lib with missing and wrong metadata
+    temp_dir = tmp_path_factory.mktemp("C_mp3_", numbered=False)
+    s_path = (dir_orig_data.joinpath("music_lib", "C_mp3"))
+    copy_tree(str(s_path), str(temp_dir))
+    return temp_dir
+
+
+@pytest.fixture(scope="function")
+def dir_lib_test(tmp_path_factory):
+    return tmp_path_factory.mktemp("libt_")
