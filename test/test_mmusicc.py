@@ -1,10 +1,11 @@
 import hashlib
 import pathlib
 from distutils.dir_util import copy_tree
+from distutils.file_util import copy_file
 
 import pytest
 
-from mmusicc import MmusicC
+from mmusicc import MmusicC, Metadata
 from mmusicc.util.ffmpeg import FFRuntimeError
 
 
@@ -66,6 +67,37 @@ def ste(request, dir_lib_a_flac, dir_lib_test, dir_lib_b_mp3, dir_lib_c_mp3):
         )
     else:
         raise ValueError("combo does not exists")
+
+
+class TestMetadataOnly:
+
+    @pytest.mark.parametrize("opt", [None, "--lazy"])
+    def test_file_file(self, dir_lib_a_flac, dir_lib_c_mp3, dir_lib_test, opt):
+        path_copy_source = dir_lib_c_mp3.joinpath(
+            "artist_quodlibet/album_bar_-_single_(2020)/01_track1.mp3")
+        path_s = dir_lib_a_flac.joinpath(
+            "artist_quodlibet/album_bar_-_single_(2020)/01_track1.flac")
+        path_t = dir_lib_test.joinpath(
+            "01_track1.mp3")
+        copy_file(str(path_copy_source), str(path_t))
+
+        org_file_list = [path_t]
+        saved_file_info = save_files_hash_and_mtime(org_file_list, touch=True)
+
+        run_mmusicc("--only-meta",
+                    "--source", path_s,
+                    "--target", path_t,
+                    opt)
+
+        assert cmp_files_hash_and_mtime(org_file_list, saved_file_info) > 0
+        metadata = Metadata(str(path_t))
+        assert metadata.get_tag("album") == "Bar - Single"
+        assert metadata.get_tag("date") == "2020"
+        assert metadata.get_tag("artist") == "Quod Libet"
+        if opt == "--lazy":
+            assert metadata.get_tag("composer") == "should not be here"
+        else:
+            assert metadata.get_tag("composer") is None
 
 
 @pytest.mark.parametrize("ste", ["file-->file"], indirect=True)
@@ -138,7 +170,8 @@ class TestTreeLogic:
             assert not ste.path_t.joinpath("album_good_(2018)").exists()
         elif ste.combo == "folder-->folder_part":
             compare_file_tree(ste.path_t, ste.path_e)
-            compare_files_hash_and_mtime(org_file_list, saved_file_info)
+            assert cmp_files_hash_and_mtime(
+                org_file_list, saved_file_info) == 0
         else:
             compare_file_tree(ste.path_t, ste.path_e)
 
@@ -154,13 +187,17 @@ def save_files_hash_and_mtime(list_files, touch=False) -> dict:
     return hash_dict
 
 
-def compare_files_hash_and_mtime(list_files, hash_dict):
+def cmp_files_hash_and_mtime(list_files, hash_dict):
     try:
+        exit_code = 0
         for file in list_files:
-            # file has changed (content or metadata)
-            assert hash_dict.get(file)[0] == hash_file(file)
+            # file has changed (content or metadata) (and was also accessed)
+            if not hash_dict.get(file)[0] == hash_file(file):
+                exit_code += 1
             # file was accessed (or overwritten with original)
-            assert hash_dict.get(file)[1] == file.stat().st_mtime
+            if not hash_dict.get(file)[1] == file.stat().st_mtime:
+                exit_code += 100
+        return exit_code
     except KeyError:
         raise Exception("hash dict not complete, key can not be checked")
 
@@ -206,6 +243,7 @@ def compare_file_tree(tree_a, tree_b, depth=None):
     return files_a, files_b
 
 
+@pytest.mark.skip
 def test_compare_tree(dir_lib_b_mp3, dir_lib_c_mp3):
     files_a, files_b = compare_file_tree(dir_lib_b_mp3, dir_lib_b_mp3)
     assert len(files_a) == 10
@@ -244,6 +282,7 @@ def run_mmusicc(*args):
     assert excinfo.value.code == 0
 
 
+@pytest.mark.skip
 def test_cmd_mmusicc():
     cmd = cmd_mmusicc("-fuu bar", ["--Hello", "World"], ["-qood libet"])
     assert cmd == ['-fuu', 'bar', '--Hello', 'World', '-qood', 'libet']

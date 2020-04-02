@@ -30,6 +30,15 @@ def allocation_map(request, dir_orig_data):
 
 
 @pytest.fixture(scope="session")
+def audio_loaders() -> dict:
+    mmusicc.formats.init()
+    # trigger skipping of initialisation
+    mmusicc.formats.init()
+    # equals: init_formats()
+    return mmusicc.formats.loaders
+
+
+@pytest.fixture(scope="session")
 def dir_tmp_root(tmp_path_factory):
     return tmp_path_factory.getbasetemp()
 
@@ -56,7 +65,7 @@ def temp_database(tmp_path_factory):
 
 @pytest.fixture(scope="function")
 def dir_lib_x_flac(tmp_path_factory, dir_orig_data):
-    temp_dir = tmp_path_factory.mktemp("lib_x")
+    temp_dir = tmp_path_factory.mktemp("lib_x_")
     s_path = dir_orig_data.joinpath("music_lib_x_flac")
     copy_tree(str(s_path), str(temp_dir))
     return temp_dir
@@ -64,6 +73,7 @@ def dir_lib_x_flac(tmp_path_factory, dir_orig_data):
 
 @pytest.fixture(scope="session")
 def dir_lib_a_flac(tmp_path_factory, dir_orig_data):
+    # original flac data do not overwrite
     temp_dir = tmp_path_factory.mktemp("A_flac", numbered=False)
     s_path = dir_orig_data.joinpath("music_lib", "A_flac")
     copy_tree(str(s_path), str(temp_dir))
@@ -72,6 +82,7 @@ def dir_lib_a_flac(tmp_path_factory, dir_orig_data):
 
 @pytest.fixture(scope="session")
 def dir_lib_b_mp3(tmp_path_factory, dir_orig_data):
+    # original mp3 data do not overwrite (to be compared with result)
     temp_dir = tmp_path_factory.mktemp("B_mp3", numbered=False)
     s_path = (dir_orig_data.joinpath("music_lib", "B_mp3"))
     copy_tree(str(s_path), str(temp_dir))

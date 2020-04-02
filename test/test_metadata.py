@@ -10,7 +10,7 @@ tag, especially for ID3.
 
 import pytest
 
-from mmusicc.metadata import Metadata, GroupMetadata, AlbumMetadata, Div
+from mmusicc.metadata import Metadata, GroupMetadata, AlbumMetadata, Div, Empty
 
 dict_files = {
     Metadata: "1-str_title_A.flac",
@@ -39,9 +39,11 @@ def import_data(request, dir_lib_x_flac):
     return request.param, meta
 
 
-def test_dummy_load_allocation_map(allocation_map):
-    # test not needed her but otherwise fixture (module level) will not load it
+def test_dummy_for_init(allocation_map, audio_loaders):
+    # test not needed her but otherwise fixture (module level) will not be
+    # loaded and the init functions are not called
     assert len(allocation_map.list_tags) > 0
+    assert len(audio_loaders) > 0
 
 
 def test_database_link(dir_lib_x_flac, path_database):
@@ -73,16 +75,18 @@ def test_read(class_meta, dir_lib_x_flac):
 
 
 @pytest.mark.parametrize("class_meta", dict_files.keys())
-@pytest.mark.parametrize("remove_existing", [True, False])
-def test_write_tags(class_meta, dir_lib_x_flac, remove_existing):
+@pytest.mark.parametrize("remove_ex_and_write_none", [True, False])
+def test_write_tags(class_meta, dir_lib_x_flac, remove_ex_and_write_none):
+    # TODO test write_none
     metadata_path = create_file_path(class_meta, dir_lib_x_flac)
     meta = class_meta(metadata_path)
     meta.set_tag("album", "fuubar")
     meta.set_tag("artist", None)
-    meta.write_tags(remove_existing=remove_existing)
+    meta.write_tags(remove_existing=remove_ex_and_write_none,
+                    write_empty=remove_ex_and_write_none)
     meta_2 = class_meta(metadata_path)
     assert meta_2.dict_data.get("album") == "fuubar"
-    assert meta_2.dict_data.get("artist") is None
+    assert Empty.is_empty(meta_2.dict_data.get("artist"))
     # TODO actually test/assert remove_existing
 
 

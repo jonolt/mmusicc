@@ -5,7 +5,7 @@ from mutagen.oggvorbis import OggVorbis
 from mmusicc.formats._audio import AudioFile
 from mmusicc.formats._misc import AudioFileError
 from mmusicc.formats._util import scan_dictionary
-from mmusicc.util.allocationmap import dict_tag2strs
+from mmusicc.metadata import Empty
 
 extensions = [".ogg", ".oga", ".flac"]
 # loader   see bottom
@@ -49,14 +49,18 @@ class VCFile(AudioFile):
                 dict_tmp[tag_key] = tag_val
 
         self.unprocessed_tag.update(
-            scan_dictionary(dict_tmp, self.dict_meta, dict_tag2strs))
+            scan_dictionary(dict_tmp, self.dict_meta))
 
-    def file_save(self, remove_existing=False):
+    def file_save(self, remove_existing=False, write_empty=True):
         """saves file tags to AudioFile from tag dictionary.
 
         Args:
             remove_existing (bool): if true clear all tags on file before
                 writing. Defaults to False.
+            write_empty     (bool): if true write empty tags an therefore
+                create a tag with content "". If false no tag will be created
+                and existing tags on file that would be overwritten with ""
+                will be deleted. Defaults to True.
         """
         self.check_file_path()
 
@@ -65,14 +69,24 @@ class VCFile(AudioFile):
 
         audio = self._file
         new_tag = self.dict_meta
-        for key in list(new_tag):
-            if not new_tag[key]:
-                new_tag[key] = ""
+        tag_del = list()
+        for key in new_tag.keys():
+            if Empty.is_empty(new_tag[key]):
+                if write_empty:
+                    new_tag[key] = ""
+                else:
+                    tag_del.append(key)
 
+        for key in tag_del:
+            del new_tag[key]
+
+        # tag_del may have elements with value none, but can still be
+        # overwritten, since the tag_del values are a subset of not in new_tag.
         if remove_existing:
-            to_remove = [z for z in audio if z not in new_tag]
-            for z in to_remove:
-                del (audio[z])
+            tag_del = [z for z in audio if z not in new_tag]
+
+        for z in tag_del:
+            del (audio[z])
 
         self._file.update(new_tag)
         self._file.save()

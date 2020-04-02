@@ -80,14 +80,18 @@ class MP3File(AudioFile):
 
         if len(tags_txxx) > 0:
             self.unprocessed_tag.update(
-                scan_dictionary(tags_txxx, self.dict_meta, ignore_none=True))
+                scan_dictionary(tags_txxx, self.dict_meta, ignore_none=False))
 
-    def file_save(self, remove_existing=False, remove_v1=False):
+    def file_save(self, remove_existing=False, write_empty=True, remove_v1=False):
         """saves file tags to AudioFile from tag dictionary.
 
         Args:
             remove_existing ('bool', optional): if true clear all tags on file
                 before writing. Defaults to False.
+            write_empty     (bool): Only affects TXXX tags. Existing tags will
+                always be set to None. If true create empty TXXX tags with
+                value none. If false no tag will be created or existing
+                TXXX tag on file will be deleted. Defaults to True
             remove_v1       ('bool'): If True, remove existing ID3.V1 tags.
                 Defaults to False.
         """
@@ -99,21 +103,30 @@ class MP3File(AudioFile):
 
         audio = self._file
 
+        if remove_existing:
+            audio.delete()
+
         if audio.tags is None:
             audio.add_tags()
-        tags = audio.tags
-
-        if remove_existing:
-            for t in list(tags):
-                del(tags[t])
 
         for tag_key, value in self.dict_meta.items():
             if not value:
-                continue
+                if not write_empty:
+                    try:
+                        del(audio.tags[tag_key])
+                    except KeyError:
+                        pass
+                else:
+                    value = ""  # text value must be a str
             id3_tag = dict_tag2id3.get(tag_key)
             frame = eval("mutagen.id3.{}()".format(id3_tag))
+
             if frame.FrameID == "TXXX":
+                if not value:  # text value must be a str
+                    value = ""
                 frame.desc = tag_key
+            if not value:  # text value must be a str
+                value = ""
             MP3File.set_frame_text(frame, value)
             audio.tags.add(frame)
 

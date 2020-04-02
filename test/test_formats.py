@@ -1,15 +1,18 @@
 import re
 import warnings
+from distutils.file_util import copy_file
 
 import mutagen
 import pytest
 
 import mmusicc.formats
 import mmusicc.util.allocationmap
+from mmusicc.metadata import Empty
 
 
 @pytest.fixture(scope="module")
-def expected_metadata_read(dir_orig_data) -> dict:
+def expected_metadata(dir_orig_data) -> dict:
+    """expected results for a subset of the loaded elements"""
     data = {'album': 'str_album',
             'albumartist': 'str_albumartist',
             'albumartistsort': 'str_albumartistsort',
@@ -30,14 +33,11 @@ def expected_metadata_read(dir_orig_data) -> dict:
 
 
 @pytest.fixture(scope="module")
-def metadata_write_tags(expected_metadata_read, exclude=None) -> dict:
-    _dict = expected_metadata_read.copy()
-    if not exclude:
-        exclude = []
+def metadata_write_tags(expected_metadata) -> dict:
+    """adds _2 to strings and increases numbers by one and sets artist None"""
+    _dict = expected_metadata.copy()
     for key in list(_dict):
-        if key in exclude:
-            continue
-        if not isinstance(_dict[key], str):
+        if isinstance(_dict[key], list):
             continue
         try:
             cur_int = int(_dict[key])
@@ -46,34 +46,26 @@ def metadata_write_tags(expected_metadata_read, exclude=None) -> dict:
             if key == 'originaldate':
                 continue
             _dict[key] = _dict[key] + "_2"
+    _dict["artist"] = None
     return _dict
 
 
-@pytest.fixture(scope="module")
-def audio_loaders() -> dict:
-    mmusicc.formats.init()
-    # trigger skipping of initialisation
-    mmusicc.formats.init()
-    # equals: init_formats()
-    return mmusicc.formats.loaders
-
-
-def test_audio_loaders_found(audio_loaders):
+def test_dummy_for_init(allocation_map, audio_loaders):
+    # test not needed her but otherwise fixture (module level) will not be
+    # loaded and the init functions are not called
+    assert len(allocation_map.list_tags) > 0
     assert len(audio_loaders) > 0
 
 
-def test_dummy_load_allocation_map(allocation_map):
-    # test not needed her but otherwise fixture (module level) will not load it
-    assert len(allocation_map.list_tags) > 0
-
-
 @pytest.fixture(scope="function")
-def media_file(request, audio_files):
+def media_file(request, audio_files, dir_lib_test):
+    """find test file with the given extension and copy it to a test folder"""
     file = audio_files.get(request.param)
     if not file:
         pytest.xfail("No file with given extension '{}' exists."
                      .format(request.param))
-    return file
+    copy_file(str(file), str(dir_lib_test))
+    return dir_lib_test.joinpath(file.name)
 
 
 # TODO find a way to load extension dynamically
@@ -83,37 +75,67 @@ def media_file(request, audio_files):
                          indirect=["media_file"])
 class TestFormats:
 
-    def test_read(self, media_file, expected_metadata_read):
-        read_and_compare_file(media_file, expected_metadata_read)
+    def test_read(self, media_file, expected_metadata):
+        """read from file and compare with expected"""
+        m_file = read_and_compare_file(media_file, expected_metadata)
+        keys = list(m_file.unprocessed_tag)
+        assert len(keys) == 1
+        assert m_file.unprocessed_tag.get(keys[0]) == "not in tag list"
 
     @pytest.mark.parametrize("remove_existing", [True, False])
-    def test_write(self, media_file, metadata_write_tags, remove_existing):
-        write_meta_to_file(media_file, metadata_write_tags, remove_existing)
+    @pytest.mark.parametrize("write_empty", [True, False])
+    def test_write(self,
+                   media_file,
+                   metadata_write_tags,
+                   remove_existing,
+                   write_empty):
+        """write to file and compare with expected, test optional arguments"""
+        write_meta_to_file(media_file,
+                           metadata_write_tags,
+                           remove_existing,
+                           write_empty)
         # from test_read we already know that we reading works
-        read_and_compare_file(media_file, metadata_write_tags)
-        # TODO actually test/assert remove_existing
+        m_file = read_and_compare_file(media_file,
+                                       metadata_write_tags,
+                                       exclude=["artist"])
 
-    def test_read_no_header(self, media_file):
+        if remove_existing:
+            assert len(list(m_file.unprocessed_tag)) == 0
+        else:
+            assert len(list(m_file.unprocessed_tag)) == 1
+
+        if media_file.suffix == ".mp3":
+            warnings.warn(UserWarning("mp3 not tested for write empty"))
+            return
+
+        if write_empty:
+            assert Empty.is_empty(m_file.dict_meta["artist"])
+        else:
+            assert "artist" not in m_file.dict_meta
+
+    def test_read_and_write_no_header(self, media_file, expected_metadata):
+        """try reading file with no header, header is deleted by mutagen"""
         file_type = mutagen.File(media_file)
         file_type.delete()
         file_type.save()
         read_and_compare_file(media_file, {})
+        write_meta_to_file(media_file, expected_metadata, True)
+        read_and_compare_file(media_file, expected_metadata)
 
-    def test_write_no_header(self, media_file, expected_metadata_read):
-        write_meta_to_file(media_file, expected_metadata_read, True)
-        read_and_compare_file(media_file, expected_metadata_read)
-
-    def test_multiple_tag_values(self, media_file):
+    def test_write_multiple_tag_values(self, media_file):
+        """try writing multiple tag values (lists in tag dict),
+        reading was tested in test_read()
+        """
         val_dict = {"artist": ["fuu", "bar"]}
         write_meta_to_file(media_file, val_dict, True)
         m_file = read_and_compare_file(media_file, val_dict)
         assert len(m_file.dict_meta) == 1
 
 
-def write_meta_to_file(path, dict_meta, remove_existing):
+def write_meta_to_file(path, dict_meta, remove_existing, write_empty=True):
     m_file = mmusicc.formats.MusicFile(str(path))
-    m_file.dict_meta = dict_meta
-    m_file.file_save(remove_existing=remove_existing)
+    m_file.dict_meta = dict_meta.copy()
+    m_file.file_save(remove_existing=remove_existing, write_empty=write_empty)
 
 
 def read_and_compare_file(path, dict_answer, exclude=None):

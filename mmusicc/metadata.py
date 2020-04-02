@@ -146,7 +146,7 @@ class Metadata(metaclass=MetadataMeta):
         self._audio = MusicFile(file_path)
 
     def get_tag(self, str_tag):
-        self.dict_data.get(str_tag)
+        return self.dict_data.get(str_tag)
 
     def set_tag(self, str_tag, value):
         self.dict_data[str_tag] = value
@@ -162,7 +162,7 @@ class Metadata(metaclass=MetadataMeta):
         self._audio.file_read()
         self.dict_data.update(self._audio.dict_meta)
 
-    def write_tags(self, remove_existing=False):
+    def write_tags(self, remove_existing=False, write_empty=True):
         """write metadata to linked audio file
 
         Args:
@@ -175,7 +175,8 @@ class Metadata(metaclass=MetadataMeta):
             raise Exception("no file_path linked")
         self._audio.dict_meta.update(self.dict_data)
         if not Metadata.dry_run:
-            self._audio.file_save(remove_existing=remove_existing)
+            self._audio.file_save(remove_existing=remove_existing,
+                                  write_empty=write_empty)
 
     def import_tags(self, source_meta,
                     whitelist=None,
@@ -384,10 +385,11 @@ class GroupMetadata(Metadata):
                         self.dict_data[key] = Div(key, self.list_metadata)
                         break
 
-    def write_tags(self, remove_existing=True):
+    def write_tags(self, remove_existing=True, write_empty=True):
         """Super-Method applied to all Objects in list. See Metadata."""
         for metadata in self.list_metadata:
-            metadata.write_tags(remove_existing=remove_existing)
+            metadata.write_tags(remove_existing=remove_existing,
+                                write_empty=write_empty)
 
     def import_tags(self, source_meta, whitelist=None, blacklist=None,
                     skip_none=True):
@@ -471,8 +473,9 @@ class Empty(object):
     @staticmethod
     def is_empty(text):
         if text is None or isinstance(text, Empty):
-            if isinstance(text, str) and text.strip() == "":
-                return True
+            return True
+        if isinstance(text, str) and text.strip() == "":
+            return True
         return False
 
 

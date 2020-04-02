@@ -174,6 +174,11 @@ class MmusicC:
                  + tmp_double_txt_2
         )
         pg_meta.add_argument(
+            '--lazy',
+            action='store_true',
+            help="don't overwrite existing value in target with None from "
+                 "source")
+        pg_meta.add_argument(
             '--delete-existing-metadata',
             action='store_true',
             help="delete existing metadata on target "
@@ -344,6 +349,7 @@ class MmusicC:
                 meta_source,
                 whitelist=self.whitelist,
                 blacklist=self.blacklist,
+                skip_none=self.result.lazy,
             )
             meta_target.write_tags(
                 remove_existing=self.result.delete_existing_metadata
@@ -365,6 +371,7 @@ class MmusicC:
                 meta_source,
                 whitelist=self.whitelist,
                 blacklist=self.blacklist,
+                skip_none=self.result.lazy,
             )
             meta_target.write_tags(
                 remove_existing=self.result.delete_existing_metadata
@@ -379,6 +386,7 @@ class MmusicC:
         meta_target.import_tags_from_db(
             whitelist=self.whitelist,
             blacklist=self.blacklist,
+            skip_none=self.result.lazy
         )
         meta_target.write_tags(
             remove_existing=self.result.delete_existing_metadata

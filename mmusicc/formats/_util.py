@@ -47,10 +47,9 @@ def scan_dictionary(dict_tags, dict_data, ignore_none=False):
             continue
         try:
             tag_val = dict_dummy.pop(key_str)
-            if tag_val:
-                if tag_key not in dict_tmp:
-                    dict_tmp[tag_key] = list()
-                dict_tmp[tag_key].append((key_str, tag_val))
+            if tag_key not in dict_tmp:
+                dict_tmp[tag_key] = list()
+            dict_tmp[tag_key].append((key_str, tag_val))
         except KeyError:
             continue
 
@@ -118,5 +117,7 @@ def text_parser_get(text):
             return text[0].strip()
         else:
             return [t.strip() for t in text]
+    elif isinstance(text, Empty):
+        pass
     else:
         raise ValueError("text wrong value")
