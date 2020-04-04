@@ -51,9 +51,10 @@ def metadata_write_tags(expected_metadata) -> dict:
 
 
 def test_dummy_for_init(allocation_map, audio_loaders):
-    # test not needed her but otherwise fixture (module level) will not be
-    # loaded and the init functions are not called
-    assert len(allocation_map.list_tags) > 0
+    """test not needed her but otherwise fixture (module level) will not be
+        loaded and the init functions are not called
+    """
+    assert len(allocation_map.list_tags) == 23
     assert len(audio_loaders) > 0
 
 
@@ -133,12 +134,16 @@ class TestFormats:
 
 
 def write_meta_to_file(path, dict_meta, remove_existing, write_empty=True):
+    """helper creates MusicFile object"""
     m_file = mmusicc.formats.MusicFile(str(path))
     m_file.dict_meta = dict_meta.copy()
     m_file.file_save(remove_existing=remove_existing, write_empty=write_empty)
 
 
 def read_and_compare_file(path, dict_answer, exclude=None):
+    """helper reads a audio file and compare its contents with expected values
+        given in dict_answer. Single tags can be excluded.
+    """
     m_file = mmusicc.formats.MusicFile(str(path))
     m_file.file_read()
     if not exclude:
@@ -152,6 +157,7 @@ def read_and_compare_file(path, dict_answer, exclude=None):
 
 @pytest.fixture(scope="class")
 def audio_files(audio_loaders, dir_subpackages) -> dict:
+    """collect all format test files from subpackages folder"""
     loaders = set(audio_loaders.values())
     extensions = set(audio_loaders.keys())
     files = [p.name for p in dir_subpackages.glob("*.*")]

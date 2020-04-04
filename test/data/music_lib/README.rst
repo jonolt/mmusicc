@@ -1,0 +1,90 @@
+Testing (pytest)
+----------------
+
+Test is not optimized for speed. Each functions that writes to files, copies all or some data from the 3 source folders A_flac, B_mp3, C_mp3 to its onw test (pytest.fixture).
+
+In test_formats.py was tested that all supported formats are loaded correctly into the AudioFile dict. It is therefore enough to test metadata only with one format which will be flac. Mmusicc test are using mp3 as target since it is a very common format.
+
+All Tests use the default association map delivered with the program. Only test_formats uses a special mapping, which tries to test every possible tag, especially for ID3.
+
+
+Test data info
+^^^^^^^^^^^^^^
+
+- A_flac and B__flac have identical structure and metadata
+- B_flac media stream is created with ffmpeg and without any arguments and custom metadata
+- C_flac uses files from B_flac with additional changes in metadata, artist_puddletag is missing
+
+
+C_mp3 metadata changes
+""""""""""""""""""""""
+
+
+1)  - missing date
+    - wrong album title ("wrong metadata, also date is missing")
+    - composer tag ("should not be here")
+
+
+
+test data structure
+"""""""""""""""""""
+
+.. code-block:: none
+
+    data/music_lib
+    ├── A_flac
+    │   ├── artist_puddletag
+    │   │   ├── album_good_(2018)
+    │   │   │   ├── 01_track1.flac
+    │   │   │   └── 02_track2.flac
+    │   │   └── audio_at_artist_level.flac
+    │   ├── artist_quodlibet
+    │   │   ├── album_bar_-_single_(2020)
+    │   │   │   └── 01_track1.flac
+    │   │   └── album_fuu_(2019)
+    │   │       ├── 01_track1.flac
+    │   │       └── 02_track2.flac
+    │   └── various_artists
+    │       └── album_best_hits_compilation_(2010)
+    │           ├── CD_01
+    │           │   ├── 01_track1.flac
+    │           │   └── 02_track2.flac
+    │           └── CD_02
+    │               ├── 01_track1.flac
+    │               └── 02_track2.flac
+    ├── B_mp3
+    │   ├── artist_puddletag
+    │   │   ├── album_good_(2018)
+    │   │   │   ├── 01_track1.mp3
+    │   │   │   └── 02_track2.mp3
+    │   │   └── audio_at_artist_level.mp3
+    │   ├── artist_quodlibet
+    │   │   ├── album_bar_-_single_(2020)
+    │   │   │   └── 01_track1.mp3                       --> 1)
+    │   │   └── album_fuu_(2019)
+    │   │       ├── 01_track1.mp3
+    │   │       └── 02_track2.mp3
+    │   └── various_artists
+    │       └── album_best_hits_compilation_(2010)
+    │           ├── CD_01
+    │           │   ├── 01_track1.mp3
+    │           │   └── 02_track2.mp3
+    │           └── CD_02
+    │               ├── 01_track1.mp3
+    │               └── 02_track2.mp3
+    ├── C_mp3
+    │   ├── artist_quodlibet
+    │   │   ├── album_bar_-_single_(2020)
+    │   │   │   └── 01_track1.mp3
+    │   │   └── album_fuu_(2019)
+    │   │       ├── 01_track1.mp3
+    │   │       └── 02_track2.mp3
+    │   └── various_artists
+    │       └── album_best_hits_compilation_(2010)
+    │           ├── CD_01
+    │           │   ├── 01_track1.mp3
+    │           │   └── 02_track2.mp3
+    │           └── CD_02
+    │               ├── 01_track1.mp3
+    │               └── 02_track2.mp3
+    └── README.rst

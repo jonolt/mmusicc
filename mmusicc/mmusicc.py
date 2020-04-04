@@ -15,6 +15,21 @@ from mmusicc.util.misc import check_is_audio, swap_base, \
     process_white_and_blacklist
 from mmusicc.version import __version__ as package_version
 
+str_description_rqw = textwrap.dedent(
+    '''\
+    metadata and file syncing the following combination are possible:
+      - file   --> file
+      - file   --> parent folder (target name is generated from source)
+      - folder --> folder        (use --album to not to move through tree)
+      [ folder --> db            (full path as primary key)               ]
+      [ db     --> folder        (key matching starts at leave of path)   ]
+      [ elements in the brackets not tested!                              ]
+    
+    Supported Formats for Metadata: 
+    {}
+    '''
+)
+
 
 class MmusicC:
 
@@ -45,19 +60,8 @@ class MmusicC:
         init_logging(log_level)
         init_formats()
 
-        str_description = textwrap.dedent(
-            '''\
-            metadata and file syncing the following combination are possible:
-              - file   --> file
-              - file   --> parent folder (target name is generated from source)
-              - folder --> folder (use --album to not to move through tree)
-              - folder --> db (full path as primary key)
-              - db     --> folder (key matching starts at leave of path)
-            
-            Supported Formats for Metadata: 
-            {}
-            '''
-            ).format(textwrap.fill(str(list(audio_loader))))
+        str_description = str_description_rqw \
+            .format(textwrap.fill(str(list(audio_loader))))
 
         parser = argparse.ArgumentParser(
             prog="MmusicC",
@@ -181,8 +185,8 @@ class MmusicC:
         pg_meta.add_argument(
             '--delete-existing-metadata',
             action='store_true',
-            help="delete existing metadata on target "
-                 "files before writing.")
+            help="[delete existing metadata on target "
+                 "files before writing. Not tested]")
         pg_meta.add_argument(
             '--path-config',
             action='store',
@@ -191,6 +195,11 @@ class MmusicC:
         logging.debug("MmusicC running with arguments: {}".format(args))
 
         self.result = parser.parse_args(args)
+
+        Metadata.dry_run = self.result.dry_run
+
+        if self.result.target_db or self.result.source_db:
+            parser.error("database is not supported and/or tested yet")
 
         if not self.result.path_config:
             path_folder_this_file = os.path.dirname(os.path.abspath(__file__))
@@ -365,6 +374,10 @@ class MmusicC:
                     file_source = os.path.join(album_source, file)
                     self.handle_files2file(file_source, album_target)
         if self.run_meta:
+            if not os.path.isdir(album_target):
+                logging.warning("no target folder for given source '{}', "
+                                "skipping".format(album_source))
+                return
             meta_source = AlbumMetadata(album_source)
             meta_target = AlbumMetadata(album_target)
             meta_target.import_tags(

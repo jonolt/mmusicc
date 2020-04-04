@@ -1,10 +1,10 @@
 import mutagen
 
+import mmusicc.util.allocationmap as am
 from mmusicc.formats._audio import AudioFile
 from mmusicc.formats._util import (scan_dictionary, text_parser_get,
                                    join_str_list)
 from mmusicc.metadata import Empty
-from mmusicc.util.allocationmap import dict_id32tag, dict_tag2id3
 
 extensions = [".mp3", ".mp2", ".mp1", ".mpg", ".mpeg"]
 # loader   see bottom
@@ -70,7 +70,7 @@ class MP3File(AudioFile):
                 tags_txxx[frame.desc] = tag_val
             else:
                 try:
-                    tag_key = dict_id32tag.get(frame_id)
+                    tag_key = am.dict_id32tag.get(frame_id)
                     if tag_key:
                         self.dict_meta[tag_key] = text_parser_get(tag_val)
                     else:
@@ -82,7 +82,10 @@ class MP3File(AudioFile):
             self.unprocessed_tag.update(
                 scan_dictionary(tags_txxx, self.dict_meta, ignore_none=False))
 
-    def file_save(self, remove_existing=False, write_empty=True, remove_v1=False):
+    def file_save(self,
+                  remove_existing=False,
+                  write_empty=True,
+                  remove_v1=False):
         """saves file tags to AudioFile from tag dictionary.
 
         Args:
@@ -118,7 +121,7 @@ class MP3File(AudioFile):
                         pass
                 else:
                     value = ""  # text value must be a str
-            id3_tag = dict_tag2id3.get(tag_key)
+            id3_tag = am.dict_tag2id3.get(tag_key)
             frame = eval("mutagen.id3.{}()".format(id3_tag))
 
             if frame.FrameID == "TXXX":

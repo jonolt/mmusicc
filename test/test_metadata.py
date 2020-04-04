@@ -1,13 +1,3 @@
-"""
-In test_formats.py was tested that all supported formats are loaded correctly
-into the AudioFile dict. It is therefore enough to test metadata only with
-one format which will be flac.
-
-All Tests use the default association map delivered with the program. Only
-test_formats uses a special mapping, which tries to test every possible
-tag, especially for ID3.
-"""
-
 import pytest
 
 from mmusicc.metadata import Metadata, GroupMetadata, AlbumMetadata, Div, Empty
@@ -23,6 +13,9 @@ dict_files = {
 
 @pytest.fixture
 def import_data(request, dir_lib_x_flac):
+    """provides a Metadata object loaded from the flac source with modified
+        values for test.
+    """
     if request.param == AlbumMetadata or request.param == GroupMetadata:
         metadata_path = create_file_path(GroupMetadata, dir_lib_x_flac)
         meta = GroupMetadata(metadata_path)
@@ -40,9 +33,10 @@ def import_data(request, dir_lib_x_flac):
 
 
 def test_dummy_for_init(allocation_map, audio_loaders):
-    # test not needed her but otherwise fixture (module level) will not be
-    # loaded and the init functions are not called
-    assert len(allocation_map.list_tags) > 0
+    """test not needed her but otherwise fixture (module level) will not be
+        loaded and the init functions are not called
+    """
+    assert len(allocation_map.list_tags) == 15
     assert len(audio_loaders) > 0
 
 
@@ -63,7 +57,7 @@ def test_database_link(dir_lib_x_flac, path_database):
 
 
 @pytest.mark.parametrize("class_meta", dict_files.keys())
-def test_read(class_meta, dir_lib_x_flac):
+def test_read_tags(class_meta, dir_lib_x_flac):
     metadata_path = create_file_path(class_meta, dir_lib_x_flac)
     meta = class_meta(metadata_path)
     assert isinstance(meta, class_meta)
@@ -191,6 +185,8 @@ def test_dry_run(dir_lib_x_flac, temp_database):
     assert meta.get_tag('album') != "fuubar"
     with pytest.raises(KeyError):
         meta.import_tags_from_db()
+    # reset class variable to default
+    Metadata.dry_run = False
 
 
 @pytest.mark.skip(reason="not implemented - not so important")
@@ -209,6 +205,7 @@ def test_primary_key_algorithm():
 
 
 def test_create_test_db(temp_database, dir_lib_x_flac):
+    """test if the same values are read from the db as written into"""
     if Metadata.is_linked_database:
         Metadata.unlink_database()
     Metadata.link_database(str(temp_database))

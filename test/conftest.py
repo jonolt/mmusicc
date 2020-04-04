@@ -17,14 +17,13 @@ def dir_orig_data() -> pathlib.Path:
 
 @pytest.fixture(scope="module")
 def allocation_map(request, dir_orig_data):
-    if request.node.name == "test_formats.py":
+    if request.fspath.basename == "test_formats.py":
         path_config = "metadata_config.yaml"
     else:
         path_config = dir_orig_data.parent.parent.\
             joinpath("mmusicc/data/config.yaml")
-    mmusicc.util.init_allocationmap(
-        str(dir_orig_data.joinpath(path_config)),
-        force=True)
+    abs_path = str(dir_orig_data.joinpath(path_config))
+    mmusicc.util.init_allocationmap(abs_path, force=True)
     # equals: init_allocationmap(path_config)
     return mmusicc.util.allocationmap
 

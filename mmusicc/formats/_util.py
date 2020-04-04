@@ -1,7 +1,7 @@
 import logging
 
+import mmusicc.util.allocationmap as am
 from mmusicc.metadata import Empty
-from mmusicc.util.allocationmap import dict_str2tag
 
 SPLIT_CHAR = ['/', '\n', ';']
 JOIN_CHAR = ' / '
@@ -42,7 +42,7 @@ def scan_dictionary(dict_tags, dict_data, ignore_none=False):
     # find a tag for each key in scanned dictionary
     for key_str in list(dict_dummy):
         try:
-            tag_key = dict_str2tag[key_str]
+            tag_key = am.dict_str2tag[key_str]
         except KeyError:
             continue
         try:

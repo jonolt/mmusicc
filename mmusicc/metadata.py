@@ -39,14 +39,14 @@ class MetadataMeta(type):
 
     @property
     def dry_run(cls):
+        if cls._dry_run:
+            logging.log(25, "Running in Dry Run mode. "
+                            "No data will be written.")
         return cls._dry_run
 
     @dry_run.setter
     def dry_run(cls, value):
         cls._dry_run = value
-        if cls._dry_run:
-            logging.log(25, "Running in Dry Run mode. "
-                            "No data will be written.")
 
     @property
     def is_linked_database(cls):
@@ -168,6 +168,9 @@ class Metadata(metaclass=MetadataMeta):
         Args:
             remove_existing (bool, optional): If true clear all tags on file
                 before writing. Defaults to False.
+            write_empty     (bool): if true write empty tags, exact effect
+                depends on comment type. Either the tag entries will not exist
+                or overwritten with None/Null/"". Defaults to True
         Raises:
             Exception: if no file is linked
         """

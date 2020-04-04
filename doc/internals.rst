@@ -53,10 +53,10 @@ mp3
 3) the flat list of paired text frames is writen as [u'', list[i]]
 
 
-formats
--------
+module formats
+--------------
 
-options file_save
+effect of options in file_save
 
 +-------+-------+-------+-------+-------+-------+-------+
 | source                | file original                 |
@@ -79,3 +79,6 @@ options file_save
 +----------------+-------------+-------+-------+-------+-------+
 |True            | True        | t1    | None  | t3    |       |
 +----------------+-------------+-------+-------+-------+-------+
+
+
+.. include:: ../test/data/music_lib/README.rst
