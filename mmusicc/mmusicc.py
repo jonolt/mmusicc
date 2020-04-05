@@ -9,10 +9,26 @@ import mmusicc.util.allocationmap as am
 from mmusicc._init import init_formats, init_logging, init_allocationmap
 from mmusicc.formats import loaders as audio_loader
 from mmusicc.metadata import Metadata, AlbumMetadata
-from mmusicc.util.ffmpeg import FFmpeg
+from mmusicc.util.ffmpeg import FFmpeg, FFRuntimeError, \
+    FFExecutableNotFoundError
 from mmusicc.util.misc import check_is_audio, swap_base, \
     process_white_and_blacklist
 from mmusicc.version import __version__ as package_version
+
+str_description_rqw = textwrap.dedent(
+    '''\
+    metadata and file syncing the following combination are possible:
+      - file   --> file
+      - file   --> parent folder (target name is generated from source)
+      - folder --> folder        (use --album to not to move through tree)
+      [ folder --> db            (full path as primary key)               ]
+      [ db     --> folder        (key matching starts at leave of path)   ]
+      [ elements in the brackets not tested!                              ]
+    
+    Supported Formats for Metadata: 
+    {}
+    '''
+)
 
 
 class MmusicC:
@@ -44,19 +60,8 @@ class MmusicC:
         init_logging(log_level)
         init_formats()
 
-        str_description = textwrap.dedent(
-            '''\
-            metadata and file syncing the following combination are possible:
-              - file   --> file
-              - file   --> parent folder (target name is generated from source)
-              - folder --> folder (use --album to not to move through tree)
-              - folder --> db (full path as primary key)
-              - db     --> folder (key matching starts at leave of path)
-            
-            Supported Formats for Metadata: 
-            {}
-            '''
-            ).format(textwrap.fill(str(list(audio_loader))))
+        str_description = str_description_rqw \
+            .format(textwrap.fill(str(list(audio_loader))))
 
         parser = argparse.ArgumentParser(
             prog="MmusicC",
@@ -144,7 +149,8 @@ class MmusicC:
             '-f', '--format',
             action='store',
             required=False,
-            help='output container format of ffmpeg conversion'
+            help='output container format of ffmpeg conversion '
+                 '(ignored when target is file_path)'
         )
         pg_conversion.add_argument(
             '--ffmpeg-options',
@@ -172,10 +178,15 @@ class MmusicC:
                  + tmp_double_txt_2
         )
         pg_meta.add_argument(
+            '--lazy',
+            action='store_true',
+            help="don't overwrite existing value in target with None from "
+                 "source")
+        pg_meta.add_argument(
             '--delete-existing-metadata',
             action='store_true',
-            help="delete existing metadata on target "
-                 "files before writing.")
+            help="[delete existing metadata on target "
+                 "files before writing. Not tested]")
         pg_meta.add_argument(
             '--path-config',
             action='store',
@@ -184,6 +195,11 @@ class MmusicC:
         logging.debug("MmusicC running with arguments: {}".format(args))
 
         self.result = parser.parse_args(args)
+
+        Metadata.dry_run = self.result.dry_run
+
+        if self.result.target_db or self.result.source_db:
+            parser.error("database is not supported and/or tested yet")
 
         if not self.result.path_config:
             path_folder_this_file = os.path.dirname(os.path.abspath(__file__))
@@ -252,7 +268,7 @@ class MmusicC:
             if self.result.white_list_tags:
                 if len(self.result.white_list_tags) == 1 \
                         and os.path.exists(self.result.white_list_tags[0]):
-                    self.blacklist = load_tags_from_file(
+                    self.whitelist = load_tags_from_file(
                         self.result.white_list_tags[0])
                 else:
                     self.whitelist = \
@@ -299,15 +315,15 @@ class MmusicC:
                               .format(self.source))
                 gen = os.walk(self.source, topdown=True)
                 for root, dirs, files in gen:
+                    album_target = swap_base(self.source, self.target, root)
                     logging.debug('Current root: {}'.format(root))
                     if len(dirs) == 0:
                         if self.target_type == ElementType.folder:
-                            album_target = swap_base(self.source, self.target,
-                                                     root)
                             self.handle_album2album(root, album_target)
                         else:
                             self.handle_album2db(root)
                     elif len(files) > 0:
+                        self.handle_album2album(root, album_target)
                         logging.info(
                             "Found files not in album {} at folder '{}'"
                             .format(files, root))
@@ -323,6 +339,11 @@ class MmusicC:
         sys.exit(0)
 
     def handle_files2file(self, file_source, file_target):
+        if get_element_type(file_target) == ElementType.folder:
+            basename = os.path.basename(file_source)
+            filename = os.path.splitext(basename)[0]
+            file_target = os.path.join(
+                file_target, filename + self.format_extension)
         if self.run_files and file_source and file_target:
             convert_file_with_ffmpeg(
                 file_source,
@@ -337,10 +358,10 @@ class MmusicC:
                 meta_source,
                 whitelist=self.whitelist,
                 blacklist=self.blacklist,
-                remove_other=self.result.delete_existing_metadata
+                skip_none=self.result.lazy,
             )
             meta_target.write_tags(
-                remove_other=self.result.delete_existing_metadata
+                remove_existing=self.result.delete_existing_metadata
             )
         return
 
@@ -351,25 +372,22 @@ class MmusicC:
             for file in os.listdir(album_source):
                 if check_is_audio(file):
                     file_source = os.path.join(album_source, file)
-                    target_filename = \
-                        os.path.splitext(file)[0] + self.format_extension
-                    file_target = os.path.join(album_target, target_filename)
-                    convert_file_with_ffmpeg(
-                        file_source,
-                        file_target,
-                        dry_run=self.result.dry_run
-                    )
+                    self.handle_files2file(file_source, album_target)
         if self.run_meta:
+            if not os.path.isdir(album_target):
+                logging.warning("no target folder for given source '{}', "
+                                "skipping".format(album_source))
+                return
             meta_source = AlbumMetadata(album_source)
             meta_target = AlbumMetadata(album_target)
             meta_target.import_tags(
                 meta_source,
                 whitelist=self.whitelist,
                 blacklist=self.blacklist,
-                remove_other=self.result.delete_existing_metadata
+                skip_none=self.result.lazy,
             )
             meta_target.write_tags(
-                remove_other=self.result.delete_existing_metadata
+                remove_existing=self.result.delete_existing_metadata
             )
 
     def handle_album2db(self, album_source):
@@ -381,10 +399,10 @@ class MmusicC:
         meta_target.import_tags_from_db(
             whitelist=self.whitelist,
             blacklist=self.blacklist,
-            remove_other=self.result.delete_existing_metadata
+            skip_none=self.result.lazy
         )
         meta_target.write_tags(
-            remove_other=self.result.delete_existing_metadata
+            remove_existing=self.result.delete_existing_metadata
         )
 
 
@@ -413,7 +431,16 @@ def convert_file_with_ffmpeg(source, target, options=None, dry_run=False):
         logging.info("target file exists, ffmpeg skipped, returning")
         return
     if not dry_run:
-        FFmpeg(source, target, options=options).run()
+        try:
+            FFmpeg(source, target, options=options).run()
+        except FFExecutableNotFoundError:
+            logging.error("ffmpeg path not found. either ffmpeg is not "
+                          "installed are not at the standard path.")
+            raise
+        except FFRuntimeError as ex:
+            logging.error("command \n{}\n produced the following error:\n {}"
+                          .format(ex.cmd, ex.stderr))
+            raise
 
 
 def get_element_type(element):

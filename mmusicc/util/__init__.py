@@ -2,6 +2,7 @@ import os
 import sys
 
 from mmusicc.util import importhelper
+from mmusicc.util.allocationmap import init_allocationmap
 from mmusicc.util.logger import init_logger
 
 

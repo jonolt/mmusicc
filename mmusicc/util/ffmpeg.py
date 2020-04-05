@@ -24,9 +24,9 @@ class FFmpeg(object):
         self.executable = executable
         self._cmd = [executable]
 
+        self._cmd.extend(['-i', source])
         if options:
             self._cmd.extend(options.split())
-        self._cmd.extend(['-i', source])
         self._cmd.extend([target])
 
         self.cmd = subprocess.list2cmdline(self._cmd)

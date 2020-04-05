@@ -1,10 +1,10 @@
 import mutagen
 
+import mmusicc.util.allocationmap as am
 from mmusicc.formats._audio import AudioFile
 from mmusicc.formats._util import (scan_dictionary, text_parser_get,
                                    join_str_list)
 from mmusicc.metadata import Empty
-from mmusicc.util.allocationmap import dict_id32tag, dict_tag2id3
 
 extensions = [".mp3", ".mp2", ".mp1", ".mpg", ".mpeg"]
 # loader   see bottom
@@ -70,7 +70,7 @@ class MP3File(AudioFile):
                 tags_txxx[frame.desc] = tag_val
             else:
                 try:
-                    tag_key = dict_id32tag.get(frame_id)
+                    tag_key = am.dict_id32tag.get(frame_id)
                     if tag_key:
                         self.dict_meta[tag_key] = text_parser_get(tag_val)
                     else:
@@ -80,14 +80,21 @@ class MP3File(AudioFile):
 
         if len(tags_txxx) > 0:
             self.unprocessed_tag.update(
-                scan_dictionary(tags_txxx, self.dict_meta, ignore_none=True))
+                scan_dictionary(tags_txxx, self.dict_meta, ignore_none=False))
 
-    def file_save(self, remove_existing=False, remove_v1=False):
+    def file_save(self,
+                  remove_existing=False,
+                  write_empty=False,
+                  remove_v1=False):
         """saves file tags to AudioFile from tag dictionary.
 
         Args:
-            remove_existing ('bool', optional): if true clear all tags before
-                writing. Defaults to False.
+            remove_existing ('bool', optional): if true clear all tags on file
+                before writing. Defaults to False.
+            write_empty     (bool): Only affects TXXX tags. Existing tags will
+                always be set to None. If true create empty TXXX tags with
+                value none. If false no tag will be created or existing
+                TXXX tag on file will be deleted. Defaults to False.
             remove_v1       ('bool'): If True, remove existing ID3.V1 tags.
                 Defaults to False.
         """
@@ -99,21 +106,30 @@ class MP3File(AudioFile):
 
         audio = self._file
 
+        if remove_existing:
+            audio.delete()
+
         if audio.tags is None:
             audio.add_tags()
-        tags = audio.tags
-
-        if remove_existing:
-            for t in list(tags):
-                del(tags[t])
 
         for tag_key, value in self.dict_meta.items():
             if not value:
-                continue
-            id3_tag = dict_tag2id3.get(tag_key)
+                if not write_empty:
+                    try:
+                        del(audio.tags[tag_key])
+                    except KeyError:
+                        pass
+                else:
+                    value = ""  # text value must be a str
+            id3_tag = am.dict_tag2id3.get(tag_key)
             frame = eval("mutagen.id3.{}()".format(id3_tag))
+
             if frame.FrameID == "TXXX":
+                if not value:  # text value must be a str
+                    value = ""
                 frame.desc = tag_key
+            if not value:  # text value must be a str
+                value = ""
             MP3File.set_frame_text(frame, value)
             audio.tags.add(frame)
 

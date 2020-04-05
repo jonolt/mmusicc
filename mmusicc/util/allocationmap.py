@@ -10,16 +10,19 @@ dict_id32tag = dict()   # id3: tag
 dict_tag2strs = dict()  # tag: strs (list)
 dict_str2tag = dict()   # str: tag
 dict_auto_fill_rules = dict()
-# TODO variable naming
+# TODO replace with None
 
 
-def init_allocationmap(path):
+def init_allocationmap(path, force=False):
     """initialize allocation map from config file.
 
     Creates dicts as lookup tables as global variables.
 
     Args:
-        path (str): path of yaml file containing the allocation table
+        path             (str): path of yaml file containing a mapping for
+            the allocation table
+        force (bool, optional): if True, initializes the allocationmap even if
+            it is already initialized, otherwise skips. Defaults to False.
     """
 
     global list_tui_tags
@@ -31,8 +34,20 @@ def init_allocationmap(path):
     global dict_auto_fill_rules
 
     if len(list_tags) > 0:
-        logging.debug("allocationmap Already Initialized, Skipping.")
-        return
+        if force:
+            logging.debug("allocationmap Already Initialized, "
+                          "Continue (force option set).")
+            # reset all lists and dicts
+            list_tui_tags = list()
+            list_tags = list()
+            dict_tag2id3 = dict()
+            dict_id32tag = dict()
+            dict_tag2strs = dict()
+            dict_str2tag = dict()
+            dict_auto_fill_rules = dict()
+        else:
+            logging.debug("allocationmap Already Initialized, Skipping.")
+            return
 
     path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(path):

@@ -61,20 +61,16 @@ class MetaDB:
             primary_key         (str): unique identifier of the item which data
                 is to be written (eg. Filepath).
         """
-        dict_meta = dict_data.copy()
-        dict_meta["_primary_key"] = primary_key
-        dict_meta_pickle = dict()
+        dict_meta_pickle = dict_data.copy()
         dict_meta_pickle["_primary_key"] = primary_key
-        for key in list(dict_meta):
-            if isinstance(dict_meta[key], str):
-                pass
-            else:
-                dict_meta[key] = str(dict_meta[key])
-                dict_meta_pickle[key] = dict_meta[key]
+        dict_meta = dict()
+        dict_meta["_primary_key"] = primary_key
+        for key in list(dict_meta_pickle):
+            dict_meta[key] = str(dict_meta_pickle[key])
 
         with self._engine.connect() as conn:
             conn.execute(self.tags.insert().values(dict_meta))
-            conn.execute(self.pickle_tags.insert().values(dict_meta))
+            conn.execute(self.pickle_tags.insert().values(dict_meta_pickle))
 
     def read_meta(self, primary_key, tags=None):
         """returns values of a row with given primary key as metadata dict.
@@ -96,9 +92,10 @@ class MetaDB:
             if result:
                 dict_data_tmp = dict(result)
                 dict_data_tmp.pop("_primary_key")
-                for key in list(dict_data_tmp):
-                    if key not in tags:
-                        dict_data_tmp.pop(key)
+                if tags:
+                    for key in list(dict_data_tmp):
+                        if key not in tags:
+                            dict_data_tmp.pop(key)
                 return dict_data_tmp
             return None
 

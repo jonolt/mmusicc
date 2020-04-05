@@ -1,193 +1,242 @@
-import os
-import shutil
-import sys
-import time
-import unittest
+import pytest
 
-import mmusicc
-from mmusicc.metadata import Metadata, AlbumMetadata, Div
+from mmusicc.metadata import Metadata, GroupMetadata, AlbumMetadata, Div, Empty
 
-path_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, path_root)
-
-name_test_folder = "test_mmusicc_" + str(int(time.time()))
-path_test = os.path.join(path_root, name_test_folder)
-path_media = os.path.join(path_root, "media")
-
-dict_answer = {'album': 'str_album',
-               'albumartist': 'str_albumartist',
-               'albumartistsort': 'str_albumartistsort',
-               'albumsort': 'str_albumsort',
-               'arranger': ['str_arranger_A', 'str_arranger_B'],
-               'artist': 'str_artist',
-               'artistsort': 'str_artistsort',
-               'bpm': '128',
-               'comment': 'str_comment',
-               'composer': 'str_composer',
-               'date': '2020',
-               'description': 'str_description',
-               'discid': 'str_discid',
-               'discnumber': '2',
-               'genre': 'str_genre',
-               'isrc': 'QZES81947811',
-               'lyrics': 'str_lyrics',
-               'originalalbum': 'str_originalalbum',
-               'originalartist': 'str_originalartist',
-               'originaldate': '2000-01-01',
-               'part': 'str_part',
-               'title': 'str_title',
-               'tracknumber': '3'}
+dict_files = {
+    Metadata: "1-str_title_A.flac",
+    GroupMetadata: ["1-str_title_A.flac",
+                    "2-str_title_B.flac",
+                    "3-str_title_C.flac"],
+    AlbumMetadata: None
+}
 
 
-def append_2(_dict, exclude=None):
-    if not exclude:
-        exclude = []
-    for key in list(_dict):
-        if key in exclude:
-            continue
-        if not isinstance(_dict[key], str):
-            continue
-        try:
-            cur_int = int(_dict[key])
-            _dict[key] = str(cur_int + 1)
-        except ValueError:
-            if key == 'originaldate':
-                continue
-            _dict[key] = _dict[key] + "_2"
-    return _dict
+@pytest.fixture
+def import_data(request, dir_lib_x_flac):
+    """provides a Metadata object loaded from the flac source with modified
+        values for test.
+    """
+    if request.param == AlbumMetadata or request.param == GroupMetadata:
+        metadata_path = create_file_path(GroupMetadata, dir_lib_x_flac)
+        meta = GroupMetadata(metadata_path)
+        meta.reset_meta()
+        meta.set_tag('album', "fuubar")
+        meta.set_tag('artist', "quodlibet")
+    else:
+        metadata_path = create_file_path(Metadata, dir_lib_x_flac)
+        meta = Metadata(metadata_path)
+        meta.dict_data.reset()
+        meta.set_tag('album', "fuubar")
+        meta.set_tag('artist', "quodlibet")
+    return request.param, meta
 
 
-dict_answer_2 = append_2(dict_answer.copy())
+def test_dummy_for_init(allocation_map, audio_loaders):
+    """test not needed her but otherwise fixture (module level) will not be
+        loaded and the init functions are not called
+    """
+    assert len(allocation_map.list_tags) == 15
+    assert len(audio_loaders) > 0
 
 
-class TestMetadata(unittest.TestCase):
-    assert_counter = 0
-    assert_counter_single = 0
-    assert_counter_single_list = list()
-    path_database = os.path.join(path_test, "metadb.db")
-
-    @classmethod
-    def setUpClass(cls):
-        print("Creating new test folder at {}".format(path_test))
-        shutil.copytree(path_media, path_test)
-        cls.assert_counter = 0
-        mmusicc.init("test_metadata_config.yaml")
-
-    @classmethod
-    def tearDownClass(cls) -> None:
-        shutil.rmtree(path_test)
-        print("Successful asserts: {} -> {}".format(
-            cls.assert_counter, str(cls.assert_counter_single_list)))
-        print("Deleted test folder at {}".format(path_test))
-
-    def setUp(self) -> None:
-        TestMetadata.assert_counter_single = 0
-
-    def tearDown(self) -> None:
-        TestMetadata.assert_counter_single_list.append(
-            TestMetadata.assert_counter_single)
-        TestMetadata.assert_counter += TestMetadata.assert_counter_single
-
-    def test_0001_load_file_mp3(self):
-        """check if all metadata is loaded correctly from file to dict"""
-        path_source = os.path.join(path_test, "test_read.mp3")
-        self.read_and_compare_file(path_source, dict_answer)
-
-    def test_0002_load_file_flac(self):
-        """check if all metadata is loaded correctly from file to dict"""
-        path_source = os.path.join(path_test, "test_read.flac")
-        self.read_and_compare_file(path_source, dict_answer)
-
-    def test_0011_load_album_mp3(self):
-        """check if all metadata is loaded correctly from file to dict"""
-        path_source = os.path.join(path_test, "mp3")
-        self.album_tests(AlbumMetadata(path_source))
-
-    def test_0012_load_album_flac(self):
-        """check if all metadata is loaded correctly from file to dict"""
-        path_source = os.path.join(path_test, "flac")
-        self.album_tests(AlbumMetadata(path_source))
-
-    def test_0101_save_file_mp3(self):
-        path_source = os.path.join(path_test, "test_read.mp3")
-        source = Metadata(path_source)
-        append_2(source.dict_data)
-        source.write_tags(remove_other=True)
-        self.read_and_compare_file(path_source, dict_answer_2)
-
-    def test_0102_save_file_flac(self):
-        path_source = os.path.join(path_test, "test_read.flac")
-        source = Metadata(path_source)
-        append_2(source.dict_data)
-        source.write_tags(remove_other=True)
-        self.read_and_compare_file(path_source, dict_answer_2)
-
-    def test_1000_database_is_there(self):
-        """
-        test the linking and unlinking of a database,
-        also test opening an existing (empty) database.
-        """
-        Metadata.link_database(TestMetadata.path_database)
-        self.assertTrue(os.path.exists(TestMetadata.path_database))
-        self.assertTrue(Metadata.is_linked_database)
+def test_database_link(dir_lib_x_flac, path_database):
+    metadata_path = create_file_path(Metadata, dir_lib_x_flac)
+    meta = Metadata(metadata_path)
+    with pytest.raises(Exception):
+        meta.export_tags_to_db()
+    with pytest.raises(Exception):
         Metadata.unlink_database()
-        self.assertFalse(Metadata.is_linked_database)
-        Metadata.link_database(TestMetadata.path_database)
-        self.assertTrue(Metadata.is_linked_database)
-
-    def test_1001_database_write(self):
-        """test write metadata of a single file to the database"""
-        path_source = os.path.join(path_test, "test_read.flac")
-        source = Metadata(path_source)
-        source.export_tags_to_db()
-
-    def test_1101_database_write_album(self):
-        """test write multiple metadata of a album to the database"""
-        path_source = os.path.join(path_test, "flac")
-        am = AlbumMetadata(path_source)
-        am.export_tags_to_db()
-
-    def test_1011_database_read(self):
-        """test reading the database entry of flac file and saving the metadata
-        to a new file (and if the values are as expected)
-        """
-        path_source = os.path.join(path_test, "test_read.flac")
-        new_source = Metadata(None)
-        path_new_source = os.path.join(path_test, "test_read.flac")
-        new_source.link_audio_file(path_new_source)
-        new_source.import_tags_from_db()
-        # new_source.import_tags_from_db(path_source)
-        self.read_and_compare_file(path_source, dict_answer_2)
-
-    def test_1111_database_read_album(self):
-        """test reading the database entry of album folder
-        (and if the values are as expected)
-        """
-        path_source = os.path.join(path_test, "flac")
-        am = AlbumMetadata(path_source)
-        am.import_tags_from_db()
-        self.album_tests(am)
-
-    def read_and_compare_file(self, path, cmp_dict, exclude=None):
-        source = Metadata(path)
-        self.read_and_compare(source, cmp_dict, exclude=exclude)
-
-    def read_and_compare(self, meta, cmp_dict, exclude=None):
-        if not exclude:
-            exclude = []
-        for tag in list(dict_answer):
-            if tag in exclude:
-                continue
-            self.assertEqual(cmp_dict.get(tag), meta.dict_data.get(tag))
-            TestMetadata.assert_counter_single += 1
-
-    def album_tests(self, meta):
-        divs = ["title", "tracknumber"]
-        self.read_and_compare(meta, dict_answer, exclude=divs)
-        for tag in divs:
-            self.assertIsInstance(meta.dict_data.get(tag), Div)
-            TestMetadata.assert_counter_single += 1
+    Metadata.link_database(str(path_database))
+    assert Metadata.is_linked_database
+    with pytest.raises(Exception):
+        Metadata.link_database(str(path_database))
+    Metadata.unlink_database()
+    assert not Metadata.is_linked_database
+    Metadata.link_database(str(path_database))
 
 
-if __name__ == "__main__":
-    unittest.main()
+@pytest.mark.parametrize("class_meta", dict_files.keys())
+def test_read_tags(class_meta, dir_lib_x_flac):
+    metadata_path = create_file_path(class_meta, dir_lib_x_flac)
+    meta = class_meta(metadata_path)
+    assert isinstance(meta, class_meta)
+    assert meta.dict_data.get("album")
+    if class_meta is Metadata:
+        assert meta.file_path_set
+    else:  # Group and Album are basically the same
+        assert isinstance(meta.dict_data.get("title"), Div)
+
+
+@pytest.mark.parametrize("class_meta", dict_files.keys())
+@pytest.mark.parametrize("remove_ex_and_write_none", [True, False])
+def test_write_tags(class_meta, dir_lib_x_flac, remove_ex_and_write_none):
+    # TODO test write_none
+    metadata_path = create_file_path(class_meta, dir_lib_x_flac)
+    meta = class_meta(metadata_path)
+    meta.set_tag("album", "fuubar")
+    meta.set_tag("artist", None)
+    meta.write_tags(remove_existing=remove_ex_and_write_none,
+                    write_empty=remove_ex_and_write_none)
+    meta_2 = class_meta(metadata_path)
+    assert meta_2.dict_data.get("album") == "fuubar"
+    assert Empty.is_empty(meta_2.dict_data.get("artist"))
+    # TODO actually test/assert remove_existing
+
+
+@pytest.mark.parametrize("skip_none", [True, False])
+@pytest.mark.parametrize("import_data", dict_files.keys(), indirect=True)
+def test_import_tags(import_data, dir_lib_x_flac, skip_none):
+    class_meta, import_source = import_data
+    metadata_path = create_file_path(class_meta, dir_lib_x_flac)
+    meta = class_meta(metadata_path)
+    meta.import_tags(import_source,
+                     whitelist=["album", "title"],
+                     skip_none=skip_none)
+    # Assert proper import
+    assert meta.dict_data.get("album") == "fuubar"
+    # Assert whitelist (blacklist does not need to be tested here, since the
+    # actual whitelist of the called func is computed from black and whitelist.
+    assert meta.dict_data.get("artist") == "str_artist"
+    # Assert skip option (parametrized)
+    if skip_none:
+        if class_meta is Metadata:
+            assert meta.dict_data.get("title") == "str_title_A"
+        else:
+            assert isinstance(meta.dict_data.get("title"), Div)
+    else:
+        assert meta.dict_data.get("title") is None
+
+
+@pytest.mark.parametrize("skip_none", [True, False])
+@pytest.mark.parametrize("class_meta", dict_files.keys())
+def test_import_db_tag(class_meta, dir_lib_x_flac, path_database, skip_none):
+    # artist: assert whitelist
+    # album : assert correct import
+    # title : assert skip none
+    if Metadata.is_linked_database:
+        Metadata.unlink_database()
+    Metadata.link_database(str(path_database))
+    metadata_path = create_file_path(class_meta, dir_lib_x_flac)
+    meta = class_meta(metadata_path)
+    # meta.dict_data.reset()
+    meta.import_tags_from_db(whitelist=["album", "title"], skip_none=skip_none)
+    assert meta.dict_data.get("artist") == "str_artist"  # not "quodlibet"
+    if skip_none:
+        if class_meta is Metadata:
+            assert meta.dict_data.get("title") == "str_title_A"
+        else:  # Group and Album are basically the same
+            assert isinstance(meta.dict_data.get("title"), Div)
+    else:
+        assert meta.dict_data.get("title") is None
+
+
+@pytest.mark.parametrize("class_meta", dict_files.keys())
+def test_export_db_tag(class_meta, dir_lib_x_flac, temp_database):
+    # artist: assert whitelist
+    # album : assert correct import
+    # title : assert skip none
+    if Metadata.is_linked_database:
+        Metadata.unlink_database()
+    Metadata.link_database(str(temp_database))
+    metadata_path = create_file_path(class_meta, dir_lib_x_flac)
+    meta = class_meta(metadata_path)
+    meta.export_tags_to_db()
+    meta.import_tags_from_db()
+    assert meta.dict_data.get("artist") == "str_artist"
+    if class_meta is Metadata:
+        assert meta.dict_data.get("title") == "str_title_A"
+    else:  # Group and Album are basically the same
+        assert isinstance(meta.dict_data.get("title"), Div)
+
+
+def test_load_empty_meta(dir_lib_x_flac):
+    meta = Metadata()
+    assert not meta.file_path_set
+    meta.link_audio_file(str(dir_lib_x_flac.joinpath("2-str_title_B.flac")))
+    assert isinstance(meta, Metadata)
+    assert meta.file_path_set
+    assert not meta.dict_data.get("album")
+    meta.read_tags()
+    assert meta.dict_data.get("album")
+
+
+def create_file_path(class_meta, dir_lib_a_flac):
+    files = dict_files.get(class_meta)
+    if not files:
+        return str(dir_lib_a_flac)
+    elif isinstance(files, str):
+        return str(dir_lib_a_flac.joinpath(files))
+    else:
+        return [str(dir_lib_a_flac.joinpath(f)) for f in files]
+
+
+def test_dry_run(dir_lib_x_flac, temp_database):
+    Metadata.dry_run = True
+    if Metadata.is_linked_database:
+        Metadata.unlink_database()
+    Metadata.link_database(str(temp_database))
+    metadata_path = create_file_path(Metadata, dir_lib_x_flac)
+    meta = Metadata(metadata_path)
+    meta.set_tag('album', "fuubar")
+    meta.write_tags()
+    meta.export_tags_to_db()
+    meta.read_tags()
+    assert meta.get_tag('album') != "fuubar"
+    with pytest.raises(KeyError):
+        meta.import_tags_from_db()
+    # reset class variable to default
+    Metadata.dry_run = False
+
+
+@pytest.mark.skip(reason="not implemented - not so important")
+def test_div_object():
+    pass
+
+
+@pytest.mark.skip(reason="not implemented - not so important")
+def test_metadatadict_reset():
+    pass
+
+
+@pytest.mark.skip(reason="not implemented - not so important")
+def test_primary_key_algorithm():
+    pass
+
+
+def test_create_test_db(temp_database, dir_lib_x_flac):
+    """test if the same values are read from the db as written into"""
+    if Metadata.is_linked_database:
+        Metadata.unlink_database()
+    Metadata.link_database(str(temp_database))
+    metadata_path = create_file_path(GroupMetadata, dir_lib_x_flac)
+    meta = GroupMetadata(metadata_path)
+    for i in range(3):
+        meta.list_metadata[i].dict_data.reset()
+        meta.list_metadata[i].set_tag('album', "fuubar")
+        meta.list_metadata[i].set_tag('artist', "quodlibet")
+    meta.export_tags_to_db()
+
+
+# import pytest
+# from mmusicc import Metadata
+#
+#
+# @pytest.fixture
+# def metadata_file(dir_lib_a_flac):
+#     return dir_lib_a_flac.joinpath("1-str_title_A.flac")
+#
+#
+# class TestXMetadata:
+#
+#     def test_load(self, metadata_file):
+#         meta = Metadata(metadata_file)
+#         assert isinstance(meta, Metadata)
+#         assert meta.file_path_set
+#         assert len(meta.dict_data) > 0
+#
+#     def test_load_2(self, metadata_file):
+#         meta = Metadata()
+#         meta.link_audio_file(metadata_file)
+#         assert isinstance(meta, Metadata)
+#         assert meta.file_path_set
+#         assert len(meta.dict_data) > 0

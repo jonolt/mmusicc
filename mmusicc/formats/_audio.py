@@ -32,12 +32,15 @@ class AudioFile:
         """reads file tags into AudioFile tag dictionary."""
         raise NotImplementedError
 
-    def file_save(self, remove_existing=False):
+    def file_save(self, remove_existing=False, write_empty=False):
         """saves file tags to AudioFile from tag dictionary.
 
         Args:
             remove_existing (bool): if true clear all tags before writing.
                 Defaults to False.
+            write_empty     (bool): if true write empty tags, exact effect
+                depends on comment type. Either the tag entire will not exist
+                or overwritten with None/Null/"". Defaults to False.
         """
         raise NotImplementedError
 
