@@ -268,7 +268,7 @@ class MmusicC:
             if self.result.white_list_tags:
                 if len(self.result.white_list_tags) == 1 \
                         and os.path.exists(self.result.white_list_tags[0]):
-                    self.blacklist = load_tags_from_file(
+                    self.whitelist = load_tags_from_file(
                         self.result.white_list_tags[0])
                 else:
                     self.whitelist = \

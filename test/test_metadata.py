@@ -19,10 +19,9 @@ def import_data(request, dir_lib_x_flac):
     if request.param == AlbumMetadata or request.param == GroupMetadata:
         metadata_path = create_file_path(GroupMetadata, dir_lib_x_flac)
         meta = GroupMetadata(metadata_path)
-        for i in range(3):
-            meta.list_metadata[i].dict_data.reset()
-            meta.list_metadata[i].set_tag('album', "fuubar")
-            meta.list_metadata[i].set_tag('artist', "quodlibet")
+        meta.reset_meta()
+        meta.set_tag('album', "fuubar")
+        meta.set_tag('artist', "quodlibet")
     else:
         metadata_path = create_file_path(Metadata, dir_lib_x_flac)
         meta = Metadata(metadata_path)

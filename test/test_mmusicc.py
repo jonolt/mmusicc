@@ -6,6 +6,7 @@ from distutils.file_util import copy_file
 import pytest
 
 from mmusicc import MmusicC, Metadata
+from mmusicc.metadata import Empty
 from mmusicc.util.ffmpeg import FFRuntimeError
 
 
@@ -20,7 +21,7 @@ class Ste:
 
 
 @pytest.fixture
-def ste(request, dir_lib_a_flac, dir_lib_test, dir_lib_b_mp3, dir_lib_c_mp3):
+def ste(request, dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg, dir_lib_c_ogg):
     #            session         function      session
     """provide Paths (source target expected) for the different scenarios"""
     combo = request.param
@@ -29,9 +30,9 @@ def ste(request, dir_lib_a_flac, dir_lib_test, dir_lib_b_mp3, dir_lib_c_mp3):
             combo,
             dir_lib_a_flac.joinpath(
                 "artist_quodlibet/album_bar_-_single_(2020)/01_track1.flac"),
-            dir_lib_test.joinpath("01_track1.mp3"),
-            dir_lib_b_mp3.joinpath(
-                "artist_quodlibet/album_bar_-_single_(2020)/01_track1.mp3"),
+            dir_lib_test.joinpath("01_track1.ogg"),
+            dir_lib_b_ogg.joinpath(
+                "artist_quodlibet/album_bar_-_single_(2020)/01_track1.ogg"),
         )
     elif combo == "file-->folder":
         return Ste(
@@ -39,32 +40,32 @@ def ste(request, dir_lib_a_flac, dir_lib_test, dir_lib_b_mp3, dir_lib_c_mp3):
             dir_lib_a_flac.joinpath(
                 "artist_quodlibet/album_bar_-_single_(2020)/01_track1.flac"),
             dir_lib_test,
-            dir_lib_b_mp3.joinpath(
-                "artist_quodlibet/album_bar_-_single_(2020)/01_track1.mp3"),
+            dir_lib_b_ogg.joinpath(
+                "artist_quodlibet/album_bar_-_single_(2020)/01_track1.ogg"),
         )
     elif combo == "folder-->folder":
         return Ste(
             combo,
             dir_lib_a_flac,
             dir_lib_test,
-            dir_lib_b_mp3
+            dir_lib_b_ogg
         )
     elif combo == "album-->album":
         return Ste(
             combo,
             dir_lib_a_flac.joinpath("artist_puddletag"),
             dir_lib_test,
-            dir_lib_b_mp3.joinpath("artist_puddletag"),
+            dir_lib_b_ogg.joinpath("artist_puddletag"),
             "--album"
         )
     elif combo == "folder-->folder_part":
         # folder with missing files and wrong mata to be updated
-        copy_tree(str(dir_lib_c_mp3), str(dir_lib_test))
+        copy_tree(str(dir_lib_c_ogg), str(dir_lib_test))
         return Ste(
             combo,
             dir_lib_a_flac,
             dir_lib_test,
-            dir_lib_b_mp3
+            dir_lib_b_ogg
         )
     else:
         raise ValueError("combo does not exists")
@@ -74,14 +75,14 @@ class TestMetadataOnly:
 
     @pytest.mark.parametrize("combo", ["file-->file", "file-->folder"])
     @pytest.mark.parametrize("opt", [None, "--lazy"])
-    def test_file_file(self, dir_lib_a_flac, dir_lib_c_mp3,
+    def test_file_file(self, dir_lib_a_flac, dir_lib_c_ogg,
                        dir_lib_test, opt, combo):
         """test file to file metadata sync with different options"""
-        path_copy_source = dir_lib_c_mp3.joinpath(
-            "artist_quodlibet/album_bar_-_single_(2020)/01_track1.mp3")
+        path_copy_source = dir_lib_c_ogg.joinpath(
+            "artist_quodlibet/album_bar_-_single_(2020)/01_track1.ogg")
         path_s = dir_lib_a_flac.joinpath(
             "artist_quodlibet/album_bar_-_single_(2020)/01_track1.flac")
-        path_t = dir_lib_test.joinpath("01_track1.mp3")
+        path_t = dir_lib_test.joinpath("01_track1.ogg")
         copy_file(str(path_copy_source), str(path_t))
 
         org_file_list = [path_t]
@@ -89,7 +90,7 @@ class TestMetadataOnly:
 
         if combo == "file-->folder":
             path_t2 = dir_lib_test
-            opt = [opt, "-f mp3"]
+            opt = [opt, "-f ogg"]
         else:
             path_t2 = path_t
 
@@ -106,37 +107,66 @@ class TestMetadataOnly:
         if opt and "--lazy" in opt:
             assert metadata.get_tag("composer") == "should not be here"
         else:
-            assert metadata.get_tag("composer") is None
+            assert Empty.is_empty(metadata.get_tag("composer"))
 
-    def test_folder_folder(self, dir_lib_a_flac, dir_lib_b_mp3, dir_lib_test):
+    def test_folder_folder(self, dir_lib_a_flac, dir_lib_b_ogg, dir_lib_test):
         """test folder folder metadata sync"""
-        copy_tree(str(dir_lib_b_mp3), str(dir_lib_test))
+        copy_tree(str(dir_lib_b_ogg), str(dir_lib_test))
         org_file_list, _ = get_file_list_tree(dir_lib_test)
         saved_file_info = save_files_hash_and_mtime(org_file_list, touch=True)
         assert_run_mmusicc("--only-meta",
                            "--source", dir_lib_a_flac,
                            "--target", dir_lib_test,
-                           "-f .mp3",
+                           "-f .ogg",
                            )
         # check no file was modified (10 files were accessed: 10*100=1000)
         assert cmp_files_hash_and_mtime(org_file_list, saved_file_info) == 1000
 
-    def test_folder_folder_part(self, dir_lib_a_flac, dir_lib_c_mp3,
+    def test_folder_folder_part(self, dir_lib_a_flac, dir_lib_c_ogg,
                                 dir_lib_test):
         """test folder folder metadata sync, where target has not got all
             elements of source folder
         """
-        copy_tree(str(dir_lib_c_mp3), str(dir_lib_test))
+        copy_tree(str(dir_lib_c_ogg), str(dir_lib_test))
         org_file_list, _ = get_file_list_tree(dir_lib_test)
         saved_file_info = save_files_hash_and_mtime(org_file_list, touch=True)
         assert_run_mmusicc("--only-meta",
                            "--source", dir_lib_a_flac,
                            "--target", dir_lib_test,
-                           "-f .mp3"
+                           "-f .ogg"
                            )
-        # check no file but one was modified
-        # 7 files were accessed, one modified: 7*100+1=701)
-        assert cmp_files_hash_and_mtime(org_file_list, saved_file_info) == 701
+        # check no file but 3 were modified
+        # 7 files were accessed, 3 modified: 7*100+3=703)
+        assert cmp_files_hash_and_mtime(org_file_list, saved_file_info) == 703
+
+    def test_white_and_blacklist(self, dir_lib_a_flac, dir_lib_c_ogg,
+                                 dir_lib_test, dir_subpackages):
+        path_copy_source = dir_lib_c_ogg.joinpath(
+            "various_artists/album_best_hits_compilation_(2010)/"
+            "CD_01/01_track1.ogg")
+        path_whitelist = dir_subpackages.joinpath("whitelist.txt")
+        list_blacklist = ["artist"]
+        path_s = dir_lib_a_flac.joinpath(
+            "various_artists/album_best_hits_compilation_(2010)/"
+            "CD_02/02_track2.flac")
+        path_t = dir_lib_test.joinpath("01_track1.ogg")
+        copy_file(str(path_copy_source), str(path_t))
+        assert_run_mmusicc("--only-meta",
+                           "--source", path_s,
+                           "--target", path_t,
+                           "--white-list-tags", path_whitelist,
+                           "--black-list-tags", list_blacklist,
+                           )
+        metadata = Metadata(str(path_t))
+        assert metadata.get_tag("album") == "best hists compilation"  # white
+        assert metadata.get_tag("title") == "track2"                  # white
+        assert metadata.get_tag("discnumber") == "1" or "01"          # black
+        assert metadata.get_tag("tracknumber") == "2" or "02"         # black
+        assert metadata.get_tag("artist") == "hello"                  # black
+
+    @pytest.mark.skip
+    def test_remove_existing(self):
+        pass
 
 
 @pytest.mark.parametrize("ste", ["file-->file"], indirect=True)
@@ -163,7 +193,7 @@ class TestConversionFileFile:
                            "-s", ste.path_s,
                            "-t", ste.path_t,
                            "--ffmpeg-options", b"-q:a 9",
-                           "-f", ".mp3")
+                           "-f", ".ogg")
         assert pathlib.Path(ste.path_t).is_file()
         # org file size is > 50000
         assert pathlib.Path(ste.path_t).stat().st_size < 10000
@@ -211,12 +241,12 @@ class TestConversionFolderFolder:
         assert_run_mmusicc("--only-files",
                            "-s", ste.path_s,
                            "-t", ste.path_t,
-                           "-f", ".mp3",
+                           "-f", ".ogg",
                            ste.add_args)
 
         if ste.combo == "album-->album":
             assert_file_tree(ste.path_t, ste.path_e, depth=1)
-            assert ste.path_t.joinpath("audio_at_artist_level.mp3").is_file()
+            assert ste.path_t.joinpath("audio_at_artist_level.ogg").is_file()
             assert not ste.path_t.joinpath("album_good_(2018)").exists()
         elif ste.combo == "folder-->folder_part":
             assert_file_tree(ste.path_t, ste.path_e)
@@ -231,27 +261,27 @@ class TestMmusicc:
 
     # TODO add test for option --remove-existing-metadata
     @pytest.mark.parametrize("opt", [None, "--lazy"])
-    def test_default(self, dir_lib_a_flac, dir_lib_c_mp3, dir_lib_test,
-                     dir_lib_b_mp3, opt):
+    def test_default(self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test,
+                     dir_lib_b_ogg, opt):
         """test the program for the default case it is made for with most used
             parameters
         """
-        copy_tree(str(dir_lib_c_mp3), str(dir_lib_test))
+        copy_tree(str(dir_lib_c_ogg), str(dir_lib_test))
         org_file_list, _ = get_file_list_tree(dir_lib_test)
         saved_file_info = save_files_hash_and_mtime(org_file_list, touch=True)
         assert_run_mmusicc("--source", dir_lib_a_flac,
                            "--target", dir_lib_test,
-                           "-f .mp3",
+                           "-f .ogg",
                            opt
                            )
 
         # check no file but one was modified
-        # 7 files were accessed, one modified: 7*100+1=701)
-        assert cmp_files_hash_and_mtime(org_file_list, saved_file_info) == 701
+        # 7 files were accessed, 3 modified: 7*100+3=703)
+        assert cmp_files_hash_and_mtime(org_file_list, saved_file_info) == 703
         # check that missing files are created
-        assert_file_tree(dir_lib_test, dir_lib_b_mp3)
+        assert_file_tree(dir_lib_test, dir_lib_b_ogg)
         path_changed = dir_lib_test.joinpath(
-            "artist_quodlibet/album_bar_-_single_(2020)/01_track1.mp3")
+            "artist_quodlibet/album_bar_-_single_(2020)/01_track1.ogg")
         metadata = Metadata(str(path_changed))
         assert metadata.get_tag("album") == "Bar - Single"
         assert metadata.get_tag("date") == "2020"
@@ -259,7 +289,7 @@ class TestMmusicc:
         if opt and "--lazy" in opt:
             assert metadata.get_tag("composer") == "should not be here"
         else:
-            assert metadata.get_tag("composer") is None
+            assert Empty.is_empty(metadata.get_tag("composer"))
 
     def test_custom_config_path(self, dir_lib_a_flac, dir_lib_test,
                                 dir_orig_data):
@@ -278,7 +308,7 @@ class TestMmusicc:
             "--source", dir_lib_a_flac,
             "--target", dir_lib_test,
             "--path-config", abs_path,
-            "-f mp3"
+            "-f ogg"
         )
         assert len(am.list_tags) == 23
         am.list_tags = list()
@@ -286,7 +316,7 @@ class TestMmusicc:
             "--only-meta",
             "--source", dir_lib_a_flac,
             "--target", dir_lib_test,
-            "-f mp3"
+            "-f ogg"
         )
         assert len(am.list_tags) == 15
 
@@ -367,15 +397,15 @@ def assert_file_tree(tree_a, tree_b, depth=None) -> (list, list):
     return files_a, files_b
 
 
-def test_assert_file_tree(dir_lib_b_mp3, dir_lib_c_mp3):
-    files_a, files_b = assert_file_tree(dir_lib_b_mp3, dir_lib_b_mp3)
+def test_assert_file_tree(dir_lib_b_ogg, dir_lib_c_ogg):
+    files_a, files_b = assert_file_tree(dir_lib_b_ogg, dir_lib_b_ogg)
     assert len(files_a) == 10
     assert len(files_b) == 10
-    files_a, files_b = assert_file_tree(dir_lib_b_mp3, dir_lib_b_mp3, 2)
+    files_a, files_b = assert_file_tree(dir_lib_b_ogg, dir_lib_b_ogg, 2)
     assert len(files_a) == 1
     assert len(files_b) == 1
     with pytest.raises(AssertionError):
-        assert_file_tree(dir_lib_c_mp3, dir_lib_b_mp3)
+        assert_file_tree(dir_lib_c_ogg, dir_lib_b_ogg)
 
 
 def cmd_mmusicc(*args):

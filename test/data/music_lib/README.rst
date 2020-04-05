@@ -14,15 +14,17 @@ Test data info
 - A_flac and B__flac have identical structure and metadata
 - B_flac media stream is created with ffmpeg and without any arguments and custom metadata
 - C_flac uses files from B_flac with additional changes in metadata, artist_puddletag is missing
-
+- Test file metadata is manipulated with kid3 for the default files and ex falso for files with empty tags
 
 C_mp3 metadata changes
 """"""""""""""""""""""
 
-
 1)  - missing date
     - wrong album title ("wrong metadata, also date is missing")
     - composer tag ("should not be here")
+2)  - CD_01 got the default format
+    - CD_02 has the same tag keys that CD_01 that plus tah keys with empty values
+
 
 
 
@@ -66,10 +68,10 @@ test data structure
     │   │       └── 02_track2.mp3
     │   └── various_artists
     │       └── album_best_hits_compilation_(2010)
-    │           ├── CD_01
+    │           ├── CD_01                               --> 2)
     │           │   ├── 01_track1.mp3
     │           │   └── 02_track2.mp3
-    │           └── CD_02
+    │           └── CD_02                               --> 2)
     │               ├── 01_track1.mp3
     │               └── 02_track2.mp3
     ├── C_mp3

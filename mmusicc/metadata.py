@@ -162,7 +162,7 @@ class Metadata(metaclass=MetadataMeta):
         self._audio.file_read()
         self.dict_data.update(self._audio.dict_meta)
 
-    def write_tags(self, remove_existing=False, write_empty=True):
+    def write_tags(self, remove_existing=False, write_empty=False):
         """write metadata to linked audio file
 
         Args:
@@ -170,7 +170,7 @@ class Metadata(metaclass=MetadataMeta):
                 before writing. Defaults to False.
             write_empty     (bool): if true write empty tags, exact effect
                 depends on comment type. Either the tag entries will not exist
-                or overwritten with None/Null/"". Defaults to True
+                or overwritten with None/Null/"". Defaults to False.
         Raises:
             Exception: if no file is linked
         """
@@ -271,6 +271,28 @@ class Metadata(metaclass=MetadataMeta):
                 logging.warning("database read failed, no data imported. "
                                 "File might not be in database")
 
+    def get_the_right_one(self, path_to_match):
+        if self.file_path_set:
+            keys = path_to_match
+            key_str, ext = os.path.splitext(self.file_path)
+            subs = None
+            # tries to get a unique match beginning at leave
+            while len(keys) > 1:
+                key_str, sub = os.path.split(key_str)
+                if subs:
+                    subs = os.path.join(sub, subs)
+                else:
+                    subs = sub
+                keys = [path for path in keys if subs in path]
+                # for path in keys:
+                #     if subs not in path:
+                #         keys.remove(path)
+            if len(keys) == 0:
+                raise KeyError("could not find matching entry")
+            return keys[0]
+        else:
+            raise FileNotFoundError("no file path set in metadata")
+
     def export_tags_to_db(self, root_dir=None):
         """saves all tags to database.
 
@@ -354,6 +376,11 @@ class GroupMetadata(Metadata):
     def set_tag(self, str_tag, value):
         for metadata in self.list_metadata:
             metadata.dict_data[str_tag] = value
+        self.__compare_tags()
+
+    def reset_meta(self):
+        for metadata in self.list_metadata:
+            metadata.dict_data.reset()
 
     def auto_fill_tags(self):
         """Super-Method applied to all Objects in list. See Metadata."""
@@ -388,7 +415,7 @@ class GroupMetadata(Metadata):
                         self.dict_data[key] = Div(key, self.list_metadata)
                         break
 
-    def write_tags(self, remove_existing=True, write_empty=True):
+    def write_tags(self, remove_existing=False, write_empty=False):
         """Super-Method applied to all Objects in list. See Metadata."""
         for metadata in self.list_metadata:
             metadata.write_tags(remove_existing=remove_existing,
@@ -407,15 +434,16 @@ class GroupMetadata(Metadata):
         # tags = Metadata.process_white_and_blacklist(whitelist, blacklist)
         # TODO change import procedure similar to primary key acquisition
         for metadata_self in self.list_metadata:
-            for metadata_source in source_meta.list_metadata:
-                # noinspection PyUnresolvedReferences
-                if metadata_self.file_path == metadata_source.file_path:
-                    metadata_self.import_tags(
-                        metadata_source,
-                        whitelist=whitelist,
-                        blacklist=blacklist,
-                        skip_none=skip_none)
-                    break
+            paths = dict()
+            for sm in source_meta.list_metadata:
+                paths[sm.file_path] = sm
+            key = metadata_self.get_the_right_one(list(paths.keys()))
+            metadata_source = paths.get(key)
+            metadata_self.import_tags(
+                metadata_source,
+                whitelist=whitelist,
+                blacklist=blacklist,
+                skip_none=skip_none)
         self.__compare_tags()
 
     def import_tags_from_db(self,

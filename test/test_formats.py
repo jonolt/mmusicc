@@ -72,7 +72,7 @@ def media_file(request, audio_files, dir_lib_test):
 # TODO find a way to load extension dynamically
 # TODO run tests per-class configuration
 @pytest.mark.parametrize("media_file",
-                         [".mp3", ".flac"],
+                         [".mp3", ".flac", ".ogg"],
                          indirect=["media_file"])
 class TestFormats:
 
@@ -100,6 +100,10 @@ class TestFormats:
                                        metadata_write_tags,
                                        exclude=["artist"])
 
+        # in the test file is one tag placed (encoder settings) that is not in
+        # the tag dictionary. This tag can be only removed with the
+        # remove-existing option. Also with remove existing, a reread with the
+        # same tag list will always lead 0 unprocessed_tag.
         if remove_existing:
             assert len(list(m_file.unprocessed_tag)) == 0
         else:

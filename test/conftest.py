@@ -80,19 +80,19 @@ def dir_lib_a_flac(tmp_path_factory, dir_orig_data):
 
 
 @pytest.fixture(scope="session")
-def dir_lib_b_mp3(tmp_path_factory, dir_orig_data):
+def dir_lib_b_ogg(tmp_path_factory, dir_orig_data):
     # original mp3 data do not overwrite (to be compared with result)
-    temp_dir = tmp_path_factory.mktemp("B_mp3", numbered=False)
-    s_path = (dir_orig_data.joinpath("music_lib", "B_mp3"))
+    temp_dir = tmp_path_factory.mktemp("B_ogg", numbered=False)
+    s_path = (dir_orig_data.joinpath("music_lib", "B_ogg"))
     copy_tree(str(s_path), str(temp_dir))
     return temp_dir
 
 
 @pytest.fixture(scope="session")
-def dir_lib_c_mp3(tmp_path_factory, dir_orig_data):
+def dir_lib_c_ogg(tmp_path_factory, dir_orig_data):
     # lib with missing and wrong metadata
-    temp_dir = tmp_path_factory.mktemp("C_mp3_", numbered=False)
-    s_path = (dir_orig_data.joinpath("music_lib", "C_mp3"))
+    temp_dir = tmp_path_factory.mktemp("C_ogg_", numbered=False)
+    s_path = (dir_orig_data.joinpath("music_lib", "C_ogg"))
     copy_tree(str(s_path), str(temp_dir))
     return temp_dir
 

@@ -51,7 +51,7 @@ class VCFile(AudioFile):
         self.unprocessed_tag.update(
             scan_dictionary(dict_tmp, self.dict_meta))
 
-    def file_save(self, remove_existing=False, write_empty=True):
+    def file_save(self, remove_existing=False, write_empty=False):
         """saves file tags to AudioFile from tag dictionary.
 
         Args:
@@ -60,7 +60,7 @@ class VCFile(AudioFile):
             write_empty     (bool): if true write empty tags an therefore
                 create a tag with content "". If false no tag will be created
                 and existing tags on file that would be overwritten with ""
-                will be deleted. Defaults to True.
+                will be deleted. Defaults to False.
         """
         self.check_file_path()
 
@@ -69,26 +69,31 @@ class VCFile(AudioFile):
 
         audio = self._file
         new_tag = self.dict_meta
-        tag_del = list()
+        tag_remove = list()
         for key in new_tag.keys():
             if Empty.is_empty(new_tag[key]):
                 if write_empty:
                     new_tag[key] = ""
                 else:
-                    tag_del.append(key)
+                    tag_remove.append(key)
 
-        for key in tag_del:
+        for key in tag_remove:
             del new_tag[key]
 
         # tag_del may have elements with value none, but can still be
         # overwritten, since the tag_del values are a subset of not in new_tag.
+        tag_del = [z for z in audio if z in tag_remove]
         if remove_existing:
-            tag_del = [z for z in audio if z not in new_tag]
+            tag_del.extend([z for z in audio if z not in new_tag])
 
-        for z in tag_del:
+        for z in set(tag_del):
             del (audio[z])
 
-        self._file.update(new_tag)
+        caps_tag = dict()
+        for tag, value in new_tag.items():
+            caps_tag[tag.upper()] = value
+
+        self._file.update(caps_tag)
         self._file.save()
 
 

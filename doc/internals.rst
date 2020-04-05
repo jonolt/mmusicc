@@ -38,7 +38,6 @@ Behaviour Metadata
 1) multivalues are internally saved as list
 2) multiple values in one string, which are divided by a char, will be extracted to multivalues and saved as in 1, when char is given. TODO global split char
 
-
 xiph
 ^^^^^
 
@@ -57,27 +56,30 @@ module formats
 --------------
 
 effect of options in file_save
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-+-------+-------+-------+-------+-------+-------+-------+
-| source                | file original                 |
-+-------+-------+-------+-------+-------+-------+-------+
-| tag_a | tag_b | tag_c | tag_a | tag_b | tag_c | tag_x |
-+=======+=======+=======+=======+=======+=======+=======+
-| t1    | None  | t3    | fuu   | bar   | None  | xxx   |
-+-------+-------+-------+-------+-------+-------+-------+
+Default behaviour is to not remove existing tags and to not write tags empty tags. If a empty tag in source got a value in target, the tag in target is deleted. The table below shows how the tags are handled.
 
-+----------------+-------------+-------+-------+-------+-------+
-|                |             | file after                    |
+Deleting empty Tags in target is the default behaviour of audacious, EasyTAG, Kid3, VLC Media Player, Clementine. Keeping Empty Tags in target is the default behaviour of Ex Falso (QuodLibet), MusicBrainz Picard, Puddletag.
+
 +----------------+-------------+-------+-------+-------+-------+
 |remove_existing | write_empty | tag_a | tag_b | tag_c | tag_x |
 +================+=============+=======+=======+=======+=======+
-|False           | False       | t1    |       | t3    | xxx   |
+| source file                  | t1    | None   | t3  | t3     |
++------------------------------+-------+-------+-------+-------+
+| original target file         | fuu   | bar   | None  | xxx   |
 +----------------+-------------+-------+-------+-------+-------+
-|False           | True        | t1    | None  | t3    | xxx   |
+|                                                              |
 +----------------+-------------+-------+-------+-------+-------+
-|True            | False       | t1    |       | t3    |       |
+|remove_existing | write_empty | file after write operation    |
 +----------------+-------------+-------+-------+-------+-------+
-|True            | True        | t1    | None  | t3    |       |
+|**False**       | **False**   | t1    | None  | t3    | xxx   |
++----------------+-------------+-------+-------+-------+-------+
+|False           | True        | t1    | empty | t3    | xxx   |
++----------------+-------------+-------+-------+-------+-------+
+|True            | False       | t1    | None  | t3    | None  |
++----------------+-------------+-------+-------+-------+-------+
+|True            | True        | t1    | empty | t3    | None  |
 +----------------+-------------+-------+-------+-------+-------+
 
 

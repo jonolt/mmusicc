@@ -84,7 +84,7 @@ class MP3File(AudioFile):
 
     def file_save(self,
                   remove_existing=False,
-                  write_empty=True,
+                  write_empty=False,
                   remove_v1=False):
         """saves file tags to AudioFile from tag dictionary.
 
@@ -94,7 +94,7 @@ class MP3File(AudioFile):
             write_empty     (bool): Only affects TXXX tags. Existing tags will
                 always be set to None. If true create empty TXXX tags with
                 value none. If false no tag will be created or existing
-                TXXX tag on file will be deleted. Defaults to True
+                TXXX tag on file will be deleted. Defaults to False.
             remove_v1       ('bool'): If True, remove existing ID3.V1 tags.
                 Defaults to False.
         """
