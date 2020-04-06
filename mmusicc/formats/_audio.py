@@ -1,5 +1,6 @@
 import logging
 
+from mmusicc.util.misc import MetadataDict
 from mmusicc.util.path import PATH, hash_filename
 
 
@@ -8,14 +9,14 @@ class AudioFile:
 
     Attributes:
         file_path        (str): file path of file.
-        dict_meta       (dict): metadata from file (the parsed one)
+        _dict_meta       (dict): metadata from file (the parsed one)
         unprocessed_tag (dict): metadata that could'nt be associated. Manly
         used to manually update the association list with new tags/tag names.
     """
 
     def __init__(self, file_path):
         self.set_file_path(file_path)
-        self.dict_meta = dict()
+        self._dict_meta = MetadataDict()
         self.unprocessed_tag = dict()
         self._file = None
 
@@ -27,6 +28,17 @@ class AudioFile:
         tmp_fn_hash = hash_filename(path)
         for key in hash_filename(path):
             setattr(self, key, tmp_fn_hash[key])
+
+    @property
+    def dict_meta(self):
+        return self._dict_meta
+
+    @dict_meta.setter
+    def dict_meta(self, value):
+        if isinstance(value, MetadataDict):
+            self._dict_meta = value
+        else:
+            raise TypeError("only MetadataDict allowed")
 
     def file_read(self):
         """reads file tags into AudioFile tag dictionary."""

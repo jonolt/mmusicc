@@ -60,27 +60,36 @@ def test_read_tags(class_meta, dir_lib_x_flac):
     metadata_path = create_file_path(class_meta, dir_lib_x_flac)
     meta = class_meta(metadata_path)
     assert isinstance(meta, class_meta)
-    assert meta.dict_data.get("album")
+    assert meta._dict_data.get("album")
     if class_meta is Metadata:
         assert meta.file_path_set
     else:  # Group and Album are basically the same
-        assert isinstance(meta.dict_data.get("title"), Div)
+        assert isinstance(meta._dict_data.get("title"), Div)
 
 
 @pytest.mark.parametrize("class_meta", dict_files.keys())
-@pytest.mark.parametrize("remove_ex_and_write_none", [True, False])
-def test_write_tags(class_meta, dir_lib_x_flac, remove_ex_and_write_none):
+@pytest.mark.parametrize("rem_ex, write_empty", [(False, False), (True, True)])
+def test_write_tags(class_meta, dir_lib_x_flac, rem_ex, write_empty):
     # TODO test write_none
     metadata_path = create_file_path(class_meta, dir_lib_x_flac)
     meta = class_meta(metadata_path)
     meta.set_tag("album", "fuubar")
+    meta.set_tag("albumartist", Empty())
     meta.set_tag("artist", None)
-    meta.write_tags(remove_existing=remove_ex_and_write_none,
-                    write_empty=remove_ex_and_write_none)
+    meta.write_tags(remove_existing=rem_ex,
+                    write_empty=write_empty)
     meta_2 = class_meta(metadata_path)
-    assert meta_2.dict_data.get("album") == "fuubar"
-    assert Empty.is_empty(meta_2.dict_data.get("artist"))
-    # TODO actually test/assert remove_existing
+    assert meta_2._dict_data.get("album") == "fuubar"
+
+    if rem_ex:
+        assert meta_2._dict_data.get("artist") is None
+    else:
+        assert meta_2._dict_data.get("artist") == "str_artist"
+
+    if write_empty:
+        assert Empty.is_empty(meta_2._dict_data.get("albumartist"))
+    else:
+        assert meta_2._dict_data.get("albumartist") is None
 
 
 @pytest.mark.parametrize("skip_none", [True, False])
@@ -93,18 +102,18 @@ def test_import_tags(import_data, dir_lib_x_flac, skip_none):
                      whitelist=["album", "title"],
                      skip_none=skip_none)
     # Assert proper import
-    assert meta.dict_data.get("album") == "fuubar"
+    assert meta.get_tag("album") == "fuubar"
     # Assert whitelist (blacklist does not need to be tested here, since the
     # actual whitelist of the called func is computed from black and whitelist.
-    assert meta.dict_data.get("artist") == "str_artist"
+    assert meta.get_tag("artist") == "str_artist"
     # Assert skip option (parametrized)
     if skip_none:
         if class_meta is Metadata:
-            assert meta.dict_data.get("title") == "str_title_A"
+            assert meta.get_tag("title") == "str_title_A"
         else:
-            assert isinstance(meta.dict_data.get("title"), Div)
+            assert isinstance(meta.get_tag("title"), Div)
     else:
-        assert meta.dict_data.get("title") is None
+        assert meta.get_tag("title") is None
 
 
 @pytest.mark.parametrize("skip_none", [True, False])
@@ -120,14 +129,14 @@ def test_import_db_tag(class_meta, dir_lib_x_flac, path_database, skip_none):
     meta = class_meta(metadata_path)
     # meta.dict_data.reset()
     meta.import_tags_from_db(whitelist=["album", "title"], skip_none=skip_none)
-    assert meta.dict_data.get("artist") == "str_artist"  # not "quodlibet"
+    assert meta.get_tag("artist") == "str_artist"  # not "quodlibet"
     if skip_none:
         if class_meta is Metadata:
-            assert meta.dict_data.get("title") == "str_title_A"
+            assert meta.get_tag("title") == "str_title_A"
         else:  # Group and Album are basically the same
-            assert isinstance(meta.dict_data.get("title"), Div)
+            assert isinstance(meta.get_tag("title"), Div)
     else:
-        assert meta.dict_data.get("title") is None
+        assert meta.get_tag("title") is None
 
 
 @pytest.mark.parametrize("class_meta", dict_files.keys())
@@ -142,11 +151,11 @@ def test_export_db_tag(class_meta, dir_lib_x_flac, temp_database):
     meta = class_meta(metadata_path)
     meta.export_tags_to_db()
     meta.import_tags_from_db()
-    assert meta.dict_data.get("artist") == "str_artist"
+    assert meta.get_tag("artist") == "str_artist"
     if class_meta is Metadata:
-        assert meta.dict_data.get("title") == "str_title_A"
+        assert meta.get_tag("title") == "str_title_A"
     else:  # Group and Album are basically the same
-        assert isinstance(meta.dict_data.get("title"), Div)
+        assert isinstance(meta.get_tag("title"), Div)
 
 
 def test_load_empty_meta(dir_lib_x_flac):
@@ -155,9 +164,9 @@ def test_load_empty_meta(dir_lib_x_flac):
     meta.link_audio_file(str(dir_lib_x_flac.joinpath("2-str_title_B.flac")))
     assert isinstance(meta, Metadata)
     assert meta.file_path_set
-    assert not meta.dict_data.get("album")
+    assert not meta.get_tag("album")
     meta.read_tags()
-    assert meta.dict_data.get("album")
+    assert meta.get_tag("album")
 
 
 def create_file_path(class_meta, dir_lib_a_flac):
@@ -203,6 +212,7 @@ def test_primary_key_algorithm():
     pass
 
 
+@pytest.mark.skip(reason="not properly implemented")
 def test_create_test_db(temp_database, dir_lib_x_flac):
     """test if the same values are read from the db as written into"""
     if Metadata.is_linked_database:

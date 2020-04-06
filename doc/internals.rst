@@ -36,20 +36,20 @@ Behaviour Metadata
 ------------------
 
 1) multivalues are internally saved as list
-2) multiple values in one string, which are divided by a char, will be extracted to multivalues and saved as in 1, when char is given. TODO global split char
+2) multiple values in one string, which are divided by a char, will be extracted to multivalues and saved as in 1)
+3) comment is used as default and not description
 
 xiph
 ^^^^^
 
-1) multivalues of a key are writen as multiple tags, 
+1) multivalues of a key are writen as multiple tags
 
 
 mp3
 ^^^
 
 1) no format checking of values (e.g. TimeStampTextFrame)
-2) paired text frames are extracted to a flat list
-3) the flat list of paired text frames is writen as [u'', list[i]]
+2) all values are written as utf8, encoding options have to be defined
 
 
 module formats
@@ -58,29 +58,24 @@ module formats
 effect of options in file_save
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-Default behaviour is to not remove existing tags and to not write tags empty tags. If a empty tag in source got a value in target, the tag in target is deleted. The table below shows how the tags are handled.
+In dict meta are to kinds of "empty":
 
-Deleting empty Tags in target is the default behaviour of audacious, EasyTAG, Kid3, VLC Media Player, Clementine. Keeping Empty Tags in target is the default behaviour of Ex Falso (QuodLibet), MusicBrainz Picard, Puddletag.
+- None : tag does not exist (and was not in source file metadata)
+- Empty: tag does exist with an empty value (and was saved in source file with empty value). Values are handled as if they had a value.
 
-+----------------+-------------+-------+-------+-------+-------+
-|remove_existing | write_empty | tag_a | tag_b | tag_c | tag_x |
-+================+=============+=======+=======+=======+=======+
-| source file                  | t1    | None   | t3  | t3     |
-+------------------------------+-------+-------+-------+-------+
-| original target file         | fuu   | bar   | None  | xxx   |
-+----------------+-------------+-------+-------+-------+-------+
-|                                                              |
-+----------------+-------------+-------+-------+-------+-------+
-|remove_existing | write_empty | file after write operation    |
-+----------------+-------------+-------+-------+-------+-------+
-|**False**       | **False**   | t1    | None  | t3    | xxx   |
-+----------------+-------------+-------+-------+-------+-------+
-|False           | True        | t1    | empty | t3    | xxx   |
-+----------------+-------------+-------+-------+-------+-------+
-|True            | False       | t1    | None  | t3    | None  |
-+----------------+-------------+-------+-------+-------+-------+
-|True            | True        | t1    | empty | t3    | None  |
-+----------------+-------------+-------+-------+-------+-------+
+Save behaviour:
+
+- None is skipped, existing data on file is unchanged
+- Empty write_empty==False: if tag exists in target it is deleted
+- Empty write_empty==True : tag with value Empty is saved in file (and created)
+- Value is always writen to file (and created)
+
+The equivalent of write_empty (also remove empty) behaviour differs between programs:
+
+- write_empty==False: audacious, EasyTAG, Kid3, VLC Media Player, Clementine
+- write_empty==True : Ex Falso (QuodLibet), MusicBrainz Picard, Puddletag
+
+To clear values not in the metadata list (=unprocessed tag) or to clear empty values without loading the dict with those, use remove_existing.
 
 
 .. include:: ../test/data/music_lib/README.rst

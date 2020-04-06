@@ -5,27 +5,9 @@ import re
 import mmusicc.util.allocationmap as am
 from mmusicc.database import MetaDB
 from mmusicc.formats import MusicFile
-from mmusicc.util.misc import check_is_audio, process_white_and_blacklist
+from mmusicc.util.misc import check_is_audio, process_white_and_blacklist, \
+    MetadataDict, Empty, Div
 from mmusicc.util.path import PATH, hash_filename
-
-
-class MetadataDict(dict):
-    """Dictionary containing tags as keys, values can be reset.
-
-    Args:
-        init_value (object, optional): initial value of all values,
-            defaults to None.
-    """
-
-    def __init__(self, init_value=None):
-        super().__init__()
-        self._init_value = init_value
-        for key in am.list_tags:
-            self[key] = init_value
-
-    def reset(self):
-        for key in list(self):
-            self[key] = self._init_value
 
 
 class MetadataMeta(type):
@@ -103,7 +85,7 @@ class Metadata(metaclass=MetadataMeta):
 
         self._audio = None
 
-        self.dict_data = MetadataDict()
+        self._dict_data = MetadataDict()
 
         if not file_path:
             pass
@@ -145,11 +127,15 @@ class Metadata(metaclass=MetadataMeta):
         self._set_file_path(file_path)
         self._audio = MusicFile(file_path)
 
+    @property
+    def dict_data(self):
+        return self._dict_data
+
     def get_tag(self, str_tag):
-        return self.dict_data.get(str_tag)
+        return self._dict_data.get(str_tag)
 
     def set_tag(self, str_tag, value):
-        self.dict_data[str_tag] = value
+        self._dict_data[str_tag] = value
 
     def read_tags(self):
         """read metadata from linked audio file
@@ -160,7 +146,7 @@ class Metadata(metaclass=MetadataMeta):
         if not self._audio:
             raise Exception("no file_path linked")
         self._audio.file_read()
-        self.dict_data.update(self._audio.dict_meta)
+        self._dict_data.update(self._audio.dict_meta)
 
     def write_tags(self, remove_existing=False, write_empty=False):
         """write metadata to linked audio file
@@ -176,7 +162,7 @@ class Metadata(metaclass=MetadataMeta):
         """
         if not self._audio:
             raise Exception("no file_path linked")
-        self._audio.dict_meta.update(self.dict_data)
+        self._audio.dict_meta.update(self._dict_data)
         if not Metadata.dry_run:
             self._audio.file_save(remove_existing=remove_existing,
                                   write_empty=write_empty)
@@ -198,7 +184,7 @@ class Metadata(metaclass=MetadataMeta):
             skip_none      (bool, optional): If True, don't overwrite values in
                 target, which are None in source. Defaults to True.
         """
-        self._import_tags(source_meta.dict_data,
+        self._import_tags(source_meta._dict_data,
                           whitelist, blacklist, skip_none)
 
     def _import_tags(self, dict_meta, whitelist, blacklist, skip_none):
@@ -208,7 +194,7 @@ class Metadata(metaclass=MetadataMeta):
                 val = dict_meta[tag]
                 if not val and skip_none:
                     continue
-                self.dict_data[tag] = val
+                self._dict_data[tag] = val
 
     def import_tags_from_db(self,
                             primary_key=None,
@@ -306,7 +292,7 @@ class Metadata(metaclass=MetadataMeta):
             raise Exception("no database linked")
         if self.file_path_set:
             if not Metadata.dry_run:
-                self._database.insert_meta(self.dict_data, self.file_path)
+                self._database.insert_meta(self._dict_data, self.file_path)
         else:
             pass
 
@@ -321,23 +307,23 @@ class Metadata(metaclass=MetadataMeta):
             self.dict_auto_fill_org = MetadataDict(init_value=False)
         for tag in list(am.dict_auto_fill_rules):
             rule = am.dict_auto_fill_rules.get(tag)
-            val_test = self.dict_data.get(rule[0])
+            val_test = self._dict_data.get(rule[0])
             val_regex = rule[1]
             try:
-                val_parse = self.dict_data.get(rule[2])
+                val_parse = self._dict_data.get(rule[2])
             except KeyError:
                 val_parse = rule[2]
             if val_regex is None:
                 if isinstance(val_test, Empty):
-                    self.dict_auto_fill_org[tag] = self.dict_data[tag]
-                    self.dict_data[tag] = val_parse
+                    self.dict_auto_fill_org[tag] = self._dict_data[tag]
+                    self._dict_data[tag] = val_parse
             elif isinstance(val_regex, str):
                 if not isinstance(val_test, str):
                     val_test = str(val_test)
                 m = re.search(val_regex, val_test)
                 if m:
-                    self.dict_auto_fill_org[tag] = self.dict_data[tag]
-                    self.dict_data[tag] = eval(val_parse)
+                    self.dict_auto_fill_org[tag] = self._dict_data[tag]
+                    self._dict_data[tag] = eval(val_parse)
 
 
 class GroupMetadata(Metadata):
@@ -371,16 +357,16 @@ class GroupMetadata(Metadata):
         self.dict_auto_fill_org = None
 
     def get_tag(self, str_tag):
-        self.dict_data.get(str_tag)
+        return self._dict_data.get(str_tag)
 
     def set_tag(self, str_tag, value):
         for metadata in self.list_metadata:
-            metadata.dict_data[str_tag] = value
+            metadata._dict_data[str_tag] = value
         self.__compare_tags()
 
     def reset_meta(self):
         for metadata in self.list_metadata:
-            metadata.dict_data.reset()
+            metadata._dict_data.reset()
 
     def auto_fill_tags(self):
         """Super-Method applied to all Objects in list. See Metadata."""
@@ -404,15 +390,15 @@ class GroupMetadata(Metadata):
         for key in am.list_tags:
             first = True
             for metadata in self.list_metadata:
-                data = metadata.dict_data.get(key)
+                data = metadata._dict_data.get(key)
                 if first:
-                    self.dict_data[key] = data
+                    self._dict_data[key] = data
                     first = False
                 else:
-                    if self.dict_data[key] == data:
+                    if self._dict_data[key] == data:
                         pass
                     else:
-                        self.dict_data[key] = Div(key, self.list_metadata)
+                        self._dict_data[key] = Div(key, self.list_metadata)
                         break
 
     def write_tags(self, remove_existing=False, write_empty=False):
@@ -481,76 +467,3 @@ class AlbumMetadata(GroupMetadata):
             if check_is_audio(file_path):
                 list_metadata.append(file_path)
         super().__init__(list_metadata)
-
-
-class Empty(object):
-    """object representing a tag without an value.
-
-    It is a placeholder to be able to change the character/object which
-    represents the Emptiness in the Database or at mutagen.
-    """
-
-    value = ""
-
-    def __repr__(self):
-        return "<none>"
-
-    def __eq__(self, other):
-        if isinstance(other, Empty):
-            return True
-        else:
-            return False
-
-    @staticmethod
-    def is_empty(text):
-        if text is None or isinstance(text, Empty):
-            return True
-        if isinstance(text, str) and text.strip() == "":
-            return True
-        return False
-
-
-class Div(object):
-    """
-    Object Representing a group different values. Provides rich comparison.
-
-    Still Under Construction.
-
-    Args:
-        key                      (str, optional): dictionary key which values
-            to represent
-        list_metadata (list<Metadata>, optional): list of Metadata object
-            containing the values.
-    """
-
-    def __init__(self, key=None, list_metadata=None):
-        self._dict_values = dict()
-        self._diff = None
-        self._key_tag = None  # maybe not needed
-        if key and list_metadata:
-            self.add_metadata(key, list_metadata)
-
-    def __repr__(self):
-        return "<div>"
-
-    def __eq__(self, other):
-        if not isinstance(other, Div):
-            return False
-        equal = None
-        for meta_a in list(self._dict_values):
-            for meta_b in list(other._dict_values):
-                if meta_a.file_name == meta_b.file_name:
-                    if not (self._dict_values.get(meta_a)
-                            == other._dict_values.get(meta_b)):
-                        equal = False
-        if equal is None:
-            equal = False
-        return equal
-
-    def add_metadata(self, key_tag, list_metadata):
-        self._key_tag = key_tag
-        for metadata in list_metadata:
-            self.add_value(metadata, metadata.dict_data.get(self._key_tag))
-
-    def add_value(self, obj, val):
-        self._dict_values[obj] = val
