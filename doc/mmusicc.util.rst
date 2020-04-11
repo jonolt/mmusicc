@@ -44,15 +44,6 @@ mmusicc.util.misc module
    :undoc-members:
    :show-inheritance:
 
-mmusicc.util.path module
-------------------------
-
-.. automodule:: mmusicc.util.path
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-
 Module contents
 ---------------
 

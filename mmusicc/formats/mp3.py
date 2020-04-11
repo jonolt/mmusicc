@@ -7,6 +7,7 @@ from mmusicc.util.util import (scan_dictionary, text_parser_get,
                                join_str_list)
 
 extensions = [".mp3", ".mp2", ".mp1", ".mpg", ".mpeg"]
+"""list of all extensions associated with this module"""
 # loader   see bottom
 # types    see bottom
 
@@ -28,13 +29,14 @@ class MP3File(AudioFile):
              "audio/x-mpeg"]
 
     def __init__(self, file_path):
-        super().__init__(file_path)
+        super().__init__()
         self._file = mutagen.File(file_path)
 
     def file_read(self, drop_role=True):
-        """reads file tags into AudioFile tag dictionary.
+        """reads file tags into AudioFile tag dictionary (dict_meta).
+
         First tries to associate ID3 tags, than takes all txxx tags and runs
-        them through string parser.
+        them through the scan dictionary function.
 
         Args:
             drop_role (bool): if True, drop the role of paired text frame and
@@ -94,11 +96,11 @@ class MP3File(AudioFile):
                   remove_existing=False,
                   write_empty=False,
                   remove_v1=False):
-        """saves file tags to AudioFile from tag dictionary.
+        """saves file tags from tag dictionary (dict_meta) to AudioFile.
 
         Note:
-            write_empty may have no effect. Ss mutagen will not load empty tags
-            it can't be checked. Correction or Info is appreciated.
+            write_empty may have no effect. Since mutagen will not load empty
+            tags it can't be checked. Correction or Info is appreciated.
 
         Args:
             remove_existing ('bool', optional): if true clear all tags on file
@@ -110,13 +112,10 @@ class MP3File(AudioFile):
             remove_v1       ('bool'): If True, remove existing ID3.V1 tags.
                 Defaults to False.
         """
-        if not self.check_file_path():
-            self._file.tags.filename = self.file_path
-
-        if self._file.tags is None:
-            self._file.add_tags()
 
         audio = self._file
+        if audio.tags is None:
+            self._file.add_tags()
 
         if remove_existing:
             audio.delete()
@@ -184,7 +183,8 @@ class MP3File(AudioFile):
         audio.save(v1=v1, v2_version=4, v23_sep=None)
 
 
-# list of subclasses of Audio File.
 types = [MP3File]
-# loads the given file into a VCFile object and returns it.
+"""list of all subclasses of AudioFile in this module"""
+
 loader = MP3File
+"""class alias for dynamic loading of available AudioFile subclasses"""

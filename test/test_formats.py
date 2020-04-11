@@ -78,13 +78,11 @@ def media_file(request, audio_files, dir_lib_test):
                          indirect=["media_file"])
 class TestFormats:
 
-    @pytest.mark.skip
     def test_write_identical(self, media_file):
-        m_file = mmusicc.formats.MusicFile(str(media_file))
+        m_file = mmusicc.formats.MusicFile(media_file)
         m_file.file_read()
         m_file.file_save(remove_existing=False, write_empty=False)
 
-    @pytest.mark.skip
     def test_read(self, media_file, expected_metadata):
         """read from file and compare with expected"""
         m_file = assert_read_and_compare_file(media_file, expected_metadata)
@@ -153,7 +151,7 @@ class TestFormats:
 
 def write_meta_to_file(path, dict_meta, remove_existing, write_empty=True):
     """helper creates MusicFile object"""
-    m_file = mmusicc.formats.MusicFile(str(path))
+    m_file = mmusicc.formats.MusicFile(path)
     m_file.dict_meta = metadatadict(dict_meta)
     m_file.file_save(remove_existing=remove_existing, write_empty=write_empty)
 
@@ -162,7 +160,7 @@ def assert_read_and_compare_file(path, dict_answer, exclude=None):
     """helper reads a audio file and compare its contents with expected values
         given in dict_answer. Single tags can be excluded.
     """
-    m_file = mmusicc.formats.MusicFile(str(path))
+    m_file = mmusicc.formats.MusicFile(path)
     m_file.file_read()
     if not exclude:
         exclude = []

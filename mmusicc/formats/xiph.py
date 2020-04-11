@@ -8,6 +8,7 @@ from mmusicc.metadata import Empty
 from mmusicc.util.util import scan_dictionary
 
 extensions = [".ogg", ".oga", ".flac"]
+"""list of all extensions associated with this module"""
 # loader   see bottom
 # types    see bottom
 ogg_formats = [FLAC, OggVorbis]
@@ -19,7 +20,6 @@ class VCFile(AudioFile):
     Instance created by loader (at the bottom of this code).
 
     Args:
-        file_path      (str): file path of represented audio file.
         audio (mutagen.File): file as mutagen file object.
     """
     format = "Unknown Mutagen + vorbiscomment"
@@ -27,13 +27,12 @@ class VCFile(AudioFile):
 
     can_change_images = True
 
-    def __init__(self, file_path, audio):
-        super().__init__(file_path)
+    def __init__(self, audio):
+        super().__init__()
         self._file = audio
 
     def file_read(self):
-        """reads file tags into AudioFile tag dictionary."""
-        # dict_tmp = dict()
+        """reads file tags into AudioFile tag dictionary (dict_meta)."""
         if self._file.tags:
             tags = self._file.tags.as_dict()
             for key in tags.keys():
@@ -41,21 +40,8 @@ class VCFile(AudioFile):
                     tags[key] = tags[key][0]
             self.unprocessed_tag.update(scan_dictionary(tags, self._dict_meta))
 
-        # for tag in tags:
-        #     tag_key = tag[0]
-        #     tag_val = tag[1]
-        #     if tag_key in dict_tmp:
-        #         if isinstance(dict_tmp[tag_key], str):
-        #             dict_tmp[tag_key] = [dict_tmp[tag_key]]
-        #         dict_tmp[tag_key].append(tag_val)
-        #     else:
-        #         dict_tmp[tag_key] = tag_val
-        #
-        # self.unprocessed_tag.update(
-        #     scan_dictionary(tags, self._dict_meta))
-
     def file_save(self, remove_existing=False, write_empty=False):
-        """saves file tags to AudioFile from tag dictionary.
+        """saves file tags from tag dictionary (dict_meta) to AudioFile.
 
             if no value changes the file is not saved, therefore there will be
             no changes at file (mtime does not change). When remove_existing
@@ -69,10 +55,8 @@ class VCFile(AudioFile):
                 and existing tags on file that would be overwritten with ""
                 will be deleted. Defaults to False.
         """
-        self.check_file_path()
-
         audio = self._file
-        if audio is None:
+        if audio.tags is None:
             audio.add_tags()
 
         new_tag = self.dict_meta.copy_not_none()
@@ -137,6 +121,7 @@ class FLACFile(VCFile):
 # list of subclasses of Audio File.
 # Dynamically fills the supported type list with the above defined classes.
 types = []
+"""list of all subclasses of AudioFile in this module"""
 for var in list(globals().values()):
     if getattr(var, 'MutagenType', None):
         types.append(var)
@@ -159,5 +144,5 @@ def loader(file_path):
     for xiph in [FLACFile, OggFile]:
         if mutagen_type is getattr(xiph, "MutagenType", None):
             # initialize a VCFile Instance and return it
-            return xiph(file_path, audio)
+            return xiph(audio)
     raise AudioFileError("file type could not be determined")

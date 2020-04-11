@@ -27,6 +27,8 @@ def scan_dictionary(dict_tags, dict_data):
     Returns:
         dict<str, str>: dictionary with all tags whose name could not be
             associated with.
+
+    TODO add string_parser and handle duplicate entries
     """
 
     # Make a copy of the source dictionary, so it is unchanged
@@ -79,6 +81,9 @@ def scan_dictionary(dict_tags, dict_data):
         if Empty.is_empty(tag_val):
             tag_val = Empty()
 
+        # val = text_parser_get(tag_val)
+        # if len(val) == 1:
+        #     val = val[0]
         dict_data[tag_key] = tag_val
 
     return dict_dummy

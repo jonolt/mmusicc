@@ -1,13 +1,13 @@
 import logging
 import os
+import pathlib
 import re
 
 import mmusicc.util.allocationmap as am
 from mmusicc.database import MetaDB
 from mmusicc.formats import MusicFile
 from mmusicc.util.misc import check_is_audio, process_white_and_blacklist, \
-    MetadataDict, Empty, Div
-from mmusicc.util.path import PATH, hash_filename
+    MetadataDict, Empty, Div, get_the_right_one
 
 
 class MetadataMeta(type):
@@ -65,13 +65,11 @@ class Metadata(metaclass=MetadataMeta):
 
     either from a linked file or loaded from a database.
 
-    TODO tag getter and setter only access to variables --> protected dict data
-
     Args:
         file_path  (str, optional): path to an supported audio file, can be set
             later with 'link_audio_file()' too. Defaults to None.
         read tags (bool, optional): enables automatic reading of metadata from
-            file. Defaults to True.
+            file at class initialisation. Defaults to True.
     """
 
     write_empty = True
@@ -87,35 +85,19 @@ class Metadata(metaclass=MetadataMeta):
 
         self._dict_data = MetadataDict()
 
-        if not file_path:
-            pass
-        elif os.path.exists(file_path):
+        if file_path:
             self.link_audio_file(file_path)
-        else:
-            raise FileNotFoundError("Error File does not exist")
 
-        if file_path and read_tag:
-            self.read_tags()
+            if read_tag:
+                self.read_tags()
 
         self.dict_auto_fill_org = None
 
     @property
     def file_path(self):
-        try:
-            return getattr(self, PATH)
-        except AttributeError:
-            return None
-
-    def _set_file_path(self, path):
-        tmp_fn_hash = hash_filename(path)
-        for key in hash_filename(path):
-            setattr(self, key, tmp_fn_hash[key])
-
-    @property
-    def file_path_set(self):
-        if self.file_path:
-            return True
-        return False
+        if self._audio:
+            return self._audio.file_path
+        return None
 
     @property
     def audio_file_linked(self):
@@ -124,8 +106,11 @@ class Metadata(metaclass=MetadataMeta):
         return False
 
     def link_audio_file(self, file_path):
-        self._set_file_path(file_path)
-        self._audio = MusicFile(file_path)
+        file_path = pathlib.Path(file_path)
+        if file_path.exists():
+            self._audio = MusicFile(file_path)
+        else:
+            raise FileNotFoundError("Error Audio File does not exist")
 
     @property
     def dict_data(self):
@@ -224,60 +209,21 @@ class Metadata(metaclass=MetadataMeta):
             Raises:
              Exception: if no database linked to class
 
-            TODO skip_none see import_tags
             """
 
-        if not primary_key:
-            if self.file_path_set:
-                keys = self._database.get_list_of_primary_keys()
-                key_str, ext = os.path.splitext(self.file_path)
-                subs = None
-                # tries to get a unique match beginning at leave
-                while len(keys) > 1:
-                    key_str, sub = os.path.split(key_str)
-                    if subs:
-                        subs = os.path.join(sub, subs)
-                    else:
-                        subs = sub
-                    keys = [path for path in keys if subs in path]
-                    # for path in keys:
-                    #     if subs not in path:
-                    #         keys.remove(path)
-                if len(keys) == 0:
-                    raise KeyError("could not find matching entry")
-                primary_key = keys[0]
+        if not primary_key and self.file_path:
+            keys = self._database.get_list_of_primary_keys()
+            primary_key = get_the_right_one(keys, self.file_path)
 
         if not Metadata._database:
             raise Exception("no database linked")
         else:
-            data = self._database.read_meta(primary_key)
+            data = self._database.read_meta(str(primary_key))
             if data:
                 self._import_tags(data, whitelist, blacklist, skip_none)
             else:
                 logging.warning("database read failed, no data imported. "
                                 "File might not be in database")
-
-    def get_the_right_one(self, path_to_match):
-        if self.file_path_set:
-            keys = path_to_match
-            key_str, ext = os.path.splitext(self.file_path)
-            subs = None
-            # tries to get a unique match beginning at leave
-            while len(keys) > 1:
-                key_str, sub = os.path.split(key_str)
-                if subs:
-                    subs = os.path.join(sub, subs)
-                else:
-                    subs = sub
-                keys = [path for path in keys if subs in path]
-                # for path in keys:
-                #     if subs not in path:
-                #         keys.remove(path)
-            if len(keys) == 0:
-                raise KeyError("could not find matching entry")
-            return keys[0]
-        else:
-            raise FileNotFoundError("no file path set in metadata")
 
     def export_tags_to_db(self, root_dir=None):
         """saves all tags to database.
@@ -290,9 +236,10 @@ class Metadata(metaclass=MetadataMeta):
          """
         if not Metadata._database:
             raise Exception("no database linked")
-        if self.file_path_set:
+        if self.file_path:
             if not Metadata.dry_run:
-                self._database.insert_meta(self._dict_data, self.file_path)
+                primary_key = str(self.file_path)
+                self._database.insert_meta(self._dict_data, primary_key)
         else:
             pass
 
@@ -417,13 +364,13 @@ class GroupMetadata(Metadata):
             blacklist (list<str>, optional): See Metadata.import_tags().
             skip_none      (bool, optional): See Metadata.import_tags().
         """
-        # tags = Metadata.process_white_and_blacklist(whitelist, blacklist)
-        # TODO change import procedure similar to primary key acquisition
+        paths = dict()
+        for sm in source_meta.list_metadata:
+            paths[sm.file_path] = sm
+        path_keys = list(paths.keys())
+
         for metadata_self in self.list_metadata:
-            paths = dict()
-            for sm in source_meta.list_metadata:
-                paths[sm.file_path] = sm
-            key = metadata_self.get_the_right_one(list(paths.keys()))
+            key = get_the_right_one(path_keys, metadata_self.file_path)
             metadata_source = paths.get(key)
             metadata_self.import_tags(
                 metadata_source,
@@ -461,9 +408,10 @@ class AlbumMetadata(GroupMetadata):
     """
 
     def __init__(self, path_album):
+        path_album = pathlib.Path(path_album)
         list_metadata = list()
         for file in os.listdir(path_album):
-            file_path = os.path.join(path_album, file)
+            file_path = path_album.joinpath(file)
             if check_is_audio(file_path):
                 list_metadata.append(file_path)
         super().__init__(list_metadata)

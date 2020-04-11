@@ -1,4 +1,5 @@
 import logging
+import pathlib
 
 from sqlalchemy import MetaData, Table, Column, String, PickleType
 from sqlalchemy import create_engine
@@ -22,7 +23,9 @@ class MetaDB:
 
     def __init__(self, database_url):
         if "://" not in database_url:
-            database_url = 'sqlite:///' + database_url
+            # it is assumed the database url is filepath and therefore SQLite
+            database_url = pathlib.Path(database_url).expanduser().resolve()
+            database_url = 'sqlite:///' + str(database_url)
         self._database_url = database_url
         self._engine = create_engine(self._database_url)
         if not list_tags:

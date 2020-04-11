@@ -62,7 +62,7 @@ def test_read_tags(class_meta, dir_lib_x_flac):
     assert isinstance(meta, class_meta)
     assert meta._dict_data.get("album")
     if class_meta is Metadata:
-        assert meta.file_path_set
+        assert meta.file_path
     else:  # Group and Album are basically the same
         assert isinstance(meta._dict_data.get("title"), Div)
 
@@ -150,6 +150,7 @@ def test_export_db_tag(class_meta, dir_lib_x_flac, temp_database):
     metadata_path = create_file_path(class_meta, dir_lib_x_flac)
     meta = class_meta(metadata_path)
     meta.export_tags_to_db()
+    meta._dict_data.reset()
     meta.import_tags_from_db()
     assert meta.get_tag("artist") == "str_artist"
     if class_meta is Metadata:
@@ -160,10 +161,10 @@ def test_export_db_tag(class_meta, dir_lib_x_flac, temp_database):
 
 def test_load_empty_meta(dir_lib_x_flac):
     meta = Metadata()
-    assert not meta.file_path_set
+    assert not meta.audio_file_linked
     meta.link_audio_file(str(dir_lib_x_flac.joinpath("2-str_title_B.flac")))
     assert isinstance(meta, Metadata)
-    assert meta.file_path_set
+    assert meta.audio_file_linked
     assert not meta.get_tag("album")
     meta.read_tags()
     assert meta.get_tag("album")

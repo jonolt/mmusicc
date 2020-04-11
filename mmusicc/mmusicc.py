@@ -2,6 +2,7 @@ import argparse
 import enum
 import logging
 import os
+import pathlib
 import sys
 import textwrap
 
@@ -63,6 +64,7 @@ class MmusicC:
         str_description = str_description_rqw \
             .format(textwrap.fill(str(list(audio_loader))))
 
+        # noinspection PyTypeChecker
         parser = argparse.ArgumentParser(
             prog="MmusicC",
             formatter_class=argparse.RawDescriptionHelpFormatter,
@@ -202,9 +204,9 @@ class MmusicC:
             parser.error("database is not supported and/or tested yet")
 
         if not self.result.path_config:
-            path_folder_this_file = os.path.dirname(os.path.abspath(__file__))
+            path_folder_this_file = pathlib.Path(__file__).resolve().parent
             self.result.path_config = \
-                os.path.join(path_folder_this_file, "data", "config.yaml")
+                path_folder_this_file.joinpath("data", "config.yaml")
 
         try:
             init_allocationmap(self.result.path_config)
@@ -216,15 +218,15 @@ class MmusicC:
 
         db_url = None
         if self.result.source:
-            self.source = os.path.abspath(
-                os.path.expanduser(self.result.source))
+            self.source = \
+                pathlib.Path(self.result.source).expanduser().resolve()
         else:
             self.source = None
             db_url = self.result.source_db
 
         if self.result.target:
-            self.target = os.path.abspath(
-                os.path.expanduser(self.result.target))
+            self.target = \
+                pathlib.Path(self.result.target).expanduser().resolve()
         else:
             self.target = None
             db_url = self.result.target_db
@@ -247,10 +249,9 @@ class MmusicC:
 
         if self.source and self.target:
             self.format_extension = None
-            if os.path.isfile(self.result.source):
-                ext = os.path.splitext(self.result.target)
-                if '.' in ext[1]:  # target is file
-                    self.format_extension = ext[1]
+            if self.target_type == ElementType.file:
+                if '.' in self.target.suffix:  # target is file
+                    self.format_extension = self.target.suffix
 
             if not self.format_extension and self.result.format:
                 # target is folder an format has to be given!
@@ -266,13 +267,8 @@ class MmusicC:
         self.whitelist = None
         try:
             if self.result.white_list_tags:
-                if len(self.result.white_list_tags) == 1 \
-                        and os.path.exists(self.result.white_list_tags[0]):
-                    self.whitelist = load_tags_from_file(
-                        self.result.white_list_tags[0])
-                else:
-                    self.whitelist = \
-                        get_tag_from_str(self.result.white_list_tags)
+                self.whitelist = \
+                    load_tags_from_list_or_file(self.result.white_list_tags)
         except KeyError as err:
             parser.error("Whitelist: {}. If input is file it is mot found."
                          .format(err))
@@ -280,13 +276,8 @@ class MmusicC:
         self.blacklist = None
         try:
             if self.result.black_list_tags:
-                if len(self.result.black_list_tags) == 1 \
-                        and os.path.exists(self.result.black_list_tags[0]):
-                    self.blacklist = load_tags_from_file(
-                        self.result.black_list_tags[0])
-                else:
-                    self.blacklist = \
-                        get_tag_from_str(self.result.black_list_tags)
+                self.blacklist = \
+                    load_tags_from_list_or_file(self.result.black_list_tags)
         except KeyError as err:
             parser.error("Blacklist: {}. If input is file it is mot found."
                          .format(err))
@@ -299,11 +290,10 @@ class MmusicC:
 
         if self.source_type == ElementType.file:
             # if source if file, target must be file to
-            if self.target_type == ElementType.folder:
-                basename = os.path.basename(self.source)
-                filename = os.path.splitext(basename)[0]
-                self.target = os.path.join(
-                    self.target, filename + self.format_extension)
+            # if self.target_type == ElementType.folder:
+            #     self.target = self.target.joinpath(
+            #                     self.source.stem,
+            #                     self.format_extension)
             self.handle_files2file(self.source, self.target)
 
         elif self.source_type == ElementType.folder:
@@ -315,7 +305,8 @@ class MmusicC:
                               .format(self.source))
                 gen = os.walk(self.source, topdown=True)
                 for root, dirs, files in gen:
-                    album_target = swap_base(self.source, self.target, root)
+                    root = pathlib.Path(root)
+                    album_target = swap_base(self.source, root, self.target)
                     logging.debug('Current root: {}'.format(root))
                     if len(dirs) == 0:
                         if self.target_type == ElementType.folder:
@@ -340,10 +331,8 @@ class MmusicC:
 
     def handle_files2file(self, file_source, file_target):
         if get_element_type(file_target) == ElementType.folder:
-            basename = os.path.basename(file_source)
-            filename = os.path.splitext(basename)[0]
-            file_target = os.path.join(
-                file_target, filename + self.format_extension)
+            file_target = file_target.joinpath(
+                            file_source.stem + self.format_extension)
         if self.run_files and file_source and file_target:
             convert_file_with_ffmpeg(
                 file_source,
@@ -367,14 +356,14 @@ class MmusicC:
 
     def handle_album2album(self, album_source, album_target):
         if self.run_files and album_source and album_target:
-            if not os.path.isdir(album_target):
-                os.makedirs(album_target)
+            if not album_target.is_dir():
+                album_target.mkdir(parents=True)
             for file in os.listdir(album_source):
                 if check_is_audio(file):
-                    file_source = os.path.join(album_source, file)
+                    file_source = album_source.joinpath(file)
                     self.handle_files2file(file_source, album_target)
         if self.run_meta:
-            if not os.path.isdir(album_target):
+            if not album_target.is_dir():
                 logging.warning("no target folder for given source '{}', "
                                 "skipping".format(album_source))
                 return
@@ -406,12 +395,13 @@ class MmusicC:
         )
 
 
-def load_tags_from_file(path):
-    if not os.path.exists(path):
-        raise FileNotFoundError("File '{}' with tags not found.".format(path))
-    with open(path, 'r') as f:
-        lines = [line.rstrip() for line in f]
-    return get_tag_from_str(lines)
+def load_tags_from_list_or_file(list_tags_or_file):
+    if len(list_tags_or_file) == 1:
+        path = pathlib.Path(list_tags_or_file[0])
+        if path.exists():
+            with path.open(mode='r') as f:
+                list_tags_or_file = [line.rstrip() for line in f]
+    return get_tag_from_str(list_tags_or_file)
 
 
 def get_tag_from_str(tags):
@@ -427,12 +417,12 @@ def get_tag_from_str(tags):
 
 def convert_file_with_ffmpeg(source, target, options=None, dry_run=False):
     # create folders if not already there
-    if os.path.isfile(target):
+    if target.is_file():
         logging.info("target file exists, ffmpeg skipped, returning")
         return
     if not dry_run:
         try:
-            FFmpeg(source, target, options=options).run()
+            FFmpeg(str(source), str(target), options=options).run()
         except FFExecutableNotFoundError:
             logging.error("ffmpeg path not found. either ffmpeg is not "
                           "installed are not at the standard path.")
@@ -446,8 +436,7 @@ def convert_file_with_ffmpeg(source, target, options=None, dry_run=False):
 def get_element_type(element):
     if not element:
         return ElementType.database
-    ext = os.path.splitext(element)
-    if '.' in ext[1]:  # target is file
+    if '.' in element.suffix:  # target is file
         return ElementType.file
     else:
         return ElementType.folder

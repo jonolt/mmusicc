@@ -1,31 +1,31 @@
+"""
+
+Attributes:
+    mimes (set): A set of supported mime types. Empty until init.
+    types (set): A set of AudioFile subclasses. Empty until init.
+    loaders(dict): A dict mapping file extensions to loaders
+        (function returning an AudioFile object). Empty until init.
+
+"""
+
+
 import logging
 import os
 
 from mmusicc import util
 
-
-class AudioFileError(Exception):
-    """Base error for AudioFile, mostly IO/parsing related operations"""
-
-
-class MutagenBug(AudioFileError):
-    """Raised in is caused by a mutagen bug, so we can highlight it"""
-
-
 mimes = set()
-"""A set of supported mime types"""
 
 loaders = {}
-"""A dict mapping file extensions to loaders (func returning an AudioFile)"""
 
 types = set()
-"""A set of AudioFile subclasses/implementations"""
 
 
 def init():
-    """Load/Import all formats.
+    """Initialize the formats module, loading all formats for loader.
 
     Before this is called loading a file and unpickling will not work.
+    If the module was already initialized, the initialisation is skipped.
     """
 
     global mimes, loaders, types
@@ -60,8 +60,15 @@ def init():
 
 
 def get_loader(file_path):
-    """Returns a callable which takes a filename and returns
-    AudioFile or raises AudioFileError, or returns None.
+    """Returns a callable which takes a filename and returns AudioFile
+
+    or raises AudioFileError, or returns None.
+
+    Args:
+        file_path (str or pathlib.Path): file to get loader for.
+    Returns:
+        obj: callable object which can handle given file.
+
     """
     ext = os.path.splitext(file_path)[-1]
     return loaders.get(ext.lower())
@@ -69,7 +76,17 @@ def get_loader(file_path):
 
 # noinspection PyPep8Naming
 def MusicFile(file_path):
-    """Returns a AudioFile instance or None"""
+    """Returns a AudioFile instance or None if file type is not supported
+
+    Note:
+        Make sure that allocationmap is initialized before loading any files.
+
+    Args:
+        file_path (pathlib.Path): path of file to load as MusicFile
+
+    Returns:
+        AudioFile: audio file instance of file in specified path
+    """
     loader = get_loader(file_path)
     if loader is not None:
         return loader(file_path)
@@ -77,6 +94,9 @@ def MusicFile(file_path):
         logging.error("FileType not supported")
 
 
-def ext_supported(file_path):
-    """Returns True if the file extension is supported"""
-    return get_loader(file_path) is not None
+class AudioFileError(Exception):
+    """Base error for AudioFile, mostly IO/parsing related operations"""
+
+
+class MutagenBug(AudioFileError):
+    """Raised in is caused by a mutagen bug, so we can highlight it"""

@@ -72,7 +72,6 @@ def ste(request, dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg, dir_lib_c_ogg):
 
 class TestMetadataOnly:
 
-    @pytest.mark.skip
     @pytest.mark.parametrize("combo", ["file-->file", "file-->folder"])
     @pytest.mark.parametrize("opt", [None, "--lazy"])
     def test_file_file(self, dir_lib_a_flac, dir_lib_c_ogg,
