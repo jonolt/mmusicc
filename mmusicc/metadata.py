@@ -6,13 +6,14 @@ import re
 import mmusicc.util.allocationmap as am
 from mmusicc.database import MetaDB
 from mmusicc.formats import MusicFile
-from mmusicc.util.misc import check_is_audio, process_white_and_blacklist, \
-    MetadataDict, Empty, Div, get_the_right_one
+from mmusicc.util.metadatadict import MetadataDict, Empty, Div
+from mmusicc.util.misc import (check_is_audio, process_white_and_blacklist,
+                               get_the_right_one)
 
 
 class MetadataMeta(type):
+    """Meta Object for Metadata class."""
 
-    # def __init__(cls, *args, **kwargs):
     def __init__(cls, name, bases, nmspc):
         super(MetadataMeta, cls).__init__(name, bases, nmspc)
         cls._dry_run = False
@@ -21,6 +22,9 @@ class MetadataMeta(type):
 
     @property
     def dry_run(cls):
+        """bool: Get or set. If True do everything as usual, but without
+        writing data.
+        """
         if cls._dry_run:
             logging.log(25, "Running in Dry Run mode. "
                             "No data will be written.")
@@ -32,17 +36,33 @@ class MetadataMeta(type):
 
     @property
     def is_linked_database(cls):
+        """bool: Get True if a database is linked to class."""
         if cls._database:
             return True
         return False
 
-    def link_database(cls, file_path):
+    def link_database(cls, database_url):
+        """Link a database to class.
+
+        Args:
+            database_url (str): database url following RFC-1738*. If the sting,
+                does not contain '://', a filepath for a sqlite database is
+                assumed.
+
+        Raises:
+            Exception: if a database is already linked
+        """
         if not cls._database:
-            cls._database = MetaDB(file_path)
+            cls._database = MetaDB(database_url)
         else:
             raise Exception("Database already linked")
 
     def unlink_database(cls):
+        """Unlink the database from the class.
+
+        Raises:
+            Exception: if no database is linked
+        """
         if cls._database:
             cls._database = None
         else:
@@ -66,15 +86,12 @@ class Metadata(metaclass=MetadataMeta):
     either from a linked file or loaded from a database.
 
     Args:
-        file_path  (str, optional): path to an supported audio file, can be set
-            later with 'link_audio_file()' too. Defaults to None.
-        read tags (bool, optional): enables automatic reading of metadata from
+        file_path (str or pathlib.Path, optional): path to an supported audio
+            file, can be set later with 'link_audio_file()' too. Defaults to
+            None.
+        read_tag (bool, optional): enables automatic reading of metadata from
             file at class initialisation. Defaults to True.
     """
-
-    write_empty = True
-
-    _database = None
 
     def __init__(self, file_path=None, read_tag=True):
 
@@ -95,17 +112,27 @@ class Metadata(metaclass=MetadataMeta):
 
     @property
     def file_path(self):
+        """pathlib.Path: Get file path of linked audio file."""
         if self._audio:
             return self._audio.file_path
         return None
 
     @property
     def audio_file_linked(self):
+        """bool: Get True if a audio file is linked to instance."""
         if self._audio:
             return True
         return False
 
     def link_audio_file(self, file_path):
+        """Links audio file with given path to instance.
+
+        Args:
+            file_path (str or pathlib.Path): file path of audio file.
+
+        Raises:
+            FileNotFoundError: if file does not exist.
+        """
         file_path = pathlib.Path(file_path)
         if file_path.exists():
             self._audio = MusicFile(file_path)
@@ -114,16 +141,19 @@ class Metadata(metaclass=MetadataMeta):
 
     @property
     def dict_data(self):
+        """MetadataDict: Get the dict containing tags"""
         return self._dict_data
 
-    def get_tag(self, str_tag):
-        return self._dict_data.get(str_tag)
+    def get_tag(self, str_tag_key):
+        """Get value of given str_tag_key"""
+        return self._dict_data.get(str_tag_key)
 
-    def set_tag(self, str_tag, value):
-        self._dict_data[str_tag] = value
+    def set_tag(self, str_tag_key, value):
+        """Set value of tag with given str_tag_key"""
+        self._dict_data[str_tag_key] = value
 
     def read_tags(self):
-        """read metadata from linked audio file
+        """Read metadata from linked audio file into dict meta.
 
         Raises:
             Exception: if no file is linked
@@ -139,7 +169,7 @@ class Metadata(metaclass=MetadataMeta):
         Args:
             remove_existing (bool, optional): If true clear all tags on file
                 before writing. Defaults to False.
-            write_empty     (bool): if true write empty tags, exact effect
+            write_empty (bool): if true write empty tags, exact effect
                 depends on comment type. Either the tag entries will not exist
                 or overwritten with None/Null/"". Defaults to False.
         Raises:
@@ -159,14 +189,15 @@ class Metadata(metaclass=MetadataMeta):
         """Imports metadata from another Metadata object.
 
         Args:
-            source_meta          (Metadata): Metadata object containing the
+            source_meta (Metadata): Metadata object containing the
                 tags to be imported.
-            whitelist (list<str>, optional): whitelist of tags to be imported.
-                If None, loads all tags (except blacklisted). Defaults to None.
-            blacklist (list<str>, optional): blacklist of tags not to be
+            whitelist (list of str, optional): whitelist of tags to be
+                imported. If None, loads all tags (except blacklisted).
+                Defaults to None.
+            blacklist (list of str, optional): blacklist of tags not to be
                 imported. Applied after whitelist. If None, no tags are
                 blacklisted. Defaults to None.
-            skip_none      (bool, optional): If True, don't overwrite values in
+            skip_none (bool, optional): If True, don't overwrite values in
                 target, which are None in source. Defaults to True.
         """
         self._import_tags(source_meta._dict_data,
@@ -190,7 +221,7 @@ class Metadata(metaclass=MetadataMeta):
         """Imports metadata from the database.
 
         Args:
-            primary_key         (str, None): unique identifier of the item
+            primary_key (str, None): unique identifier of the item
                 which data has to be loaded. The save function only uses the
                 absolute filepath atm. If value is None, a algorithm takes the
                 path of the linked file works and works itself backward
@@ -198,12 +229,13 @@ class Metadata(metaclass=MetadataMeta):
                 one key is left, which is used. In other words, its acts like
                 the keys are relative file path (with unknown working
                 directory). Defaults to None.
-            whitelist (list<str>, optional): whitelist of tags to be imported.
-                If None, loads all tags (except blacklisted). Defaults to None.
-            blacklist (list<str>, optional): blacklist of tags not to be
+            whitelist (list of str, optional): whitelist of tags to be
+                imported. If None, loads all tags (except blacklisted).
+                Defaults to None.
+            blacklist (list of str, optional): blacklist of tags not to be
                 imported. Applied after whitelist. If None, no tags are
                 blacklisted. Defaults to None.
-            skip_none      (bool, optional): If True, don't overwrite values in
+            skip_none (bool, optional): If True, don't overwrite values in
                 target, which are None in source. Defaults to True.
 
             Raises:
@@ -215,7 +247,7 @@ class Metadata(metaclass=MetadataMeta):
             keys = self._database.get_list_of_primary_keys()
             primary_key = get_the_right_one(keys, self.file_path)
 
-        if not Metadata._database:
+        if not self._database:
             raise Exception("no database linked")
         else:
             data = self._database.read_meta(str(primary_key))
@@ -226,7 +258,7 @@ class Metadata(metaclass=MetadataMeta):
                                 "File might not be in database")
 
     def export_tags_to_db(self, root_dir=None):
-        """saves all tags to database.
+        """Saves all tags to database.
 
          This is the secure way. Data not wanted does not have to be loaded,
          but all data can still be accessed in case it is needed again.
@@ -234,10 +266,10 @@ class Metadata(metaclass=MetadataMeta):
          Raises:
              Exception: if no database linked to class
          """
-        if not Metadata._database:
+        if not self._database:
             raise Exception("no database linked")
         if self.file_path:
-            if not Metadata.dry_run:
+            if not self._dry_run:
                 primary_key = str(self.file_path)
                 self._database.insert_meta(self._dict_data, primary_key)
         else:
@@ -276,15 +308,19 @@ class Metadata(metaclass=MetadataMeta):
 class GroupMetadata(Metadata):
     """Class holding one ore many Metadata Objects. Subclasses Metadata and
 
-    overwrites Metadata functions so that you don't have to care if you have a
-    File or a Folder (like an album). Tags in dict are a summary of the tags of
-    the contained metadata. If all values of a tag are identical the value is
-    used, otherwise a Div object is created which indicates different values
-    (and also got a list of all the differences).
+    overwrites Metadata functions so that you don't have to care if you have
+    one file or a list of files like an album. Tags in dict are a summary of
+    the tags of individual values of the contained metadata. If all values of a
+    tag are identical the value is in dict as it is, otherwise a Div object is
+    created managing different values.
 
     Args:
-        list_metadata (list<Metadata> or list<str>): list of Metadata objects
-            or file paths.
+        list_metadata (list of Metadata or list of str or list of pathlib.Path):
+            list of Metadata objects or file paths.
+
+    Note:
+        Not all properties and functions of Metadata are supported (like
+        file_path, obviously). Stick with the documented ones.
     """
 
     def __init__(self, list_metadata):
@@ -303,12 +339,14 @@ class GroupMetadata(Metadata):
 
         self.dict_auto_fill_org = None
 
-    def get_tag(self, str_tag):
-        return self._dict_data.get(str_tag)
+    def get_tag(self, str_tag_key):
+        """Super-Method applied to all Objects in list. See Metadata."""
+        return self._dict_data.get(str_tag_key)
 
-    def set_tag(self, str_tag, value):
+    def set_tag(self, str_tag_key, value):
+        """Super-Method applied to all Objects in list. See Metadata."""
         for metadata in self.list_metadata:
-            metadata._dict_data[str_tag] = value
+            metadata._dict_data[str_tag_key] = value
         self.__compare_tags()
 
     def reset_meta(self):
@@ -324,7 +362,7 @@ class GroupMetadata(Metadata):
         self.__compare_tags()
 
     def read_tags(self):
-        """See super function"""
+        """Super-Method applied to all Objects in list. See Metadata."""
         for metadata in self.list_metadata:
             metadata.read_tags()
         self.__compare_tags()
@@ -397,6 +435,25 @@ class GroupMetadata(Metadata):
         """Super-Method applied to all Objects in list. See Metadata."""
         for metadata in self.list_metadata:
             metadata.export_tags_to_db()
+
+    @property
+    def audio_file_linked(self):
+        """Do not use this property. Only applies to Metadata."""
+        raise NotImplementedError()
+
+    @property
+    def dict_data(self):
+        """Do not use this property. Only applies to Metadata."""
+        raise NotImplementedError()
+
+    @property
+    def file_path(self):
+        """Do not use this property. Only applies to Metadata."""
+        raise NotImplementedError()
+
+    def link_audio_file(self, file_path):
+        """Do not use this property. Only applies to Metadata."""
+        raise NotImplementedError()
 
 
 class AlbumMetadata(GroupMetadata):

@@ -6,12 +6,11 @@ import pathlib
 import sys
 import textwrap
 
-import mmusicc.util.allocationmap as am
 from mmusicc._init import init_formats, init_logging, init_allocationmap
 from mmusicc.formats import loaders as audio_loader
 from mmusicc.metadata import Metadata, AlbumMetadata
-from mmusicc.util.ffmpeg import FFmpeg, FFRuntimeError, \
-    FFExecutableNotFoundError
+from mmusicc.util.allocationmap import get_tags_from_strs
+from mmusicc.util.ffmpeg import FFmpeg
 from mmusicc.util.misc import check_is_audio, swap_base, \
     process_white_and_blacklist
 from mmusicc.version import __version__ as package_version
@@ -236,8 +235,8 @@ class MmusicC:
                 Metadata.unlink_database()
             Metadata.link_database(db_url)
 
-        self.source_type = get_element_type(self.source)
-        self.target_type = get_element_type(self.target)
+        self.source_type = self.get_element_type(self.source)
+        self.target_type = self.get_element_type(self.target)
         logging.info("Source is '{}'. Target is '{}'.".
                      format(self.source_type, self.target_type))
 
@@ -249,7 +248,7 @@ class MmusicC:
 
         if self.source and self.target:
             self.format_extension = None
-            if self.target_type == ElementType.file:
+            if self.target_type == MmusicC.ElementType.file:
                 if '.' in self.target.suffix:  # target is file
                     self.format_extension = self.target.suffix
 
@@ -288,7 +287,7 @@ class MmusicC:
                 process_white_and_blacklist(self.whitelist, self.blacklist)
             logging.info("Tags to be Synced: {}".format(whitelist))
 
-        if self.source_type == ElementType.file:
+        if self.source_type == MmusicC.ElementType.file:
             # if source if file, target must be file to
             # if self.target_type == ElementType.folder:
             #     self.target = self.target.joinpath(
@@ -296,7 +295,7 @@ class MmusicC:
             #                     self.format_extension)
             self.handle_files2file(self.source, self.target)
 
-        elif self.source_type == ElementType.folder:
+        elif self.source_type == MmusicC.ElementType.folder:
             # if source is folder target must be folder or database
             if self.result.album:
                 self.handle_album2album(self.source, self.target)
@@ -309,7 +308,7 @@ class MmusicC:
                     album_target = swap_base(self.source, root, self.target)
                     logging.debug('Current root: {}'.format(root))
                     if len(dirs) == 0:
-                        if self.target_type == ElementType.folder:
+                        if self.target_type == MmusicC.ElementType.folder:
                             self.handle_album2album(root, album_target)
                         else:
                             self.handle_album2db(root)
@@ -330,16 +329,16 @@ class MmusicC:
         sys.exit(0)
 
     def handle_files2file(self, file_source, file_target):
-        if get_element_type(file_target) == ElementType.folder:
+        if self.get_element_type(file_target) == MmusicC.ElementType.folder:
             file_target = file_target.joinpath(
                             file_source.stem + self.format_extension)
         if self.run_files and file_source and file_target:
-            convert_file_with_ffmpeg(
-                file_source,
-                file_target,
-                dry_run=self.result.dry_run,
-                options=self.result.ffmpeg_options
-            )
+            if file_target.is_file():
+                logging.info("target file exists, ffmpeg skipped, returning")
+                return
+            if not self.result.dry_run:
+                FFmpeg(str(file_source), str(file_target),
+                       options=self.result.ffmpeg_options).run()
         if self.run_meta:
             meta_source = Metadata(file_source)
             meta_target = Metadata(file_target)
@@ -394,55 +393,44 @@ class MmusicC:
             remove_existing=self.result.delete_existing_metadata
         )
 
+    def get_element_type(self, element):
+        """Get the element type based on the pathlib.Path object.
+
+        Instance method in clarifying that the function is instance dependent.
+
+        """
+        if not element:
+            if Metadata.is_linked_database():
+                return MmusicC.ElementType.database
+            else:
+                return MmusicC.ElementType.other
+        if '.' in element.suffix:  # target is file
+            return MmusicC.ElementType.file
+        else:
+            return MmusicC.ElementType.folder
+
+    class ElementType(enum.Enum):
+        file = 1,
+        folder = 2,
+        database = 3,
+        other = 4
+
 
 def load_tags_from_list_or_file(list_tags_or_file):
+    """Load TAG-list from a list of STRING or a file.
+
+    Where each tag (STRING) is separated by newline.
+
+    Args:
+        list_tags_or_file (list of str or str): list of tags or file_path
+
+    Returns:
+        list of str: TAGs
+
+    """
     if len(list_tags_or_file) == 1:
         path = pathlib.Path(list_tags_or_file[0])
         if path.exists():
             with path.open(mode='r') as f:
                 list_tags_or_file = [line.rstrip() for line in f]
-    return get_tag_from_str(list_tags_or_file)
-
-
-def get_tag_from_str(tags):
-    ret_tag = list()
-    for string in tags:
-        try:
-            ret_tag.append(am.dict_str2tag[string])
-        except KeyError:
-            raise KeyError("String '{}' could not be associated with any tag."
-                           .format(string))
-    return ret_tag
-
-
-def convert_file_with_ffmpeg(source, target, options=None, dry_run=False):
-    # create folders if not already there
-    if target.is_file():
-        logging.info("target file exists, ffmpeg skipped, returning")
-        return
-    if not dry_run:
-        try:
-            FFmpeg(str(source), str(target), options=options).run()
-        except FFExecutableNotFoundError:
-            logging.error("ffmpeg path not found. either ffmpeg is not "
-                          "installed are not at the standard path.")
-            raise
-        except FFRuntimeError as ex:
-            logging.error("command \n{}\n produced the following error:\n {}"
-                          .format(ex.cmd, ex.stderr))
-            raise
-
-
-def get_element_type(element):
-    if not element:
-        return ElementType.database
-    if '.' in element.suffix:  # target is file
-        return ElementType.file
-    else:
-        return ElementType.folder
-
-
-class ElementType(enum.Enum):
-    file = 1,
-    folder = 2,
-    database = 3,
+    return get_tags_from_strs(list_tags_or_file)

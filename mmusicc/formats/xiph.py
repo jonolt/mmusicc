@@ -4,8 +4,7 @@ from mutagen.oggvorbis import OggVorbis
 
 from mmusicc.formats._audio import AudioFile
 from mmusicc.formats._misc import AudioFileError
-from mmusicc.metadata import Empty
-from mmusicc.util.util import scan_dictionary
+from mmusicc.util.metadatadict import Empty, scan_dictionary
 
 extensions = [".ogg", ".oga", ".flac"]
 """list of all extensions associated with this module"""

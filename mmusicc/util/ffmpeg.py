@@ -1,4 +1,8 @@
-# based on the code of: <https://github.com/Ch00k/ffmpy>
+"""
+Module adapted and copied from:
+https://github.com/Ch00k/ffmpy
+
+"""
 
 import errno
 import logging
@@ -49,6 +53,8 @@ class FFmpeg(object):
             process_result = subprocess.run(self._cmd, stderr=subprocess.PIPE)
         except OSError as e:
             if e.errno == errno.ENOENT:
+                logging.error("ffmpeg path not found. either ffmpeg is not "
+                              "installed are not at the standard path.")
                 raise FFExecutableNotFoundError("Executable '{0}' not found"
                                                 .format(self.executable))
             else:
@@ -64,6 +70,8 @@ class FFmpeg(object):
         logging.debug(process_result.stderr.decode())
 
         if process_result.returncode != 0:
+            logging.error("command \n{}\n produced the following error:\n {}"
+                          .format(self.cmd, process_result.stderr))
             raise FFRuntimeError(self.cmd,
                                  process_result.returncode,
                                  process_result.stdout,

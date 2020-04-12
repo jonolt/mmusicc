@@ -1,5 +1,4 @@
-import mmusicc.util.allocationmap as am
-from mmusicc.util.misc import Empty
+from mmusicc.util.metadatadict import Empty
 
 SPLIT_CHAR = ['/', '\n', ';']
 JOIN_CHAR = ' ; '
@@ -14,79 +13,6 @@ def join_str_list(str_list):
         str_list (list<str>): list of strings to be joined
     """
     return JOIN_CHAR.join(str_list)
-
-
-def scan_dictionary(dict_tags, dict_data):
-    """Scan a dictionary (dict_tags) for tags and fill dict_data with them.
-
-    Args:
-        dict_tags             (dict): dictionary (tag_str: value) items to be
-            imported.
-        dict_data             (dict): dictionary to be filled with imported tag
-            values.
-    Returns:
-        dict<str, str>: dictionary with all tags whose name could not be
-            associated with.
-
-    TODO add string_parser and handle duplicate entries
-    """
-
-    # Make a copy of the source dictionary, so it is unchanged
-    dict_dummy = dict_tags.copy()
-    dict_dummy = {k.casefold(): v for k, v in dict_dummy.items()}
-
-    # will be filled with list so the same tag can have multiple values
-    dict_tmp = dict()
-
-    # find a tag for each key in scanned dictionary
-    for key_str in list(dict_dummy):
-        try:
-            tag_key = am.dict_str2tag[key_str]
-        except KeyError:
-            continue
-        try:
-            tag_val = dict_dummy.pop(key_str)
-            if tag_key not in dict_tmp:
-                dict_tmp[tag_key] = list()
-            dict_tmp[tag_key].append((key_str, tag_val))
-        except KeyError:
-            continue
-
-    # evaluate later if this code is needed, maybe delete it somewhen
-    #
-    # for tag_key, kv_pairs in dict_tmp.items():
-    #     if len(kv_pairs) > 1:
-    #         # take the list and check if entries a double
-    #         i = 0
-    #         j = 0
-    #         while i < len(kv_pairs):
-    #             while j < len(kv_pairs):
-    #                 if i == j:
-    #                     j += 1
-    #                     continue
-    #                 if kv_pairs[i][1] == kv_pairs[j][1]:
-    #                     logging.info(
-    #                         "dropped duplicate pair {}:{}"
-    #                         ", keeping {}:{}"
-    #                         .format(kv_pairs[i][0], kv_pairs[i][1],
-    #                                 kv_pairs[j][0], kv_pairs[j][1]))
-    #                     kv_pairs.remove(kv_pairs[i])
-    #                 j += 1
-    #             i += 1
-    #         tag_val = [kv_pairs[i][1] for i in range(len(kv_pairs))]
-    #     else:
-    #         tag_val = kv_pairs[0][1]
-    #         tag_val = text_parser_get(tag_val)
-
-        if Empty.is_empty(tag_val):
-            tag_val = Empty()
-
-        # val = text_parser_get(tag_val)
-        # if len(val) == 1:
-        #     val = val[0]
-        dict_data[tag_key] = tag_val
-
-    return dict_dummy
 
 
 def text_parser_get(text):

@@ -8,7 +8,7 @@ import pytest
 import mmusicc.formats
 import mmusicc.util.allocationmap
 from mmusicc.metadata import Empty
-from mmusicc.util.misc import metadatadict
+from mmusicc.util.metadatadict import metadatadict
 
 
 @pytest.fixture(scope="module")

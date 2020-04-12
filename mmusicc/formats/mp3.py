@@ -2,9 +2,8 @@ import mutagen
 
 import mmusicc.util.allocationmap as am
 from mmusicc.formats._audio import AudioFile
-from mmusicc.util.misc import Empty, PairedText
-from mmusicc.util.util import (scan_dictionary, text_parser_get,
-                               join_str_list)
+from mmusicc.util.metadatadict import Empty, PairedText, scan_dictionary
+from mmusicc.util.util import text_parser_get, join_str_list
 
 extensions = [".mp3", ".mp2", ".mp1", ".mpg", ".mpeg"]
 """list of all extensions associated with this module"""
@@ -15,7 +14,7 @@ PAIRED_TEXT_FRAMES = ["TIPL", "TMCL", "IPLS"]
 
 
 class MP3File(AudioFile):
-    """Tag object for all files using tags of the xiph v-comment tag standard.
+    """Tag object for mp3 files using ID3 tag standard.
 
     Instance created by loader (at the bottom of this code) which in this case
     is this class itself (vgl. xiph).

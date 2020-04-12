@@ -1,3 +1,25 @@
+"""
+Definitions for this documentation:
+
+- TAG
+    string of tag used in program (e.g. MetadataDict), also TAG display name.
+- STRINGs
+    string used in the files for the TAGS. Can be a list to match
+    different variants (e.g. comment, description).
+- ID3
+    frame names of ID3 tag standard
+
+
+Attributes:
+    list_tags     (list of tags): list of all recognized TAGs.
+    dict_tag2id3          (dict): dict mapping TAG to ID3.
+    dict_id32tag          (dict): dict mapping ID3 to TAG.
+    dict_tag2strs         (dict): dict mapping TAG to STRINGs.
+    dict_str2tag          (dict): dict mapping STRING to TAG.
+
+"""
+
+
 import logging
 import os
 
@@ -14,7 +36,7 @@ dict_auto_fill_rules = dict()
 
 
 def init_allocationmap(path, force=False):
-    """initialize allocation map from config file.
+    """Initialize allocation map from config file.
 
     Creates dicts as lookup tables as global variables.
 
@@ -96,3 +118,22 @@ def init_allocationmap(path, force=False):
 
     logging.debug("allocationmap Initialized, found tags: {}"
                   .format(list_tags))
+
+
+def get_tags_from_strs(tags):
+    """Convert a list of STRINGs to list of TAGs.
+
+    Args:
+        tags (list of str): STRINGs.
+
+    Returns:
+        list of str: TAGs.
+    """
+    ret_tag = list()
+    for string in tags:
+        try:
+            ret_tag.append(dict_str2tag[string])
+        except KeyError:
+            raise KeyError("String '{}' could not be associated with any tag."
+                           .format(string))
+    return ret_tag

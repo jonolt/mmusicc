@@ -1,6 +1,6 @@
 import pathlib
 
-from mmusicc.util.misc import MetadataDict
+from mmusicc.util.metadatadict import MetadataDict
 
 
 class AudioFile:

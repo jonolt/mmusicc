@@ -1,13 +1,26 @@
 mmusicc.util package
 ====================
 
-Submodules
-----------
-
 mmusicc.util.allocationmap module
 ---------------------------------
 
 .. automodule:: mmusicc.util.allocationmap
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+mmusicc.util.metadatadict module
+--------------------------------
+
+.. automodule:: mmusicc.util.metadatadict
+   :members:
+   :undoc-members:
+   :show-inheritance:
+
+mmusicc.util.misc module
+------------------------
+
+.. automodule:: mmusicc.util.misc
    :members:
    :undoc-members:
    :show-inheritance:
@@ -32,22 +45,6 @@ mmusicc.util.logger module
 --------------------------
 
 .. automodule:: mmusicc.util.logger
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-mmusicc.util.misc module
-------------------------
-
-.. automodule:: mmusicc.util.misc
-   :members:
-   :undoc-members:
-   :show-inheritance:
-
-Module contents
----------------
-
-.. automodule:: mmusicc.util
    :members:
    :undoc-members:
    :show-inheritance:

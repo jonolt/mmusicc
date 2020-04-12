@@ -29,7 +29,8 @@ author = 'Johannes N.'
 # ones.
 extensions = ['sphinx.ext.autodoc',
               'sphinx.ext.viewcode',
-              'sphinx.ext.napoleon']
+              'sphinx.ext.napoleon',
+              'sphinx.ext.autosectionlabel']
 
 # Add any paths that contain templates here, relative to this directory.
 templates_path = ['_templates']
@@ -43,7 +44,8 @@ master_doc = 'index'
 # This pattern also affects html_static_path and html_extra_path.
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
-autodoc_inherit_docstrings = False
+autodoc_inherit_docstrings = True
+autodoc_member_order = 'bysource'
 
 # -- Options for HTML output -------------------------------------------------
 

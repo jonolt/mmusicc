@@ -1,7 +1,13 @@
+"""
+Module adapted and copied from:
+https://github.com/quodlibet/quodlibet/blob/master/quodlibet/util/importhelper.py
+
+"""
+
+import importlib.util as import_util
 import logging
 import os
 import sys
-import importlib.util as import_util
 
 
 def load_dir_modules(path, package):

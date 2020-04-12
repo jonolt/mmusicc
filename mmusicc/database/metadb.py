@@ -10,15 +10,20 @@ from mmusicc.util.allocationmap import list_tags
 class MetaDB:
     """Object representing a database connection in Metadata,
 
-    holds connection parameters and inserts and reads data.
-    When writing to the Database, always all data is written, while you can
-    load only select which tags to load.
+    holds connection parameters and inserts and reads data. When writing to the
+    Database, always all data is written, while you can load only select which
+    tags to load. See https://docs.sqlalchemy.org/en/13/core/engines.html for
+    Database Url examples.
 
-    https://docs.sqlalchemy.org/en/13/core/engines.html
+    There will be two tables. One only containing strings and string
+    representation of objects and one containing the pickled strings or
+    objects. This way all object types can be restored at loading while at the
+    same time the database can be search with standard database queries.
 
     Args:
         database_url (str): database url following RFC-1738*. If the sting,
-        does not contain '://', a filepath and a sqlite database are assumed.
+            does not contain '://', a filepath for a sqlite database is
+            assumed.
     """
 
     def __init__(self, database_url):
@@ -32,13 +37,18 @@ class MetaDB:
             logging.warning("no tags found! Is project initialized")
         self._create_table(list_tags)
 
+    @property
+    def database_url(self):
+        """Get URL of connected database."""
+        return self._engine.url
+
     def _create_table(self, list_keys):
         """Create a Tables in Database if it does not already exists,
 
-        where the each column represents a tag (=key in list_keys).
+        where each column represents a tag (=key in list_keys).
 
         Args:
-            list keys (list<str>): list of tags in Metadata
+            list keys (list of str): list of tags in Metadata
         """
         self.list_keys = list_keys
         sql_metadata = MetaData()
@@ -60,9 +70,10 @@ class MetaDB:
         """Inserts a row into the database, with the values from the dict.
 
         Args:
-            dict_data (dict<str:obj>): metadata dictionary to be writen
-            primary_key         (str): unique identifier of the item which data
-                is to be written (eg. Filepath).
+            dict_data  (dict): metadata dictionary (`Dict[str, object]`) to be
+                written.
+            primary_key (str): unique identifier of the item which data is to
+                be written. Metadata uses the absolute filepath.
         """
         dict_meta_pickle = dict_data.copy()
         dict_meta_pickle["_primary_key"] = primary_key
@@ -81,7 +92,7 @@ class MetaDB:
         Args:
             primary_key         (str): unique identifier of the item which data
                 is to read (eg. Filepath).
-            tags          (list<str>): list of strings to be read, reads all if
+            tags        (list of str): list of strings to be read, reads all if
                 None. Defaults to None.
 
         Returns:
@@ -103,6 +114,11 @@ class MetaDB:
             return None
 
     def get_list_of_primary_keys(self):
+        """reads the primary keys from database and returns them.
+
+        Returns:
+            list of str: list of primary key strings in database
+        """
         with self._engine.connect() as conn:
             result = list(conn.execute("SELECT _primary_key FROM tags"))
             return [s[0] for s in result]
