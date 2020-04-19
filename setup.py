@@ -4,7 +4,6 @@ import setuptools
 with open("README.rst", "r") as fh:
     long_description = fh.read()
 
-# https://packaging.python.org/guides/single-sourcing-package-version/
 version = {}
 with open("./mmusicc/version.py") as fp:
     exec(fp.read(), version)
@@ -23,8 +22,12 @@ setuptools.setup(
     url="https://github.com/jonolt/mmusicc",
     packages=setuptools.find_packages(),
     classifiers=[
-        "Programming Language :: Python :: 3",
-        "Development Status :: 3 - Alpha",
+        "Development Status :: 4 - Beta",
+        "Programming Language :: Python",
+        "Programming Language :: Python :: 3.6",
+        "Programming Language :: Python :: 3.7",
+        "Programming Language :: Python :: 3.8",
+        "Programming Language :: Python :: 3 :: Only",
         "License :: OSI Approved :: GNU General Public License v3 (GPLv3)",
         "Operating System :: POSIX",
         "Topic :: Multimedia :: Sound/Audio",
@@ -34,9 +37,9 @@ setuptools.setup(
         "Environment :: Console :: Curses",
         "Intended Audience :: End Users/Desktop",
     ],
-    python_requires='>=3.5',
+    python_requires='>=3.6',
     package_data={'mmusicc': ['data/config.yaml']},
-    install_requires=['mutagen>=1.43.0', 'PyYAML>=5.3', 'SQLAlchemy>=1.3.0'],
+    install_requires=['mutagen>=1.41.0', 'PyYAML>=3.01', 'SQLAlchemy>=1.3.0'],
     entry_points={
         "console_scripts": [
             "mmusicc = mmusicc.__main__:main",

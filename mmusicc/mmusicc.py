@@ -29,6 +29,7 @@ str_description_rqw = textwrap.dedent(
 )
 
 
+# noinspection PyMethodMayBeStatic
 class MmusicC:
 
     # TODO allow a predefined config file with all parser options to be passed
@@ -59,7 +60,7 @@ class MmusicC:
         init_formats()
 
         str_description = str_description_rqw \
-            .format(textwrap.fill(str(list(audio_loader))))
+            .format(textwrap.fill(str(sorted(list(audio_loader)))))
 
         # noinspection PyTypeChecker
         parser = argparse.ArgumentParser(

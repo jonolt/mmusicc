@@ -1,5 +1,6 @@
 .idea
 .venv
+.tox
 build
 dist
 *.egg-info

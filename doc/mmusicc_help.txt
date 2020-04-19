@@ -13,7 +13,7 @@ metadata and file syncing the following combination are possible:
   - folder --> db            (full path as primary key)
   - db     --> folder        (key matching starts at leave of path)
 Supported Formats for Metadata: 
-['.ogg', '.oga', '.flac', '.mp3', '.mp2', '.mp1', '.mpg', '.mpeg']
+['.flac', '.mp1', '.mp2', '.mp3', '.mpeg', '.mpg', '.oga', '.ogg']
 
 Required Options:
   -s SOURCE, --source SOURCE
