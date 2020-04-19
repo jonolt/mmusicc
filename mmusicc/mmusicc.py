@@ -21,10 +21,8 @@ str_description_rqw = textwrap.dedent(
       - file   --> file
       - file   --> parent folder (target name is generated from source)
       - folder --> folder        (use --album to not to move through tree)
-      [ folder --> db            (full path as primary key)               ]
-      [ db     --> folder        (key matching starts at leave of path)   ]
-      [ elements in the brackets not tested!                              ]
-    
+      - folder --> db            (full path as primary key)
+      - db     --> folder        (key matching starts at leave of path)
     Supported Formats for Metadata: 
     {}
     '''
@@ -182,12 +180,13 @@ class MmusicC:
             '--lazy',
             action='store_true',
             help="don't overwrite existing value in target with None from "
-                 "source")
+                 "source. Only effects metadata import. Use "
+                 "'--delete-existing-metadata' to remove unwanted tags.")
         pg_meta.add_argument(
             '--delete-existing-metadata',
             action='store_true',
-            help="[delete existing metadata on target "
-                 "files before writing. Not tested]")
+            help="delete existing metadata on target "
+                 "files before writing.")
         pg_meta.add_argument(
             '--path-config',
             action='store',

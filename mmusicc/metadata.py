@@ -140,6 +140,13 @@ class Metadata(metaclass=MetadataMeta):
             raise FileNotFoundError("Error Audio File does not exist")
 
     @property
+    def unprocessed_tag(self):
+        """pathlib.Path: Get file path of linked audio file."""
+        if self._audio:
+            return self._audio.unprocessed_tag
+        return None
+
+    @property
     def dict_data(self):
         """MetadataDict: Get the dict containing tags"""
         return self._dict_data
@@ -442,9 +449,13 @@ class GroupMetadata(Metadata):
         raise NotImplementedError()
 
     @property
-    def dict_data(self):
-        """Do not use this property. Only applies to Metadata."""
-        raise NotImplementedError()
+    def unprocessed_tag(self):
+        """Super-Method applied to all Objects in list. See Metadata."""
+        unprocessed_tags = dict()
+        for metadata in self.list_metadata:
+            if metadata._audio:
+                unprocessed_tags.update(self._audio.unprocessed_tag)
+        return unprocessed_tags
 
     @property
     def file_path(self):

@@ -1,19 +1,17 @@
 import pathlib
 
-from mmusicc.util.misc import get_the_right_one, swap_base
+from mmusicc.util.misc import get_the_right_one, swap_base, \
+    process_white_and_blacklist
 
 
-def test_dummy_load_allocation_map(allocation_map):
-    # test not needed her but otherwise fixture (module level) will not load it
-    assert len(allocation_map.list_tags) > 0
-
-
-def test_black_and_whitelist(dir_lib_x_flac):
-    pass
+def test_black_and_whitelist():
+    whitelist = ["a", "b", "c", "d", "e", "f"]
+    blacklist = ["e", "f", "g", "h", "a"]
+    result = process_white_and_blacklist(whitelist, blacklist)
+    assert result == ["b", "c", "d"]
 
 
 def test_get_the_right_one():
-
     plist = ["a/b/c/fuu/beam/hello.mp3",
              "d/e/f/fuu/bar/world.mp3",
              "g/h/foo/bar/hello.mp3",

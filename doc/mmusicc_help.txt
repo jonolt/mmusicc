@@ -10,10 +10,8 @@ metadata and file syncing the following combination are possible:
   - file   --> file
   - file   --> parent folder (target name is generated from source)
   - folder --> folder        (use --album to not to move through tree)
-  [ folder --> db            (full path as primary key)               ]
-  [ db     --> folder        (key matching starts at leave of path)   ]
-  [ elements in the brackets not tested!                              ]
-
+  - folder --> db            (full path as primary key)
+  - db     --> folder        (key matching starts at leave of path)
 Supported Formats for Metadata: 
 ['.ogg', '.oga', '.flac', '.mp3', '.mp2', '.mp1', '.mpg', '.mpeg']
 
@@ -58,9 +56,10 @@ Metadata Syncing:
                         text file, #containing tags separated with a new line)
                         or as one or multiple arguments
   --lazy                don't overwrite existing value in target with None
-                        from source
+                        from source. Only effects metadata import. Use '--
+                        delete-existing-metadata' to remove unwanted tags.
   --delete-existing-metadata
-                        [delete existing metadata on target files before
-                        writing. Not tested]
+                        delete existing metadata on target files before
+                        writing.
   --path-config PATH_CONFIG
                         file path to custom config file

@@ -22,6 +22,7 @@ C_mp3 metadata changes
 1)  - missing date
     - wrong album title ("wrong metadata, also date is missing")
     - composer tag ("should not be here")
+    - license tag ("cc")
 2)  - CD_01 got the default format
     - CD_02 has the same tag keys that CD_01 that plus tah keys with empty values
 
