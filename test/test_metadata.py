@@ -5,10 +5,8 @@ from ._util import *
 
 _dict_files = {
     Metadata: "1-str_title_A.flac",
-    GroupMetadata: ["1-str_title_A.flac",
-                    "2-str_title_B.flac",
-                    "3-str_title_C.flac"],
-    AlbumMetadata: None  # _create_file_path return an folder path
+    GroupMetadata: ["1-str_title_A.flac", "2-str_title_B.flac", "3-str_title_C.flac"],
+    AlbumMetadata: None,  # _create_file_path return an folder path
 }
 
 
@@ -29,14 +27,14 @@ def modified_metadata(request, dir_lib_x_flac):
         metadata_path = _create_file_path(GroupMetadata, dir_lib_x_flac)
         meta = GroupMetadata(metadata_path)
         meta.reset_meta()
-        meta.set_tag('album', "fuubar")
-        meta.set_tag('artist', "quodlibet")
+        meta.set_tag("album", "fuubar")
+        meta.set_tag("artist", "quodlibet")
     else:
         metadata_path = _create_file_path(Metadata, dir_lib_x_flac)
         meta = Metadata(metadata_path)
         meta.dict_data.reset()
-        meta.set_tag('album', "fuubar")
-        meta.set_tag('artist', "quodlibet")
+        meta.set_tag("album", "fuubar")
+        meta.set_tag("artist", "quodlibet")
     return request.param, meta
 
 
@@ -77,8 +75,7 @@ def test_write_tags(class_meta, dir_lib_x_flac, rem_ex, write_empty):
     meta.set_tag("album", "fuubar")
     meta.set_tag("albumartist", Empty())
     meta.set_tag("artist", None)
-    meta.write_tags(remove_existing=rem_ex,
-                    write_empty=write_empty)
+    meta.write_tags(remove_existing=rem_ex, write_empty=write_empty)
     meta_2 = class_meta(metadata_path)
     assert meta_2._dict_data.get("album") == "fuubar"
 
@@ -94,16 +91,12 @@ def test_write_tags(class_meta, dir_lib_x_flac, rem_ex, write_empty):
 
 
 @pytest.mark.parametrize("skip_none", [True, False])
-@pytest.mark.parametrize("modified_metadata",
-                         _dict_files.keys(),
-                         indirect=True)
+@pytest.mark.parametrize("modified_metadata", _dict_files.keys(), indirect=True)
 def test_import_tags(modified_metadata, dir_lib_x_flac, skip_none):
     class_meta, import_source = modified_metadata
     metadata_path = _create_file_path(class_meta, dir_lib_x_flac)
     meta = class_meta(metadata_path)
-    meta.import_tags(import_source,
-                     whitelist=["album", "title"],
-                     skip_none=skip_none)
+    meta.import_tags(import_source, whitelist=["album", "title"], skip_none=skip_none)
     # Assert proper import
     assert meta.get_tag("album") == "fuubar"
     # Assert whitelist (blacklist does not need to be tested here, since the
@@ -180,11 +173,11 @@ def test_dry_run(dir_lib_x_flac, temp_database):
     metadata_path = _create_file_path(Metadata, dir_lib_x_flac)
     th = save_files_hash_and_mtime(metadata_path)
     meta = Metadata(metadata_path)
-    meta.set_tag('album', "fuubar")
+    meta.set_tag("album", "fuubar")
     meta.write_tags()
     meta.export_tags_to_db()
     meta.read_tags()
-    assert meta.get_tag('album') != "fuubar"
+    assert meta.get_tag("album") != "fuubar"
     with pytest.raises(KeyError):
         meta.import_tags_from_db()
     # reset class variable to default

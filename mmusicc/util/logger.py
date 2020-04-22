@@ -14,23 +14,19 @@ def init_logger(level=25):
         "version": 1,
         "formatters": {
             "simple": {
-                "format":
-                    '%(asctime)s %(levelname)-8s %(module)-13s %(message)s',
+                "format": "%(asctime)s %(levelname)-8s %(module)-13s %(message)s",
             }
         },
         "handlers": {
             "console": {
-                "class": 'logging.StreamHandler',
+                "class": "logging.StreamHandler",
                 # "level": level if level == logging.DEBUG else logging.ERROR,
                 "level": level,
-                "formatter": 'simple',
-                "stream": 'ext://sys.stdout',
+                "formatter": "simple",
+                "stream": "ext://sys.stdout",
             },
         },
-        "root": {
-            "level": level,
-            "handlers": ['console'],
-        }
+        "root": {"level": level, "handlers": ["console"],},
     }
     logging.config.dictConfig(config)
     logging.debug("Initialized logger")

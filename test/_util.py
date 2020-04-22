@@ -17,9 +17,7 @@ def save_files_hash_and_mtime(list_files, touch=False) -> dict:
         file = pathlib.Path(file)
         if touch:
             file.touch()
-        hash_dict[file] = (hash_file(file),
-                           file.stat().st_mtime,
-                           file.stat().st_atime)
+        hash_dict[file] = (hash_file(file), file.stat().st_mtime, file.stat().st_atime)
     return hash_dict
 
 
@@ -51,7 +49,7 @@ def hash_file(path) -> str:
     # noinspection PyPep8Naming
     BUF_SIZE = 65536  # 64kb
     sha1 = hashlib.sha1()
-    with open(path, 'rb') as f:
+    with open(path, "rb") as f:
         while True:
             data = f.read(BUF_SIZE)
             if not data:

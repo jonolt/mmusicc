@@ -24,8 +24,7 @@ class MP3File(AudioFile):
     """
 
     format = "MPEG-1/2"
-    mimes = ["audio/mp3", "audio/x-mp3", "audio/mpeg", "audio/mpg",
-             "audio/x-mpeg"]
+    mimes = ["audio/mp3", "audio/x-mp3", "audio/mpeg", "audio/mpg", "audio/x-mpeg"]
 
     def __init__(self, file_path):
         super().__init__()
@@ -88,13 +87,9 @@ class MP3File(AudioFile):
                 self.unprocessed_tag[frame.HashKey] = tag_val
 
         if len(tags_txxx) > 0:
-            self.unprocessed_tag.update(
-                scan_dictionary(tags_txxx, self.dict_meta))
+            self.unprocessed_tag.update(scan_dictionary(tags_txxx, self.dict_meta))
 
-    def file_save(self,
-                  remove_existing=False,
-                  write_empty=False,
-                  remove_v1=False):
+    def file_save(self, remove_existing=False, write_empty=False, remove_v1=False):
         """saves file tags from tag dictionary (dict_meta) to AudioFile.
 
         Note:
@@ -155,7 +150,7 @@ class MP3File(AudioFile):
                     value = [value]
                 for t in value:
                     if isinstance(t, str):
-                        frame.people.append([u'', t])
+                        frame.people.append([u"", t])
                     elif isinstance(t, list) and len(t) == 2:
                         frame.people.append(t)
                     elif isinstance(t, PairedText):

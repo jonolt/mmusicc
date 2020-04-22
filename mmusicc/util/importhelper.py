@@ -66,14 +66,18 @@ def get_importables(folder):
         if os.path.basename(root).startswith("_"):
             continue
         if not first and any((is_init(n) for n in names)):
-            yield (os.path.basename(root), root,
-                   list(filter(is_ok,
-                               [os.path.join(root, name) for name in names])))
+            yield (
+                os.path.basename(root),
+                root,
+                list(filter(is_ok, [os.path.join(root, name) for name in names])),
+            )
         else:
             for name in filter(is_ok, names):
-                yield (os.path.splitext(name)[0],
-                       os.path.join(root, name),
-                       [os.path.join(root, name)])
+                yield (
+                    os.path.splitext(name)[0],
+                    os.path.join(root, name),
+                    [os.path.join(root, name)],
+                )
         first = False
 
 

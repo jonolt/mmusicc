@@ -21,14 +21,14 @@ class FFmpeg(object):
             'ffmpeg': Can be overwritten in case e.g libav is used.
     """
 
-    def __init__(self, source, target, options=None, executable='ffmpeg'):
+    def __init__(self, source, target, options=None, executable="ffmpeg"):
         """Initialize ffmpeg command line wrapper.
 
         """
         self.executable = executable
         self._cmd = [executable]
 
-        self._cmd.extend(['-i', source])
+        self._cmd.extend(["-i", source])
         if options:
             self._cmd.extend(options.split())
         self._cmd.extend([target])
@@ -37,7 +37,7 @@ class FFmpeg(object):
         self.process = None
 
     def __repr__(self):
-        return '<{0!r} {1!r}>'.format(self.__class__.__name__, self.cmd)
+        return "<{0!r} {1!r}>".format(self.__class__.__name__, self.cmd)
 
     def run(self):
         """Execute ffmpeg command line. Log stderr output.
@@ -53,16 +53,19 @@ class FFmpeg(object):
             process_result = subprocess.run(self._cmd, stderr=subprocess.PIPE)
         except OSError as e:
             if e.errno == errno.ENOENT:
-                logging.error("ffmpeg path not found. either ffmpeg is not "
-                              "installed are not at the standard path.")
-                raise FFExecutableNotFoundError("Executable '{0}' not found"
-                                                .format(self.executable))
+                logging.error(
+                    "ffmpeg path not found. either ffmpeg is not "
+                    "installed are not at the standard path."
+                )
+                raise FFExecutableNotFoundError(
+                    "Executable '{0}' not found".format(self.executable)
+                )
             else:
                 raise
 
         catchers = ["Input #0", "Stream #0:", "Output #0"]
 
-        for line in process_result.stderr.decode().split('\n'):
+        for line in process_result.stderr.decode().split("\n"):
             for catch in catchers:
                 if catch in line:
                     logging.log(25, line.strip())
@@ -70,12 +73,17 @@ class FFmpeg(object):
         logging.debug(process_result.stderr.decode())
 
         if process_result.returncode != 0:
-            logging.error("command \n{}\n produced the following error:\n {}"
-                          .format(self.cmd, process_result.stderr))
-            raise FFRuntimeError(self.cmd,
-                                 process_result.returncode,
-                                 process_result.stdout,
-                                 process_result.stderr)
+            logging.error(
+                "command \n{}\n produced the following error:\n {}".format(
+                    self.cmd, process_result.stderr
+                )
+            )
+            raise FFRuntimeError(
+                self.cmd,
+                process_result.returncode,
+                process_result.stdout,
+                process_result.stderr,
+            )
 
 
 class FFExecutableNotFoundError(Exception):
@@ -93,13 +101,8 @@ class FFRuntimeError(Exception):
         self.stdout = stdout
         self.stderr = stderr
 
-        message = \
-            "`{0}` exited with status {1}\n\nSTDOUT:\n{2}\n\nSTDERR:\n{3}"\
-            .format(
-                self.cmd,
-                exit_code,
-                (stdout or b'').decode(),
-                (stderr or b'').decode()
-            )
+        message = "`{0}` exited with status {1}\n\nSTDOUT:\n{2}\n\nSTDERR:\n{3}".format(
+            self.cmd, exit_code, (stdout or b"").decode(), (stderr or b"").decode()
+        )
 
         super(FFRuntimeError, self).__init__(message)

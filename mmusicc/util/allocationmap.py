@@ -27,10 +27,10 @@ import yaml
 
 list_tui_tags = list()
 list_tags = list()
-dict_tag2id3 = dict()   # tag: id3
-dict_id32tag = dict()   # id3: tag
+dict_tag2id3 = dict()  # tag: id3
+dict_id32tag = dict()  # id3: tag
 dict_tag2strs = dict()  # tag: strs (list)
-dict_str2tag = dict()   # str: tag
+dict_str2tag = dict()  # str: tag
 dict_auto_fill_rules = dict()
 # TODO replace with None
 
@@ -57,8 +57,9 @@ def init_allocationmap(path, force=False):
 
     if len(list_tags) > 0:
         if force:
-            logging.debug("allocationmap Already Initialized, "
-                          "Continue (force option set).")
+            logging.debug(
+                "allocationmap Already Initialized, " "Continue (force option set)."
+            )
             # reset all lists and dicts
             list_tui_tags = list()
             list_tags = list()
@@ -74,7 +75,7 @@ def init_allocationmap(path, force=False):
     path = os.path.abspath(os.path.expanduser(path))
     if not os.path.exists(path):
         raise FileNotFoundError("config file not found '{}'".format(path))
-    with open(path, 'r') as f:
+    with open(path, "r") as f:
         dict_config = yaml.safe_load(f)
     max_pos = max(dict_config.values(), key=lambda x: int(x[0]))[0]
     if len(list_tui_tags) < max_pos:
@@ -116,8 +117,7 @@ def init_allocationmap(path, force=False):
         list_tui_tags.pop(i)
         i -= 1
 
-    logging.debug("allocationmap Initialized, found tags: {}"
-                  .format(list_tags))
+    logging.debug("allocationmap Initialized, found tags: {}".format(list_tags))
 
 
 def get_tags_from_strs(tags):
@@ -134,6 +134,7 @@ def get_tags_from_strs(tags):
         try:
             ret_tag.append(dict_str2tag[string])
         except KeyError:
-            raise KeyError("String '{}' could not be associated with any tag."
-                           .format(string))
+            raise KeyError(
+                "String '{}' could not be associated with any tag.".format(string)
+            )
     return ret_tag

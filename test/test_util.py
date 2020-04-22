@@ -1,7 +1,6 @@
 import pathlib
 
-from mmusicc.util.misc import get_the_right_one, swap_base, \
-    process_white_and_blacklist
+from mmusicc.util.misc import get_the_right_one, swap_base, process_white_and_blacklist
 
 
 def test_black_and_whitelist():
@@ -12,11 +11,12 @@ def test_black_and_whitelist():
 
 
 def test_get_the_right_one():
-    plist = ["a/b/c/fuu/beam/hello.mp3",
-             "d/e/f/fuu/bar/world.mp3",
-             "g/h/foo/bar/hello.mp3",
-             pathlib.Path("l/fee/bar/world.mp3"),
-             ]
+    plist = [
+        "a/b/c/fuu/beam/hello.mp3",
+        "d/e/f/fuu/bar/world.mp3",
+        "g/h/foo/bar/hello.mp3",
+        pathlib.Path("l/fee/bar/world.mp3"),
+    ]
     match = "m/n/foo/bar/hello.mp3"
 
     the_right_one = get_the_right_one(plist, match)

@@ -37,8 +37,10 @@ def process_white_and_blacklist(whitelist, blacklist):
             try:
                 whitelist.pop(whitelist.index(t))
             except ValueError:
-                logging.warning("Warning can not remove {}. "
-                                "It is not in the whitelist.".format(t))
+                logging.warning(
+                    "Warning can not remove {}. "
+                    "It is not in the whitelist.".format(t)
+                )
                 continue
     return whitelist
 
@@ -97,7 +99,7 @@ def get_the_right_one(list_path, match_path, drop_suffix=True):
     if not isinstance(match_path, pathlib.Path):
         match_path = pathlib.Path(match_path)
     if drop_suffix:
-        match_path = match_path.with_suffix('')
+        match_path = match_path.with_suffix("")
 
     match_parts = match_path.parts
 
@@ -106,7 +108,7 @@ def get_the_right_one(list_path, match_path, drop_suffix=True):
         i += 1
         list_new = list()
         for path in list_path:
-            if path.with_suffix('').parts[-i] == match_parts[-i]:
+            if path.with_suffix("").parts[-i] == match_parts[-i]:
                 list_new.append(path)
             else:
                 pass

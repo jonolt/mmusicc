@@ -24,16 +24,19 @@ def init_allocationmap(path_config):
         path_config (str): path to allocation map config yaml file
     """
     from mmusicc.util import allocationmap
+
     allocationmap.init_allocationmap(path_config)
 
 
 def init_formats():
     """initialize formats module"""
     from mmusicc.formats import init
+
     init()
 
 
 def init_logging(level=25):
     """initialize logger"""
     from mmusicc.util import init_logger
+
     init_logger(level=level)

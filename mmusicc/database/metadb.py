@@ -30,7 +30,7 @@ class MetaDB:
         if "://" not in database_url:
             # it is assumed the database url is filepath and therefore SQLite
             database_url = pathlib.Path(database_url).expanduser().resolve()
-            database_url = 'sqlite:///' + str(database_url)
+            database_url = "sqlite:///" + str(database_url)
         self._database_url = database_url
         self._engine = create_engine(self._database_url)
         if not list_tags:
@@ -52,13 +52,14 @@ class MetaDB:
         """
         self.list_keys = list_keys
         sql_metadata = MetaData()
-        self.tags = Table('tags', sql_metadata,
-                          Column('_primary_key', String(200),
-                                 primary_key=True))
-        self.pickle_tags = Table('pickle_tags',
-                                 sql_metadata,
-                                 Column('_primary_key', String(200),
-                                        primary_key=True))
+        self.tags = Table(
+            "tags", sql_metadata, Column("_primary_key", String(200), primary_key=True)
+        )
+        self.pickle_tags = Table(
+            "pickle_tags",
+            sql_metadata,
+            Column("_primary_key", String(200), primary_key=True),
+        )
         for key in list_keys:
             self.tags.append_column(Column(key, String(100)))
             self.pickle_tags.append_column(Column(key, PickleType()))
@@ -100,9 +101,9 @@ class MetaDB:
         """
         with self._engine.connect() as conn:
             foo_col = Column("_primary_key")
-            result = conn.execute(self.pickle_tags.
-                                  select().
-                                  where(foo_col == primary_key)).first()
+            result = conn.execute(
+                self.pickle_tags.select().where(foo_col == primary_key)
+            ).first()
             if result:
                 dict_data_tmp = dict(result)
                 dict_data_tmp.pop("_primary_key")

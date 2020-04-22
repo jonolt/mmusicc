@@ -7,8 +7,11 @@ import mmusicc.util.allocationmap as am
 from mmusicc.database import MetaDB
 from mmusicc.formats import MusicFile
 from mmusicc.util.metadatadict import MetadataDict, Empty, Div
-from mmusicc.util.misc import (check_is_audio, process_white_and_blacklist,
-                               get_the_right_one)
+from mmusicc.util.misc import (
+    check_is_audio,
+    process_white_and_blacklist,
+    get_the_right_one,
+)
 
 
 class MetadataMeta(type):
@@ -26,8 +29,7 @@ class MetadataMeta(type):
         writing data.
         """
         if cls._dry_run:
-            logging.log(25, "Running in Dry Run mode. "
-                            "No data will be written.")
+            logging.log(25, "Running in Dry Run mode. " "No data will be written.")
         return cls._dry_run
 
     @dry_run.setter
@@ -186,13 +188,11 @@ class Metadata(metaclass=MetadataMeta):
             raise Exception("no file_path linked")
         self._audio.dict_meta.update(self._dict_data)
         if not Metadata.dry_run:
-            self._audio.file_save(remove_existing=remove_existing,
-                                  write_empty=write_empty)
+            self._audio.file_save(
+                remove_existing=remove_existing, write_empty=write_empty
+            )
 
-    def import_tags(self, source_meta,
-                    whitelist=None,
-                    blacklist=None,
-                    skip_none=True):
+    def import_tags(self, source_meta, whitelist=None, blacklist=None, skip_none=True):
         """Imports metadata from another Metadata object.
 
         Args:
@@ -207,8 +207,7 @@ class Metadata(metaclass=MetadataMeta):
             skip_none (bool, optional): If True, don't overwrite values in
                 target, which are None in source. Defaults to True.
         """
-        self._import_tags(source_meta._dict_data,
-                          whitelist, blacklist, skip_none)
+        self._import_tags(source_meta._dict_data, whitelist, blacklist, skip_none)
 
     def _import_tags(self, dict_meta, whitelist, blacklist, skip_none):
         tags = process_white_and_blacklist(whitelist, blacklist)
@@ -219,12 +218,9 @@ class Metadata(metaclass=MetadataMeta):
                     continue
                 self._dict_data[tag] = val
 
-    def import_tags_from_db(self,
-                            primary_key=None,
-                            whitelist=None,
-                            blacklist=None,
-                            skip_none=True
-                            ):
+    def import_tags_from_db(
+        self, primary_key=None, whitelist=None, blacklist=None, skip_none=True
+    ):
         """Imports metadata from the database.
 
         Args:
@@ -261,8 +257,10 @@ class Metadata(metaclass=MetadataMeta):
             if data:
                 self._import_tags(data, whitelist, blacklist, skip_none)
             else:
-                logging.warning("database read failed, no data imported. "
-                                "File might not be in database")
+                logging.warning(
+                    "database read failed, no data imported. "
+                    "File might not be in database"
+                )
 
     def export_tags_to_db(self, root_dir=None):
         """Saves all tags to database.
@@ -340,8 +338,7 @@ class GroupMetadata(Metadata):
                 if check_is_audio(file_path):
                     self.list_metadata.append(Metadata(file_path))
                 else:
-                    logging.warning("File '{}' is no audio file"
-                                    .format(file_path))
+                    logging.warning("File '{}' is no audio file".format(file_path))
         self.read_tags()
 
         self.dict_auto_fill_org = None
@@ -396,11 +393,11 @@ class GroupMetadata(Metadata):
     def write_tags(self, remove_existing=False, write_empty=False):
         """Super-Method applied to all Objects in list. See Metadata."""
         for metadata in self.list_metadata:
-            metadata.write_tags(remove_existing=remove_existing,
-                                write_empty=write_empty)
+            metadata.write_tags(
+                remove_existing=remove_existing, write_empty=write_empty
+            )
 
-    def import_tags(self, source_meta, whitelist=None, blacklist=None,
-                    skip_none=True):
+    def import_tags(self, source_meta, whitelist=None, blacklist=None, skip_none=True):
         """Super-Method applied to all Objects in list. See Metadata.
 
         Args:
@@ -421,21 +418,21 @@ class GroupMetadata(Metadata):
                 metadata_source,
                 whitelist=whitelist,
                 blacklist=blacklist,
-                skip_none=skip_none)
+                skip_none=skip_none,
+            )
         self.__compare_tags()
 
-    def import_tags_from_db(self,
-                            whitelist=None,
-                            blacklist=None,
-                            root_dir=None,
-                            skip_none=True):
+    def import_tags_from_db(
+        self, whitelist=None, blacklist=None, root_dir=None, skip_none=True
+    ):
         """Super-Method applied to all Objects in list. See Metadata."""
         for metadata in self.list_metadata:
-            metadata.import_tags_from_db(primary_key=None,
-                                         whitelist=whitelist,
-                                         blacklist=blacklist,
-                                         skip_none=skip_none
-                                         )
+            metadata.import_tags_from_db(
+                primary_key=None,
+                whitelist=whitelist,
+                blacklist=blacklist,
+                skip_none=skip_none,
+            )
         self.__compare_tags()
 
     def export_tags_to_db(self, root_dir=None):

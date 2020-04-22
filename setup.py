@@ -10,13 +10,14 @@ with open("./mmusicc/version.py") as fp:
 
 setuptools.setup(
     name="mmusicc-jonolt",
-    version=version['__version__'],
+    version=version["__version__"],
     author="Johannes N.",
     author_email="jonolt@mailbox.org",
     description=(
         "A lightweight audio file and metadata control and synchronization "
         "program to transfer the changes made in a master music library to a "
-        "derived music library."),
+        "derived music library."
+    ),
     long_description=long_description,
     long_description_content_type="text/x-rst",
     url="https://github.com/jonolt/mmusicc",
@@ -37,12 +38,8 @@ setuptools.setup(
         "Environment :: Console :: Curses",
         "Intended Audience :: End Users/Desktop",
     ],
-    python_requires='>=3.6',
-    package_data={'mmusicc': ['data/config.yaml']},
-    install_requires=['mutagen>=1.41.0', 'PyYAML>=3.01', 'SQLAlchemy>=1.3.0'],
-    entry_points={
-        "console_scripts": [
-            "mmusicc = mmusicc.__main__:main",
-        ]
-    }
+    python_requires=">=3.6",
+    package_data={"mmusicc": ["data/config.yaml"]},
+    install_requires=["mutagen>=1.41.0", "PyYAML>=3.01", "SQLAlchemy>=1.3.0"],
+    entry_points={"console_scripts": ["mmusicc = mmusicc.__main__:main",]},
 )

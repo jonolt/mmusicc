@@ -40,30 +40,32 @@ def audio_files(audio_loaders, dir_subpackages) -> dict:
     # if loaders is empty all loaders have/will been tested
     # extensions is just for info what supported extension types are not tested
     if len(loaders) > 0:
-        warnings.warn(UserWarning("module(s) '{}' is not been tested"
-                                  .format(str(loaders))))
+        warnings.warn(
+            UserWarning("module(s) '{}' is not been tested".format(str(loaders)))
+        )
     return audio_files
 
 
 @pytest.fixture(scope="module")
 def expected_metadata(dir_orig_data) -> dict:
     """expected results for a subset of the loaded elements"""
-    data = {'album': 'str_album',
-            'albumartist': 'str_albumartist',
-            'albumartistsort': 'str_albumartistsort',
-            'artist': 'str_artist',
-            'bpm': '128',
-            'comment': 'str_comment',
-            'composer': 'str_composer',
-            'date': '2020',
-            'discid': 'str_discid',
-            'discnumber': '2',
-            'genre': 'str_genre',
-            'isrc': 'QZES81947811',
-            'lyrics': 'str_lyrics',
-            'title': 'str_title',
-            'tracknumber': '3',
-            }
+    data = {
+        "album": "str_album",
+        "albumartist": "str_albumartist",
+        "albumartistsort": "str_albumartistsort",
+        "artist": "str_artist",
+        "bpm": "128",
+        "comment": "str_comment",
+        "composer": "str_composer",
+        "date": "2020",
+        "discid": "str_discid",
+        "discnumber": "2",
+        "genre": "str_genre",
+        "isrc": "QZES81947811",
+        "lyrics": "str_lyrics",
+        "title": "str_title",
+        "tracknumber": "3",
+    }
     return data
 
 
@@ -78,7 +80,7 @@ def metadata_write_tags(expected_metadata) -> dict:
             cur_int = int(_dict[key])
             _dict[key] = str(cur_int + 1)
         except ValueError:
-            if key == 'originaldate':
+            if key == "originaldate":
                 continue
             _dict[key] = _dict[key] + "_2"
     _dict["artist"] = Empty()
@@ -91,8 +93,7 @@ def media_file(request, audio_files, dir_lib_test):
     """find test file with the given extension and copy it to a test folder"""
     file = audio_files.get(request.param)
     if not file:
-        pytest.xfail("No file with given extension '{}' exists."
-                     .format(request.param))
+        pytest.xfail("No file with given extension '{}' exists.".format(request.param))
     copy_file(str(file), str(dir_lib_test))
     return dir_lib_test.joinpath(file.name)
 
@@ -104,11 +105,10 @@ def media_file_th(media_file):
 
 # TODO find a way to load extension dynamically
 # TODO run tests per-class configuration
-@pytest.mark.parametrize("media_file",
-                         [".mp3", ".flac", ".ogg"],  # TODO ".mp3",
-                         indirect=["media_file"])
+@pytest.mark.parametrize(
+    "media_file", [".mp3", ".flac", ".ogg"], indirect=["media_file"]  # TODO ".mp3",
+)
 class TestFormats:
-
     def test_write_identical(self, media_file, media_file_th):
         m_file = mmusicc.formats.MusicFile(media_file)
         m_file.file_read()
@@ -127,22 +127,22 @@ class TestFormats:
 
     @pytest.mark.parametrize("remove_existing", [False, True])
     @pytest.mark.parametrize("write_empty", [False, True])
-    def test_write(self,
-                   media_file,
-                   metadata_write_tags,
-                   remove_existing,
-                   write_empty,
-                   media_file_th):
+    def test_write(
+        self,
+        media_file,
+        metadata_write_tags,
+        remove_existing,
+        write_empty,
+        media_file_th,
+    ):
         """write to file and compare with expected, test optional arguments"""
-        _write_meta_to_file(media_file,
-                            metadata_write_tags,
-                            remove_existing,
-                            write_empty)
+        _write_meta_to_file(
+            media_file, metadata_write_tags, remove_existing, write_empty
+        )
         # from test_read we already know that we reading works
         m_file = _assert_read_and_compare_file(
-            media_file,
-            metadata_write_tags,
-            exclude=["artist", "albumartist"])
+            media_file, metadata_write_tags, exclude=["artist", "albumartist"]
+        )
 
         # in the test file is one tag placed (encoder settings) that is not in
         # the tag dictionary. This tag can be only removed with the

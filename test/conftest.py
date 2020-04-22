@@ -20,8 +20,7 @@ def allocation_map(request, dir_orig_data):
     if request.fspath.basename == "test_formats.py":
         path_config = "metadata_config.yaml"
     else:
-        path_config = dir_orig_data.parent.parent.\
-            joinpath("mmusicc/data/config.yaml")
+        path_config = dir_orig_data.parent.parent.joinpath("mmusicc/data/config.yaml")
     abs_path = str(dir_orig_data.joinpath(path_config))
     mmusicc.util.init_allocationmap(abs_path, force=True)
     # equals: init_allocationmap(path_config)
@@ -48,7 +47,7 @@ def dir_subpackages(tmp_path_factory, dir_orig_data) -> pathlib.Path:
     temp_dir = tmp_path_factory.mktemp("subpackages", numbered=False)
     for file in files:
         file_source = dir_orig_data.joinpath(file)
-        copy_file(file_source, temp_dir)
+        copy_file(str(file_source), str(temp_dir))
     return temp_dir
 
 
@@ -83,7 +82,7 @@ def dir_lib_a_flac(tmp_path_factory, dir_orig_data):
 def dir_lib_b_ogg(tmp_path_factory, dir_orig_data):
     # original mp3 data do not overwrite (to be compared with result)
     temp_dir = tmp_path_factory.mktemp("B_ogg", numbered=False)
-    s_path = (dir_orig_data.joinpath("music_lib", "B_ogg"))
+    s_path = dir_orig_data.joinpath("music_lib", "B_ogg")
     copy_tree(str(s_path), str(temp_dir))
     return temp_dir
 
@@ -92,7 +91,7 @@ def dir_lib_b_ogg(tmp_path_factory, dir_orig_data):
 def dir_lib_c_ogg(tmp_path_factory, dir_orig_data):
     # lib with missing and wrong metadata
     temp_dir = tmp_path_factory.mktemp("C_ogg_", numbered=False)
-    s_path = (dir_orig_data.joinpath("music_lib", "C_ogg"))
+    s_path = dir_orig_data.joinpath("music_lib", "C_ogg")
     copy_tree(str(s_path), str(temp_dir))
     return temp_dir
 

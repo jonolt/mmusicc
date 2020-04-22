@@ -1,7 +1,7 @@
 from mmusicc.util.metadatadict import Empty
 
-SPLIT_CHAR = ['/', '\n', ';']
-JOIN_CHAR = ' ; '
+SPLIT_CHAR = ["/", "\n", ";"]
+JOIN_CHAR = " ; "
 
 
 def join_str_list(str_list):

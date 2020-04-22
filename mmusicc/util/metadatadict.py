@@ -65,7 +65,7 @@ class PairedText(object):
         if not self.role:
             return self.name
         else:
-            return '{}: {}'.format(self.role, self.name)
+            return "{}: {}".format(self.role, self.name)
 
     def __iter__(self):
         return [self.role, self.name]
@@ -132,8 +132,9 @@ class Div(object):
         for meta_a in list(self._dict_values):
             for meta_b in list(other._dict_values):
                 if meta_a.file_name == meta_b.file_name:
-                    if not (self._dict_values.get(meta_a)
-                            == other._dict_values.get(meta_b)):
+                    if not (
+                        self._dict_values.get(meta_a) == other._dict_values.get(meta_b)
+                    ):
                         equal = False
         if equal is None:
             equal = False
@@ -197,31 +198,31 @@ def scan_dictionary(dict_tags, dict_data):
         except KeyError:
             continue
 
-    # evaluate later if this code is needed, maybe delete it somewhen
-    #
-    # for tag_key, kv_pairs in dict_tmp.items():
-    #     if len(kv_pairs) > 1:
-    #         # take the list and check if entries a double
-    #         i = 0
-    #         j = 0
-    #         while i < len(kv_pairs):
-    #             while j < len(kv_pairs):
-    #                 if i == j:
-    #                     j += 1
-    #                     continue
-    #                 if kv_pairs[i][1] == kv_pairs[j][1]:
-    #                     logging.info(
-    #                         "dropped duplicate pair {}:{}"
-    #                         ", keeping {}:{}"
-    #                         .format(kv_pairs[i][0], kv_pairs[i][1],
-    #                                 kv_pairs[j][0], kv_pairs[j][1]))
-    #                     kv_pairs.remove(kv_pairs[i])
-    #                 j += 1
-    #             i += 1
-    #         tag_val = [kv_pairs[i][1] for i in range(len(kv_pairs))]
-    #     else:
-    #         tag_val = kv_pairs[0][1]
-    #         tag_val = text_parser_get(tag_val)
+        # evaluate later if this code is needed, maybe delete it somewhen
+        #
+        # for tag_key, kv_pairs in dict_tmp.items():
+        #     if len(kv_pairs) > 1:
+        #         # take the list and check if entries a double
+        #         i = 0
+        #         j = 0
+        #         while i < len(kv_pairs):
+        #             while j < len(kv_pairs):
+        #                 if i == j:
+        #                     j += 1
+        #                     continue
+        #                 if kv_pairs[i][1] == kv_pairs[j][1]:
+        #                     logging.info(
+        #                         "dropped duplicate pair {}:{}"
+        #                         ", keeping {}:{}"
+        #                         .format(kv_pairs[i][0], kv_pairs[i][1],
+        #                                 kv_pairs[j][0], kv_pairs[j][1]))
+        #                     kv_pairs.remove(kv_pairs[i])
+        #                 j += 1
+        #             i += 1
+        #         tag_val = [kv_pairs[i][1] for i in range(len(kv_pairs))]
+        #     else:
+        #         tag_val = kv_pairs[0][1]
+        #         tag_val = text_parser_get(tag_val)
 
         if Empty.is_empty(tag_val):
             tag_val = Empty()

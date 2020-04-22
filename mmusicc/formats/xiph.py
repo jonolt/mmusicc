@@ -21,6 +21,7 @@ class VCFile(AudioFile):
     Args:
         audio (mutagen.File): file as mutagen file object.
     """
+
     format = "Unknown Mutagen + vorbiscomment"
     MutagenType = None
 
@@ -93,7 +94,7 @@ class VCFile(AudioFile):
             tag_del.extend([z for z in audio if z not in new_tag])
 
         for z in set(tag_del):
-            del (audio[z])
+            del audio[z]
 
         # caps_tag = dict()
         # for tag, value in new_tag.items():
@@ -105,6 +106,7 @@ class VCFile(AudioFile):
 
 class OggFile(VCFile):
     """File type specific subclass of VCFile"""
+
     format = "Ogg Vorbis"
     mimes = ["audio/vorbis", "audio/ogg; codecs=vorbis"]
     MutagenType = OggVorbis
@@ -112,6 +114,7 @@ class OggFile(VCFile):
 
 class FLACFile(VCFile):
     """File type specific subclass of VCFile"""
+
     format = "FLAC"
     mimes = ["audio/x-flac", "application/x-flac"]
     MutagenType = FLAC
@@ -122,7 +125,7 @@ class FLACFile(VCFile):
 types = []
 """list of all subclasses of AudioFile in this module"""
 for var in list(globals().values()):
-    if getattr(var, 'MutagenType', None):
+    if getattr(var, "MutagenType", None):
         types.append(var)
 
 
