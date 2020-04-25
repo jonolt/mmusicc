@@ -54,6 +54,11 @@ class VCFile(AudioFile):
                 create a tag with content "". If false no tag will be created
                 and existing tags on file that would be overwritten with ""
                 will be deleted. Defaults to False.
+
+        Note:
+            A tag not existing in dict_meta or being None in dict_meta will not be
+            deleted and es kept unchanged. The (possible empty) tag will be deleted,
+            when an Empty value is in source and write_empty is False.
         """
         audio = self._file
         if audio.tags is None:

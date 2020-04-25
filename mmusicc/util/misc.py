@@ -6,7 +6,7 @@ import mmusicc.util.allocationmap as am
 
 
 def check_is_audio(file):
-    """Return True if file is a audio file."""
+    """Return True if file is a supported audio file."""
     mimetype = mimetypes.guess_type(str(file))
     if mimetype[0] and "audio" in mimetype[0]:
         return True

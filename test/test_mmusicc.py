@@ -3,7 +3,7 @@ from distutils.file_util import copy_file
 
 import pytest
 
-from mmusicc import MmusicC, Metadata
+from mmusicc import MmusicC
 from mmusicc.util.ffmpeg import FFRuntimeError
 from ._util import *
 
@@ -120,8 +120,7 @@ class TestMetadataOnly:
     def test_folder_folder(self, dir_lib_a_flac, dir_lib_b_ogg, dir_lib_test):
         """test folder folder metadata sync"""
         copy_tree(str(dir_lib_b_ogg), str(dir_lib_test))
-        org_file_list, _ = _get_file_list_tree(dir_lib_test)
-        saved_file_info = save_files_hash_and_mtime(org_file_list, touch=True)
+        saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
         _assert_run_mmusicc(
             "--only-meta",
             "--source",
@@ -131,15 +130,17 @@ class TestMetadataOnly:
             "-f .ogg",
         )
         # check no file was modified (10 files were accessed: 10*100=1000)
-        assert cmp_files_hash_and_time(org_file_list, saved_file_info) == 10
+        assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 10
 
-    def test_folder_folder_part(self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test):
+    @pytest.mark.parametrize(
+        "opt", [None, "--lazy", "--delete-existing-metadata",],
+    )
+    def test_folder_folder_part(self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, opt):
         """test folder folder metadata sync, where target has not got all
             elements of source folder
         """
         copy_tree(str(dir_lib_c_ogg), str(dir_lib_test))
-        org_file_list, _ = _get_file_list_tree(dir_lib_test)
-        saved_file_info = save_files_hash_and_mtime(org_file_list, touch=True)
+        saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
         _assert_run_mmusicc(
             "--only-meta",
             "--source",
@@ -147,10 +148,11 @@ class TestMetadataOnly:
             "--target",
             dir_lib_test,
             "-f .ogg",
+            opt,
         )
         # check no file but 3 were modified
         # 7 files were accessed, 3 modified: 7*100+3=703)
-        cmp_th = cmp_files_hash_and_time(org_file_list, saved_file_info)
+        cmp_th = cmp_files_hash_and_time(dir_lib_test, saved_file_info)
         if cmp_th == 30207:
             pytest.xfail(
                 "strange behaviour that occurs now and then and "
@@ -159,6 +161,22 @@ class TestMetadataOnly:
             )
 
         assert cmp_th == 30307
+        equal_files = cmp_files_metadata(dir_lib_test, dir_lib_a_flac, ext_b=".flac")
+        if opt is None:
+            # 2 files CD_02 got empty tags not present in source which are not deleted
+            # by the standard operation. composer is imported as None and therefore
+            # unchanged on file too. (7-2-1=4)
+            assert equal_files == 4
+        elif "--lazy" in opt:
+            # at import the the composer tag is not overwritten with None from source
+            # also the empty values in CD_02 are not replaced with none. Since
+            # write_empty is by default False, a value that is Empty in Metadata will
+            # be deleted on file, therefore CD_02 has no Empty tags left.
+            # todo this is a awkward behaviour,change it to always drop empty values
+            assert equal_files == 6
+        else:
+            # only metadata existing in A is left since org data is deleted
+            assert equal_files == 7
 
     def test_white_and_blacklist(
         self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, dir_subpackages
@@ -191,9 +209,60 @@ class TestMetadataOnly:
         assert metadata.get_tag("tracknumber") == "2" or "02"  # black
         assert metadata.get_tag("artist") == "hello"  # black
 
-    @pytest.mark.skip
-    def test_remove_existing(self):
-        pass
+    def test_file_database_in_and_export(
+        self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test
+    ):
+        database_path = dir_lib_test.joinpath("fuubar.db3")
+        path_s = dir_lib_a_flac.joinpath(
+            "artist_quodlibet/album_bar_-_single_(2020)/01_track1.flac"
+        )
+        path_copy_s = dir_lib_c_ogg.joinpath(
+            "artist_quodlibet/album_bar_-_single_(2020)/01_track1.ogg"
+        )
+        path_t = dir_lib_test.joinpath("01_track1.ogg")
+        _assert_run_mmusicc(
+            "--source", path_s, "--target-db", database_path,
+        )
+        assert pathlib.Path(database_path).is_file()
+
+        copy_file(str(path_copy_s), str(dir_lib_test))
+        saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
+        assert not Metadata(path_s).dict_data == Metadata(path_t).dict_data
+
+        _assert_run_mmusicc(
+            "--source-db",
+            database_path,
+            "--target",
+            path_t,
+            "--delete-existing-metadata",
+        )
+        # one changed audio file + one database
+        assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 10102
+        assert Metadata(path_s).dict_data == Metadata(path_t).dict_data
+
+    def test_folder_database_in_and_export(
+        self, dir_lib_a_flac, dir_lib_b_ogg, dir_lib_c_ogg, dir_lib_test,
+    ):
+        database_path = dir_lib_test.joinpath("fuubar.db3")
+        _assert_run_mmusicc(
+            "--source", dir_lib_a_flac, "--target-db", database_path,
+        )
+        assert pathlib.Path(database_path).is_file()
+
+        copy_tree(str(dir_lib_c_ogg), str(dir_lib_test))
+        copy_tree(str(dir_lib_b_ogg), str(dir_lib_test), update=True)
+        saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
+        _assert_run_mmusicc(
+            "--target",
+            dir_lib_test,
+            "--source-db",
+            database_path,
+            "-f .ogg",
+            "--delete-existing-metadata",
+        )
+        # 10 audio files + 1 database file. 3 audio are changed.
+        assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 30311
+        assert cmp_files_metadata(dir_lib_b_ogg, dir_lib_test) == 10
 
 
 @pytest.mark.parametrize("ste", ["file-->file"], indirect=True)
@@ -272,7 +341,7 @@ class TestConversionFolderFolder:
 
     def test_tree_logic(self, ste):
         """test if the tree in target folder is created correctly"""
-        org_file_list, _ = _get_file_list_tree(ste.path_t)
+        org_file_list = get_file_list_tree(ste.path_t)
         saved_file_info = save_files_hash_and_mtime(org_file_list, touch=True)
         _assert_run_mmusicc(
             "--only-files",
@@ -315,8 +384,8 @@ class TestMmusicc:
             parameters
         """
         copy_tree(str(dir_lib_c_ogg), str(dir_lib_test))
-        org_file_list, _ = _get_file_list_tree(dir_lib_test)
-        saved_file_info = save_files_hash_and_mtime(org_file_list, touch=True)
+        org_file_list = get_file_list_tree(dir_lib_test)
+        saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
         _assert_run_mmusicc(
             "--source", dir_lib_a_flac, "--target", dir_lib_test, "-f .ogg", opt
         )
@@ -379,30 +448,13 @@ class TestMmusicc:
         assert len(am.list_tags) == 15
 
 
-def _get_file_list_tree(tree_root, depth=None) -> (list, int):
-    """return a list off all files in folder (at given search depth)"""
-    if not depth:
-        depth = 100
-    files = sorted(tree_root.resolve().rglob("*"))
-    base_length = len(tree_root.parts)
-
-    max_len_parts_a = base_length + depth
-    for i in sorted(range(len(files)), reverse=True):
-        if len(files[i].parts) > max_len_parts_a:
-            files.pop(i)
-        elif files[i].is_dir():
-            files.pop(i)
-
-    return files, base_length
-
-
 def _assert_file_tree(tree_a, tree_b, depth=None) -> (list, list):
     """asserts if tree structure of sub-files and directories is identical
 
         and returns a lists of the compared files as tuple (files_a, files_b).
     """
-    files_a, base_length_a = _get_file_list_tree(tree_a, depth=depth)
-    files_b, base_length_b = _get_file_list_tree(tree_b, depth=depth)
+    files_a, base_length_a = get_file_list_tree(tree_a, depth=depth, ret_base=True)
+    files_b, base_length_b = get_file_list_tree(tree_b, depth=depth, ret_base=True)
 
     for i in range(len(files_a)):
         com_parts_a = files_a[i].parts[base_length_a:]

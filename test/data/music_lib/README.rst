@@ -16,7 +16,7 @@ Test data info
 - C_flac uses files from B_flac with additional changes in metadata, artist_puddletag is missing
 - Test file metadata is manipulated with kid3 for the default files and ex falso for files with empty tags
 
-C_mp3 metadata changes
+C_ogg metadata changes
 """"""""""""""""""""""
 
 1)  - missing date
@@ -24,7 +24,7 @@ C_mp3 metadata changes
     - composer tag ("should not be here")
     - license tag ("cc")
 2)  - CD_01 got the default format
-    - CD_02 has the same tag keys that CD_01 that plus tah keys with empty values
+    - CD_02 has the same tag keys that CD_01 that plus tag keys with empty values
 
 
 
@@ -55,39 +55,39 @@ test data structure
     │           └── CD_02
     │               ├── 01_track1.flac
     │               └── 02_track2.flac
-    ├── B_mp3
+    ├── B_ogg
     │   ├── artist_puddletag
     │   │   ├── album_good_(2018)
-    │   │   │   ├── 01_track1.mp3
-    │   │   │   └── 02_track2.mp3
-    │   │   └── audio_at_artist_level.mp3
+    │   │   │   ├── 01_track1.ogg
+    │   │   │   └── 02_track2.ogg
+    │   │   └── audio_at_artist_level.ogg
     │   ├── artist_quodlibet
     │   │   ├── album_bar_-_single_(2020)
-    │   │   │   └── 01_track1.mp3                       --> 1)
+    │   │   │   └── 01_track1.ogg
     │   │   └── album_fuu_(2019)
-    │   │       ├── 01_track1.mp3
-    │   │       └── 02_track2.mp3
-    │   └── various_artists
-    │       └── album_best_hits_compilation_(2010)
-    │           ├── CD_01                               --> 2)
-    │           │   ├── 01_track1.mp3
-    │           │   └── 02_track2.mp3
-    │           └── CD_02                               --> 2)
-    │               ├── 01_track1.mp3
-    │               └── 02_track2.mp3
-    ├── C_mp3
-    │   ├── artist_quodlibet
-    │   │   ├── album_bar_-_single_(2020)
-    │   │   │   └── 01_track1.mp3
-    │   │   └── album_fuu_(2019)
-    │   │       ├── 01_track1.mp3
-    │   │       └── 02_track2.mp3
+    │   │       ├── 01_track1.ogg
+    │   │       └── 02_track2.ogg
     │   └── various_artists
     │       └── album_best_hits_compilation_(2010)
     │           ├── CD_01
-    │           │   ├── 01_track1.mp3
-    │           │   └── 02_track2.mp3
+    │           │   ├── 01_track1.ogg
+    │           │   └── 02_track2.ogg
     │           └── CD_02
-    │               ├── 01_track1.mp3
-    │               └── 02_track2.mp3
+    │               ├── 01_track1.ogg
+    │               └── 02_track2.ogg
+    ├── C_ogg
+    │   ├── artist_quodlibet
+    │   │   ├── album_bar_-_single_(2020)
+    │   │   │   └── 01_track1.ogg                       --> 1)
+    │   │   └── album_fuu_(2019)
+    │   │       ├── 01_track1.ogg
+    │   │       └── 02_track2.ogg
+    │   └── various_artists
+    │       └── album_best_hits_compilation_(2010)
+    │           ├── CD_01                               --> 2)
+    │           │   ├── 01_track1.ogg
+    │           │   └── 02_track2.ogg
+    │           └── CD_02                               --> 2)
+    │               ├── 01_track1.ogg
+    │               └── 02_track2.ogg
     └── README.rst

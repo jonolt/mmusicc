@@ -57,7 +57,8 @@ Metadata Syncing:
                         or as one or multiple arguments
   --lazy                don't overwrite existing value in target with None
                         from source. Only effects metadata import. Use '--
-                        delete-existing-metadata' to remove unwanted tags.
+                        delete-existing-metadata' to remove unwanted or empty
+                        tags. This may cause strange behaviour.
   --delete-existing-metadata
                         delete existing metadata on target files before
                         writing.

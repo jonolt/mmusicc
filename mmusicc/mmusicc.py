@@ -169,9 +169,9 @@ class MmusicC:
         pg_meta.add_argument(
             "--lazy",
             action="store_true",
-            help="don't overwrite existing value in target with None from "
-            "source. Only effects metadata import. Use "
-            "'--delete-existing-metadata' to remove unwanted tags.",
+            help="don't overwrite existing value in target with None from source. "
+            "Only  effects metadata import. Use '--delete-existing-metadata' to "
+            "remove unwanted or empty tags.",
         )
         pg_meta.add_argument(
             "--delete-existing-metadata",
@@ -188,9 +188,6 @@ class MmusicC:
 
         Metadata.dry_run = self.result.dry_run
 
-        if self.result.target_db or self.result.source_db:
-            parser.error("database is not supported and/or tested yet")
-
         if not self.result.path_config:
             path_folder_this_file = pathlib.Path(__file__).resolve().parent
             self.result.path_config = path_folder_this_file.joinpath(
@@ -205,23 +202,23 @@ class MmusicC:
         self.run_files = not self.result.only_meta
         self.run_meta = not self.result.only_files
 
-        db_url = None
+        self.db_url = None
         if self.result.source:
             self.source = pathlib.Path(self.result.source).expanduser().resolve()
         else:
             self.source = None
-            db_url = self.result.source_db
+            self.db_url = self.result.source_db
 
         if self.result.target:
             self.target = pathlib.Path(self.result.target).expanduser().resolve()
         else:
             self.target = None
-            db_url = self.result.target_db
+            self.db_url = self.result.target_db
 
-        if db_url:
+        if self.db_url:
             if Metadata.is_linked_database:
                 Metadata.unlink_database()
-            Metadata.link_database(db_url)
+            Metadata.link_database(self.db_url)
 
         self.source_type = self.get_element_type(self.source)
         self.target_type = self.get_element_type(self.target)
@@ -277,16 +274,34 @@ class MmusicC:
             whitelist = process_white_and_blacklist(self.whitelist, self.blacklist)
             logging.info("Tags to be Synced: {}".format(whitelist))
 
-        if self.source_type == MmusicC.ElementType.file:
-            # if source if file, target must be file to
-            # if self.target_type == ElementType.folder:
-            #     self.target = self.target.joinpath(
-            #                     self.source.stem,
-            #                     self.format_extension)
+        if self.db_url:
+            if self.source_type == MmusicC.ElementType.file:
+                self.handle_media2db(self.source)
+            elif self.source_type == MmusicC.ElementType.folder:
+                if self.result.album:
+                    self.handle_media2db(self.source)
+                else:
+                    gen = os.walk(self.source, topdown=True)
+                    for root, dirs, files in gen:
+                        audio_files = [file for file in files if check_is_audio(file)]
+                        if len(audio_files) > 0:
+                            self.handle_media2db(root)
+            elif self.target_type == MmusicC.ElementType.file:
+                self.handle_db2media(self.target)
+            elif self.target_type == MmusicC.ElementType.folder:
+                if self.result.album:
+                    self.handle_db2media(self.target)
+                else:
+                    gen = os.walk(self.target, topdown=True)
+                    for root, dirs, files in gen:
+                        audio_files = [file for file in files if check_is_audio(file)]
+                        if len(audio_files) > 0:
+                            self.handle_db2media(root)
+
+        elif self.source_type == MmusicC.ElementType.file:
             self.handle_files2file(self.source, self.target)
 
         elif self.source_type == MmusicC.ElementType.folder:
-            # if source is folder target must be folder or database
             if self.result.album:
                 self.handle_album2album(self.source, self.target)
             else:
@@ -302,7 +317,7 @@ class MmusicC:
                         if self.target_type == MmusicC.ElementType.folder:
                             self.handle_album2album(root, album_target)
                         else:
-                            self.handle_album2db(root)
+                            self.handle_media2db(root)
                     elif len(files) > 0:
                         self.handle_album2album(root, album_target)
                         logging.info(
@@ -310,15 +325,6 @@ class MmusicC:
                                 files, root
                             )
                         )
-        else:  # source is database
-            gen = os.walk(self.target, topdown=True)
-            for root, dirs, files in gen:
-                if len(dirs) == 0:
-                    self.handle_db2album(root)
-                elif len(files) > 0:
-                    logging.info(
-                        "Found files not in album {} at folder '{}'".format(files, root)
-                    )
 
         sys.exit(0)
 
@@ -372,12 +378,20 @@ class MmusicC:
             )
             meta_target.write_tags(remove_existing=self.result.delete_existing_metadata)
 
-    def handle_album2db(self, album_source):
-        meta_source = AlbumMetadata(album_source)
+    def handle_media2db(self, album_source):
+        album_target = pathlib.Path(album_source)
+        if album_target.is_file():
+            meta_source = Metadata(album_source)
+        else:
+            meta_source = AlbumMetadata(album_source)
         meta_source.export_tags_to_db()
 
-    def handle_db2album(self, album_target):
-        meta_target = AlbumMetadata(album_target)
+    def handle_db2media(self, album_target):
+        album_target = pathlib.Path(album_target)
+        if album_target.is_file():
+            meta_target = Metadata(album_target)
+        else:
+            meta_target = AlbumMetadata(album_target)
         meta_target.import_tags_from_db(
             whitelist=self.whitelist,
             blacklist=self.blacklist,
@@ -392,7 +406,7 @@ class MmusicC:
 
         """
         if not element:
-            if Metadata.is_linked_database():
+            if Metadata.is_linked_database:
                 return MmusicC.ElementType.database
             else:
                 return MmusicC.ElementType.other
