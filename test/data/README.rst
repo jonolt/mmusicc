@@ -7,9 +7,14 @@ In test_formats.py was tested that all supported formats are loaded correctly in
 
 All Tests use the default association map delivered with the program. Only test_formats uses a special mapping, which tries to test every possible tag, especially for ID3.
 
+General
+^^^^^^^
 
-Test data info
-^^^^^^^^^^^^^^
+- database.db is the exported file of ``test_export_db_tag[AlbumMetadata]`` whith the title column in ``tags`` and ``pickle_tags`` set to NULL (e.g. `sqlitebrowser <http://sqlitebrowser.org>`_)
+
+
+music_lib
+^^^^^^^^^
 
 - A_flac and B__flac have identical structure and metadata
 - B_flac media stream is created with ffmpeg and without any arguments and custom metadata

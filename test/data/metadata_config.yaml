@@ -21,6 +21,12 @@
 #  can be adjusted to emerson's personal taste
 #
 
+# ALBUMART can not be changed for now.
+ALBUMART:
+- 0
+- APIC
+- - COVER_FRONT
+
 ALBUM:
 - 1
 - TALB

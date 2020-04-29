@@ -16,8 +16,8 @@ def test_dummy_for_init(allocation_map, audio_loaders):
     """test not needed her but otherwise fixture (module level) will not be
         loaded and the init functions are not called
     """
-    assert len(allocation_map.list_tags) == 23
-    assert len(audio_loaders) > 0
+    assert len(allocation_map.list_tags) == 24
+    assert len(audio_loaders) == 8
 
 
 @pytest.fixture(scope="class")
@@ -109,14 +109,6 @@ def media_file_th(media_file):
     "media_file", [".mp3", ".flac", ".ogg"], indirect=["media_file"]  # TODO ".mp3",
 )
 class TestFormats:
-    def test_write_identical(self, media_file, media_file_th):
-        m_file = mmusicc.formats.MusicFile(media_file)
-        m_file.file_read()
-        m_file.file_save(remove_existing=False, write_empty=False)
-        if media_file.suffix == ".mp3":
-            return
-        assert cmp_files_hash_and_time(media_file, media_file_th) == 1
-
     def test_read(self, media_file, media_file_th, expected_metadata):
         """read from file and compare with expected"""
         m_file = _assert_read_and_compare_file(media_file, expected_metadata)
@@ -124,6 +116,26 @@ class TestFormats:
         assert len(keys) == 1
         assert m_file.unprocessed_tag.get(keys[0]) == "not in tag list"
         assert cmp_files_hash_and_time(media_file, media_file_th) == 1
+
+    def test_write_identical(self, media_file, media_file_th):
+        """write read data unchanged, files should not be modified."""
+        m_file = mmusicc.formats.MusicFile(media_file)
+        m_file.file_read()
+        m_file.file_save(remove_existing=False, write_empty=False)
+        if media_file.suffix == ".mp3":
+            return
+        assert cmp_files_hash_and_time(media_file, media_file_th) == 1
+
+    def test_write_identical_del_existing(self, media_file, media_file_th):
+        """write read data unchanged, bur remove_existing forcing a write to the
+        file. Files have to be modified but the content must be identical."""
+        m_file_1 = mmusicc.formats.MusicFile(media_file)
+        m_file_1.file_read()
+        m_file_1.file_save(remove_existing=True, write_empty=False)
+        assert cmp_files_hash_and_time(media_file, media_file_th) == 10101
+        m_file_2 = mmusicc.formats.MusicFile(media_file)
+        m_file_2.file_read()
+        assert not set(m_file_1.dict_meta).difference(set(m_file_2.dict_meta))
 
     @pytest.mark.parametrize("remove_existing", [False, True])
     @pytest.mark.parametrize("write_empty", [False, True])

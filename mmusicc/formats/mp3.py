@@ -2,7 +2,7 @@ import mutagen
 
 import mmusicc.util.allocationmap as am
 from mmusicc.formats._audio import AudioFile
-from mmusicc.util.metadatadict import Empty, PairedText, scan_dictionary
+from mmusicc.util.metadatadict import Empty, PairedText, scan_dictionary, AlbumArt
 from mmusicc.util.util import text_parser_get, join_str_list
 
 extensions = [".mp3", ".mp2", ".mp1", ".mpg", ".mpeg"]
@@ -10,7 +10,21 @@ extensions = [".mp3", ".mp2", ".mp1", ".mpg", ".mpeg"]
 # loader   see bottom
 # types    see bottom
 
-PAIRED_TEXT_FRAMES = ["TIPL", "TMCL", "IPLS"]
+
+def _to_album_art(frame):
+    album_art = AlbumArt()
+    album_art.desc = frame.desc
+    album_art.ptype = frame.type
+    album_art.data = frame.data
+    album_art.mime = frame.mime
+    return album_art
+
+
+def _fill_apic_frame_with_albumart(frame, album_art):
+    frame.desc = album_art.desc
+    frame.type = album_art.ptype
+    frame.data = album_art.data
+    frame.mime = album_art.mime
 
 
 class MP3File(AudioFile):
@@ -47,11 +61,10 @@ class MP3File(AudioFile):
             frame_type = type(frame)
             frame_type_parent = frame_type.mro()[1]
 
-            if frame.FrameID == "APIC":
-                continue  # skip cover art for now
-
             # handle each frame depending on parent class
-            if frame_type is mutagen.id3.TXXX:
+            if frame.FrameID == "APIC":
+                tag_val = _to_album_art(frame)
+            elif frame_type is mutagen.id3.TXXX:
                 tags_txxx[frame.desc] = frame.text[0]
                 continue
             elif frame_type_parent is mutagen.id3.TextFrame:
@@ -79,9 +92,12 @@ class MP3File(AudioFile):
 
             tag_key = am.dict_id32tag.get(frame.FrameID)
             if tag_key:
-                val = text_parser_get(tag_val)  # TODO not happy with that
-                if len(val) == 1:
-                    val = val[0]
+                if isinstance(tag_val, Empty) or isinstance(tag_val, AlbumArt):
+                    val = tag_val
+                else:
+                    val = text_parser_get(tag_val)  # TODO not happy with that
+                    if len(val) == 1:
+                        val = val[0]
                 self.dict_meta[tag_key] = val
             else:
                 self.unprocessed_tag[frame.HashKey] = tag_val
@@ -145,7 +161,9 @@ class MP3File(AudioFile):
             if frame_type is mutagen.id3.TXXX:
                 frame.desc = tag_key
 
-            if frame_type_parent is mutagen.id3.PairedTextFrame:
+            if frame.FrameID == "APIC":
+                _fill_apic_frame_with_albumart(frame, value)
+            elif frame_type_parent is mutagen.id3.PairedTextFrame:
                 if isinstance(value, str):
                     value = [value]
                 for t in value:

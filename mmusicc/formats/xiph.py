@@ -1,16 +1,44 @@
+import base64
+
 import mutagen
-from mutagen.flac import FLAC
+from mutagen.flac import FLAC, Picture
 from mutagen.oggvorbis import OggVorbis
 
 from mmusicc.formats._audio import AudioFile
 from mmusicc.formats._misc import AudioFileError
-from mmusicc.util.metadatadict import Empty, scan_dictionary
+from mmusicc.util.metadatadict import Empty, scan_dictionary, AlbumArt
 
 extensions = [".ogg", ".oga", ".flac"]
 """list of all extensions associated with this module"""
 # loader   see bottom
 # types    see bottom
 ogg_formats = [FLAC, OggVorbis]
+
+
+def _to_album_art(picture_or_data):
+    if isinstance(picture_or_data, str):
+        picture = Picture(base64.b64decode(picture_or_data))
+    else:
+        picture = picture_or_data
+    album_art = AlbumArt()
+    album_art.desc = picture.desc
+    album_art.ptype = picture.type
+    album_art.data = picture.data
+    album_art.mime = picture.mime
+    return album_art
+
+
+def _album_art_to_picture(album_art):
+    pic = Picture()
+    pic.desc = album_art.desc
+    pic.type = album_art.ptype
+    pic.data = album_art.data
+    pic.mime = album_art.mime
+    return pic
+
+
+def _album_art_to_picture_metablock(album_art):
+    return base64.b64encode(_album_art_to_picture(album_art).write()).decode("ascii")
 
 
 class VCFile(AudioFile):
@@ -35,6 +63,19 @@ class VCFile(AudioFile):
         """reads file tags into AudioFile tag dictionary (dict_meta)."""
         if self._file.tags:
             tags = self._file.tags.as_dict()
+
+            pictures = list()
+            for data in tags.pop("metadata_block_picture", []):
+                pictures.append(_to_album_art(data))
+            try:
+                for pic in self._file.pictures:
+                    pictures.append(_to_album_art(pic))
+            except AttributeError:
+                pass
+
+            if pictures:
+                tags.update({"albumart": pictures})
+
             for key in tags.keys():
                 if len(tags[key]) == 1:
                     tags[key] = tags[key][0]
@@ -78,16 +119,47 @@ class VCFile(AudioFile):
         for key in tag_remove:
             del new_tag[key]
 
+        new_cover_keys = list()
+
         tag_equal = list()
         for key in new_tag.keys():
             tag = new_tag.get(key)
-            if isinstance(tag, str):
+            if isinstance(tag, AlbumArt):
+                new_cover_keys.append(key)
+                continue
+            elif isinstance(tag, str):
                 tag = [tag]
             if audio.tags.get(key) == tag:
                 tag_equal.append(key)
 
+        has_metadata_block_picture = 0
+        picture_attribute = False
+        new_covers = [new_tag.pop(key) for key in new_cover_keys]
+        try:
+            old_covers = [_to_album_art(cover) for cover in self._file.pictures]
+            picture_attribute = True
+        except AttributeError:
+            old_covers = [
+                _to_album_art(cover)
+                for cover in self._file.get("metadata_block_picture", [])
+            ]
+            if old_covers:
+                has_metadata_block_picture = 1
+
+        if not old_covers == new_covers and old_covers is not []:
+            tag_equal.clear()
+            if picture_attribute:
+                [audio.add_picture(pic) for pic in new_covers]
+            else:
+                metablock = [
+                    _album_art_to_picture_metablock(cover) for cover in new_covers
+                ]
+                new_tag["metadata_block_picture"] = metablock
+
         if len(tag_equal) == len(new_tag):
-            tag_count_all = len(tag_equal) + len(self.unprocessed_tag)
+            tag_count_all = (
+                len(tag_equal) + len(self.unprocessed_tag) + has_metadata_block_picture
+            )
             if tag_count_all == len(audio.tags.keys()):
                 if remove_existing and len(self.unprocessed_tag):
                     pass
@@ -100,10 +172,6 @@ class VCFile(AudioFile):
 
         for z in set(tag_del):
             del audio[z]
-
-        # caps_tag = dict()
-        # for tag, value in new_tag.items():
-        #    caps_tag[tag.upper()] = value
 
         self._file.update(new_tag)
         self._file.save()

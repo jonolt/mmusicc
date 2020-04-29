@@ -1,6 +1,6 @@
 import pytest
 
-from mmusicc.metadata import Metadata, GroupMetadata, AlbumMetadata, Div, Empty
+from mmusicc.metadata import GroupMetadata, AlbumMetadata, Div, Empty
 from ._util import *
 
 _dict_files = {
@@ -14,7 +14,7 @@ def test_dummy_for_init(allocation_map, audio_loaders):
     """test not needed here but otherwise fixture (module level) will not be
         loaded and the init functions are not called
     """
-    assert len(allocation_map.list_tags) == 15
+    assert len(allocation_map.list_tags) == 16
     assert len(audio_loaders) > 0
 
 
@@ -123,9 +123,10 @@ def test_import_db_tag(class_meta, dir_lib_x_flac, path_database, skip_none):
     Metadata.link_database(str(path_database))
     metadata_path = _create_file_path(class_meta, dir_lib_x_flac)
     meta = class_meta(metadata_path)
-    # meta.dict_data.reset()
+    meta.set_tag("album", "fuu")
+    meta.set_tag("artist", "bar")
     meta.import_tags_from_db(whitelist=["album", "title"], skip_none=skip_none)
-    assert meta.get_tag("artist") == "str_artist"  # not "quodlibet"
+    assert meta.get_tag("artist") == "bar"
     if skip_none:
         if class_meta is Metadata:
             assert meta.get_tag("title") == "str_title_A"

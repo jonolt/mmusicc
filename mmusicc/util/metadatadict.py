@@ -1,3 +1,5 @@
+import enum
+
 from . import allocationmap as am
 
 
@@ -102,6 +104,104 @@ class Empty(object):
         return False
 
 
+class AlbumArt(object):
+    def __init__(self):
+        self.ptype = 0
+        self.mime = u""
+        self.desc = u""  # filename
+        self.data = b""
+
+    def __eq__(self, other):
+        return self.data_hash == other.data_hash and self.ptype == other.ptype
+
+    def __repr__(self):
+        return self.desc
+
+    def __hash__(self):
+        return hash((self.data_hash, self.ptype, self.desc))
+
+    # might be useful in ne feature
+    # def size(self):
+    #     from PIL import Image
+    #     import io
+    #     img = Image.open(io.BytesIO(self.data))
+    #     return img.size
+
+    @property
+    def data_hash(self):
+        # not good but better than nothing
+        return len(self.data)
+
+
+class PictureType(enum.Enum):
+    """Enumeration of image types defined by the ID3 standard for the APIC
+    frame, but also reused in WMA/FLAC/VorbisComment.
+    """
+
+    OTHER = 0
+    """Other"""
+
+    FILE_ICON = 1
+    """32x32 pixels 'file icon' (PNG only)"""
+
+    OTHER_FILE_ICON = 2
+    """Other file icon"""
+
+    COVER_FRONT = 3
+    """Cover (front)"""
+
+    COVER_BACK = 4
+    """Cover (back)"""
+
+    LEAFLET_PAGE = 5
+    """Leaflet page"""
+
+    MEDIA = 6
+    """Media (e.g. label side of CD)"""
+
+    LEAD_ARTIST = 7
+    """Lead artist/lead performer/soloist"""
+
+    ARTIST = 8
+    """Artist/performer"""
+
+    CONDUCTOR = 9
+    """Conductor"""
+
+    BAND = 10
+    """Band/Orchestra"""
+
+    COMPOSER = 11
+    """Composer"""
+
+    LYRICIST = 12
+    """Lyricist/text writer"""
+
+    RECORDING_LOCATION = 13
+    """Recording Location"""
+
+    DURING_RECORDING = 14
+    """During recording"""
+
+    DURING_PERFORMANCE = 15
+    """During performance"""
+
+    SCREEN_CAPTURE = 16
+    """Movie/video screen capture"""
+
+    FISH = 17
+    """A bright coloured fish"""
+
+    ILLUSTRATION = 18
+    """Illustration"""
+
+    BAND_LOGOTYPE = 19
+    """Band/artist logotype"""
+
+    PUBLISHER_LOGOTYPE = 20
+    """Publisher/Studio logotype"""
+
+
 class Div(object):
     """
     Object Representing a group different values. Provides rich comparison.
@@ -191,6 +291,7 @@ def scan_dictionary(dict_tags, dict_data):
         except KeyError:
             continue
         try:
+            # TODO defualtdict
             tag_val = dict_dummy.pop(key_str)
             if tag_key not in dict_tmp:
                 dict_tmp[tag_key] = list()

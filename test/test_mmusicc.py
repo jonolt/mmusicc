@@ -435,7 +435,7 @@ class TestMmusicc:
             abs_path,
             "-f ogg",
         )
-        assert len(am.list_tags) == 23
+        assert len(am.list_tags) == 24
         am.list_tags = list()
         _assert_run_mmusicc(
             "--only-meta",
@@ -445,7 +445,7 @@ class TestMmusicc:
             dir_lib_test,
             "-f ogg",
         )
-        assert len(am.list_tags) == 15
+        assert len(am.list_tags) == 16
 
 
 def _assert_file_tree(tree_a, tree_b, depth=None) -> (list, list):

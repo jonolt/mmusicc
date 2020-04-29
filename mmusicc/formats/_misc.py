@@ -92,6 +92,11 @@ def MusicFile(file_path):
         return loader(file_path)
     else:
         logging.error("FileType not supported")
+        raise Exception(
+            "FileType '{}' not supported. Supported Loaders: {}".format(
+                os.path.splitext(str(file_path))[-1], str(loaders)
+            )
+        )
 
 
 class AudioFileError(Exception):

@@ -38,6 +38,21 @@ Behaviour Metadata
 1) multivalues are internally saved as list
 2) multiple values in one string, which are divided by a char, will be extracted to multivalues and saved as in 1)
 3) comment is used as default and not description
+4) album artwork is/are a dict item as any other tags on metadata level. Differentiation between Picture Types and how to represent them in the allocation map might needs to be implemented. A possible implementation would be to use the id3 picture types eg.:
+
+.. code-block::
+
+    'ALBUMART:COVER_FRONT':
+        - 0
+        - APIC
+        - - COVER_FRONT
+        - - MEDIA
+
+    'ALBUMART:COVER_BACK':
+        - 0
+        - APIC
+        - - COVER_BACK
+
 
 xiph
 ^^^^^
@@ -78,4 +93,4 @@ The equivalent of write_empty (also remove empty) behaviour differs between prog
 To clear values not in the metadata list (=unprocessed tag) or to clear empty values without loading the dict with those, use remove_existing.
 
 
-.. include:: ../test/data/music_lib/README.rst
+.. include:: ../test/data/README.rst
