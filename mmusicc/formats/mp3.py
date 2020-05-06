@@ -95,7 +95,7 @@ class MP3File(AudioFile):
                 if isinstance(tag_val, Empty) or isinstance(tag_val, AlbumArt):
                     val = tag_val
                 else:
-                    val = text_parser_get(tag_val)  # TODO not happy with that
+                    val = text_parser_get(tag_val)
                     if len(val) == 1:
                         val = val[0]
                 self.dict_meta[tag_key] = val

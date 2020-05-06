@@ -1,5 +1,3 @@
-from mmusicc.util.metadatadict import Empty
-
 SPLIT_CHAR = ["/", "\n", ";"]
 JOIN_CHAR = " ; "
 
@@ -16,7 +14,7 @@ def join_str_list(str_list):
 
 
 def text_parser_get(text):
-    """splits a text string at globally defined split chars (recursive).
+    """splits a text string at globally defined split chars (recursive with lists).
 
     Also strips whitespaces from the strings.
 
@@ -36,15 +34,8 @@ def text_parser_get(text):
         for c in SPLIT_CHAR:
             tmp_text = text.split(c)
             if len(tmp_text) > 1:
-                text = tmp_text
-                break
-        if isinstance(text, str):
-            return text.strip()
-        elif len(text) == 1:
-            return text[0].strip()
+                return [t.strip() for t in tmp_text]
         else:
-            return [t.strip() for t in text]
-    elif isinstance(text, Empty):
-        pass
+            return text.strip()
     else:
         raise ValueError("text wrong value")

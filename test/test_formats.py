@@ -105,8 +105,10 @@ def media_file_th(media_file):
 
 # TODO find a way to load extension dynamically
 # TODO run tests per-class configuration
+
+
 @pytest.mark.parametrize(
-    "media_file", [".mp3", ".flac", ".ogg"], indirect=["media_file"]  # TODO ".mp3",
+    "media_file", [".mp3", ".flac", ".ogg"], indirect=["media_file"]
 )
 class TestFormats:
     def test_read(self, media_file, media_file_th, expected_metadata):

@@ -1,5 +1,7 @@
 import enum
+from collections import defaultdict
 
+from mmusicc.util.util import text_parser_get
 from . import allocationmap as am
 
 
@@ -245,7 +247,7 @@ class Div(object):
 
         Args:
             key_tag (str): Key of values to be added.
-            list_metadata (list of Metadata): List of metadtata which values to
+            list_metadata (list of Metadata): List of metadata which values to
                 be added.
         """
         self._key_tag = key_tag
@@ -262,75 +264,46 @@ class Div(object):
         self._dict_values[metadata] = value
 
 
-def scan_dictionary(dict_tags, dict_data):
+def scan_dictionary(dict_tags, dict_data, parse_text=False):
     """Scan a dictionary (dict_tags) for tags and fill dict_data with them.
 
     Args:
-        dict_tags             (dict): dictionary (tag_str: value) items to be
-            imported.
-        dict_data             (dict): dictionary to be filled with imported tag
-            values.
+        dict_tags (dict): dictionary (tag_str: value) items to be imported.
+        dict_data   (dict): dictionary to be filled with imported tag values.
+        parse_text  (bool): if True, pass values to text_parser_get else return value
+            as it is. Defaults to False.
     Returns:
         dict<str, str>: dictionary with all tags whose name could not be
             associated with.
-
-    TODO add string_parser and handle duplicate entries
     """
 
     # Make a copy of the source dictionary, so it is unchanged
     dict_dummy = dict_tags.copy()
     dict_dummy = {k.casefold(): v for k, v in dict_dummy.items()}
 
-    # will be filled with list so the same tag can have multiple values
-    dict_tmp = dict()
+    # filled with list so the same tag can have multiple values
+    dict_tmp = defaultdict(list)
 
     # find a tag for each key in scanned dictionary
     for key_str in list(dict_dummy):
         try:
             tag_key = am.dict_str2tag[key_str]
-        except KeyError:
-            continue
-        try:
-            # TODO defualtdict
             tag_val = dict_dummy.pop(key_str)
-            if tag_key not in dict_tmp:
-                dict_tmp[tag_key] = list()
-            dict_tmp[tag_key].append((key_str, tag_val))
         except KeyError:
             continue
-
-        # evaluate later if this code is needed, maybe delete it somewhen
-        #
-        # for tag_key, kv_pairs in dict_tmp.items():
-        #     if len(kv_pairs) > 1:
-        #         # take the list and check if entries a double
-        #         i = 0
-        #         j = 0
-        #         while i < len(kv_pairs):
-        #             while j < len(kv_pairs):
-        #                 if i == j:
-        #                     j += 1
-        #                     continue
-        #                 if kv_pairs[i][1] == kv_pairs[j][1]:
-        #                     logging.info(
-        #                         "dropped duplicate pair {}:{}"
-        #                         ", keeping {}:{}"
-        #                         .format(kv_pairs[i][0], kv_pairs[i][1],
-        #                                 kv_pairs[j][0], kv_pairs[j][1]))
-        #                     kv_pairs.remove(kv_pairs[i])
-        #                 j += 1
-        #             i += 1
-        #         tag_val = [kv_pairs[i][1] for i in range(len(kv_pairs))]
-        #     else:
-        #         tag_val = kv_pairs[0][1]
-        #         tag_val = text_parser_get(tag_val)
 
         if Empty.is_empty(tag_val):
             tag_val = Empty()
 
-        # val = text_parser_get(tag_val)
-        # if len(val) == 1:
-        #     val = val[0]
-        dict_data[tag_key] = tag_val
+        if parse_text:
+            dict_tmp[tag_key].extend(text_parser_get(tag_val))
+        else:
+            dict_tmp[tag_key].append(tag_val)
+
+    for key, value in dict_tmp.items():
+        if len(value) == 1:
+            dict_data[key] = value[0]
+        else:
+            dict_data[key] = value
 
     return dict_dummy

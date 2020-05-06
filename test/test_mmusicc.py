@@ -132,9 +132,7 @@ class TestMetadataOnly:
         # check no file was modified (10 files were accessed: 10*100=1000)
         assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 10
 
-    @pytest.mark.parametrize(
-        "opt", [None, "--lazy", "--delete-existing-metadata",],
-    )
+    @pytest.mark.parametrize("opt", [None, "--lazy", "--delete-existing-metadata"])
     def test_folder_folder_part(self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, opt):
         """test folder folder metadata sync, where target has not got all
             elements of source folder
@@ -172,7 +170,6 @@ class TestMetadataOnly:
             # also the empty values in CD_02 are not replaced with none. Since
             # write_empty is by default False, a value that is Empty in Metadata will
             # be deleted on file, therefore CD_02 has no Empty tags left.
-            # todo this is a awkward behaviour,change it to always drop empty values
             assert equal_files == 6
         else:
             # only metadata existing in A is left since org data is deleted
