@@ -12,7 +12,7 @@ with open("./mmusicc/version.py") as fp:
     exec(fp.read(), version)
 
 setuptools.setup(
-    name="mmusicc-jonolt",
+    name="mmusicc",
     version=version["__version__"],
     author="Johannes Nolte",
     author_email="jonolt@mailbox.org",
@@ -31,14 +31,12 @@ setuptools.setup(
         "Programming Language :: Python :: 3.6",
         "Programming Language :: Python :: 3.7",
         "Programming Language :: Python :: 3.8",
-        "Programming Language :: Python :: 3 :: Only",
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "Operating System :: POSIX",
         "Topic :: Multimedia :: Sound/Audio",
         "Topic :: Multimedia :: Sound/Audio :: Conversion",
         "Topic :: Multimedia :: Sound/Audio :: Editors",
         "Environment :: Console",
-        "Environment :: Console :: Curses",
         "Intended Audience :: End Users/Desktop",
     ],
     python_requires=">=3.6",
