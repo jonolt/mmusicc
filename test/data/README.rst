@@ -10,7 +10,7 @@ All Tests use the default association map delivered with the program. Only test_
 General
 ^^^^^^^
 
-- database.db is the exported file of ``test_export_db_tag[AlbumMetadata]`` whith the title column in ``tags`` and ``pickle_tags`` set to NULL (e.g. `sqlitebrowser <http://sqlitebrowser.org>`_)
+- database.db is the exported file of ``test_export_db_tag[AlbumMetadata]`` with the title column in ``tags`` and ``pickle_tags`` set to NULL (e.g. `sqlitebrowser <http://sqlitebrowser.org>`_)
 
 
 music_lib
@@ -20,6 +20,12 @@ music_lib
 - B_flac media stream is created with ffmpeg and without any arguments and custom metadata
 - C_flac uses files from B_flac with additional changes in metadata, artist_puddletag is missing
 - Test file metadata is manipulated with kid3 for the default files and ex falso for files with empty tags
+
+A_flac
+""""""
+
+A) Folder with a dot in its name (risk of confusion with file if path does not (yet) exist) and an audio file full of characters that need to be masked in Bash and are most likely to cause problems.
+B) Playlist file that has an "audio/" MIME-Type and should be ignored.
 
 C_ogg metadata changes
 """"""""""""""""""""""
@@ -53,13 +59,16 @@ test data structure
     │   │       ├── 01_track1.flac
     │   │       └── 02_track2.flac
     │   └── various_artists
-    │       └── album_best_hits_compilation_(2010)
-    │           ├── CD_01
-    │           │   ├── 01_track1.flac
-    │           │   └── 02_track2.flac
-    │           └── CD_02
-    │               ├── 01_track1.flac
-    │               └── 02_track2.flac
+    │       ├── album_best_hits_compilation_(2010)
+    │       │   ├── CD_01
+    │       │   │   ├── 01_track1.flac
+    │       │   │   └── 02_track2.flac
+    │       │   └── CD_02
+    │       │       ├── 01_track1.flac
+    │       │       └── 02_track2.flac
+    │       └── Escape_Character_No._1_(2012)            --> A)
+    │           ├── A dot. Don't_Stop! & Who put the bomb out?.flac
+    │           └── playlist.m3u                         --> B)
     ├── B_ogg
     │   ├── artist_puddletag
     │   │   ├── album_good_(2018)

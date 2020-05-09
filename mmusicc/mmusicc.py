@@ -11,7 +11,7 @@ from mmusicc.formats import loaders as audio_loader
 from mmusicc.metadata import Metadata, AlbumMetadata
 from mmusicc.util.allocationmap import get_tags_from_strs
 from mmusicc.util.ffmpeg import FFmpeg
-from mmusicc.util.misc import check_is_audio, swap_base, process_white_and_blacklist
+from mmusicc.util.misc import is_supported_audio, swap_base, process_white_and_blacklist
 from mmusicc.version import __version__ as package_version
 
 str_description_rqw = textwrap.dedent(
@@ -59,7 +59,7 @@ class MmusicC:
         )
 
         # noinspection PyTypeChecker
-        parser = argparse.ArgumentParser(
+        self.parser = argparse.ArgumentParser(
             prog="MmusicC",
             formatter_class=argparse.RawDescriptionHelpFormatter,
             description=str_description,
@@ -67,10 +67,10 @@ class MmusicC:
             add_help=False,
         )
 
-        pg_required = parser.add_argument_group("Required Options")
-        pg_general = parser.add_argument_group("General Options")
-        pg_conversion = parser.add_argument_group("File Conversion")
-        pg_meta = parser.add_argument_group("Metadata Syncing")
+        pg_required = self.parser.add_argument_group("Required Options")
+        pg_general = self.parser.add_argument_group("General Options")
+        pg_conversion = self.parser.add_argument_group("File Conversion")
+        pg_meta = self.parser.add_argument_group("Metadata Syncing")
 
         group_source = pg_required.add_mutually_exclusive_group(required=True)
         group_source.add_argument(
@@ -184,7 +184,7 @@ class MmusicC:
 
         logging.debug("MmusicC running with arguments: {}".format(args))
 
-        self.result = parser.parse_args(args)
+        self.result = self.parser.parse_args(args)
 
         Metadata.dry_run = self.result.dry_run
 
@@ -197,7 +197,7 @@ class MmusicC:
         try:
             init_allocationmap(self.result.path_config)
         except FileNotFoundError:
-            parser.error("path to config file not found")
+            self.parser.error("path to config file not found")
 
         self.run_files = not self.result.only_meta
         self.run_meta = not self.result.only_files
@@ -227,10 +227,10 @@ class MmusicC:
         )
 
         if not (self.source or self.target) and self.run_files:
-            parser.error("Target or source is database! I can only run meta!")
+            self.parser.error("Target or source is database! I can only run meta!")
 
         if not self.source and not self.target:
-            parser.error("Can't sync from database to database!")
+            self.parser.error("Can't sync from database to database!")
 
         if self.source and self.target:
             self.format_extension = None
@@ -245,7 +245,7 @@ class MmusicC:
                     self.format_extension = "." + self.format_extension
 
             if not self.format_extension:
-                parser.error(
+                self.parser.error(
                     "the following arguments are required: "
                     "-f/--format, except at file-->file and "
                     "album/lib-->database operations."
@@ -258,7 +258,9 @@ class MmusicC:
                     self.result.white_list_tags
                 )
         except KeyError as err:
-            parser.error("Whitelist: {}. If input is file it is mot found.".format(err))
+            self.parser.error(
+                "Whitelist: {}. If input is file it is mot found.".format(err)
+            )
 
         self.blacklist = None
         try:
@@ -267,7 +269,9 @@ class MmusicC:
                     self.result.black_list_tags
                 )
         except KeyError as err:
-            parser.error("Blacklist: {}. If input is file it is mot found.".format(err))
+            self.parser.error(
+                "Blacklist: {}. If input is file it is mot found.".format(err)
+            )
 
         # just fot the log
         if self.whitelist or self.blacklist:
@@ -283,7 +287,9 @@ class MmusicC:
                 else:
                     gen = os.walk(self.source, topdown=True)
                     for root, dirs, files in gen:
-                        audio_files = [file for file in files if check_is_audio(file)]
+                        audio_files = [
+                            file for file in files if is_supported_audio(file)
+                        ]
                         if len(audio_files) > 0:
                             self.handle_media2db(root)
             elif self.target_type == MmusicC.ElementType.file:
@@ -294,7 +300,9 @@ class MmusicC:
                 else:
                     gen = os.walk(self.target, topdown=True)
                     for root, dirs, files in gen:
-                        audio_files = [file for file in files if check_is_audio(file)]
+                        audio_files = [
+                            file for file in files if is_supported_audio(file)
+                        ]
                         if len(audio_files) > 0:
                             self.handle_db2media(root)
 
@@ -329,6 +337,9 @@ class MmusicC:
         sys.exit(0)
 
     def handle_files2file(self, file_source, file_target):
+        if not is_supported_audio(file_source):
+            logging.warning("file f'{file_source}' not a supported audio file.")
+            return
         if self.get_element_type(file_target) == MmusicC.ElementType.folder:
             file_target = file_target.joinpath(file_source.stem + self.format_extension)
         if self.run_files and file_source and file_target:
@@ -358,7 +369,7 @@ class MmusicC:
             if not album_target.is_dir():
                 album_target.mkdir(parents=True)
             for file in os.listdir(album_source):
-                if check_is_audio(file):
+                if is_supported_audio(file):
                     file_source = album_source.joinpath(file)
                     self.handle_files2file(file_source, album_target)
         if self.run_meta:
@@ -405,14 +416,24 @@ class MmusicC:
         Instance method in clarifying that the function is instance dependent.
 
         """
+
         if not element:
             if Metadata.is_linked_database:
                 return MmusicC.ElementType.database
             else:
                 return MmusicC.ElementType.other
-        if "." in element.suffix:  # target is file
+
+        if element.suffix in audio_loader.keys():  # target is file
+            if element.exists():
+                if not is_supported_audio(element):
+                    self.parser.error(f"File '{element}' not supported!")
             return MmusicC.ElementType.file
         else:
+            if "." in element.suffix:
+                logging.info(
+                    f"Path identified as folder, although it can also be an "
+                    f"unsupported file with extension {element.suffix}"
+                )
             return MmusicC.ElementType.folder
 
     class ElementType(enum.Enum):

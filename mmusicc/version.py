@@ -3,4 +3,4 @@
 
 from __future__ import unicode_literals
 
-__version__ = "0.3.0alpha1"
+__version__ = "0.3.0a2"

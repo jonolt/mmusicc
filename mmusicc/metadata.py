@@ -1,3 +1,6 @@
+#  Copyright (c) 2020 Johannes Nolte
+#  SPDX-License-Identifier: GPL-3.0-or-later
+
 import logging
 import os
 import pathlib
@@ -8,7 +11,7 @@ from mmusicc.database import MetaDB
 from mmusicc.formats import MusicFile
 from mmusicc.util.metadatadict import MetadataDict, Empty, Div
 from mmusicc.util.misc import (
-    check_is_audio,
+    is_supported_audio,
     process_white_and_blacklist,
     get_the_right_one,
 )
@@ -335,7 +338,7 @@ class GroupMetadata(Metadata):
         else:
             self.list_metadata = list()
             for file_path in list_metadata:
-                if check_is_audio(file_path):
+                if is_supported_audio(file_path):
                     self.list_metadata.append(Metadata(file_path))
                 else:
                     logging.warning("File '{}' is no audio file".format(file_path))
@@ -477,6 +480,6 @@ class AlbumMetadata(GroupMetadata):
         list_metadata = list()
         for file in os.listdir(path_album):
             file_path = path_album.joinpath(file)
-            if check_is_audio(file_path):
+            if is_supported_audio(file_path):
                 list_metadata.append(file_path)
         super().__init__(list_metadata)

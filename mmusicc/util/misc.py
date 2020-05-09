@@ -3,12 +3,14 @@ import mimetypes
 import pathlib
 
 import mmusicc.util.allocationmap as am
+from mmusicc.formats import mimes
 
 
-def check_is_audio(file):
+def is_supported_audio(file):
     """Return True if file is a supported audio file."""
     mimetype = mimetypes.guess_type(str(file))
-    if mimetype[0] and "audio" in mimetype[0]:
+
+    if mimetype[0] in mimes:
         return True
     else:
         return False

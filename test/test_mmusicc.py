@@ -129,8 +129,8 @@ class TestMetadataOnly:
             dir_lib_test,
             "-f .ogg",
         )
-        # check no file was modified (10 files were accessed: 10*100=1000)
-        assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 10
+        # check no file was modified (11 files were accessed: 11*100=1000)
+        assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 11
 
     @pytest.mark.parametrize("opt", [None, "--lazy", "--delete-existing-metadata"])
     def test_folder_folder_part(self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, opt):
@@ -257,9 +257,9 @@ class TestMetadataOnly:
             "-f .ogg",
             "--delete-existing-metadata",
         )
-        # 10 audio files + 1 database file. 3 audio are changed.
-        assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 30311
-        assert cmp_files_metadata(dir_lib_b_ogg, dir_lib_test) == 10
+        # 11 audio files + 1 database file. 3 audio are changed.
+        assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 30312
+        assert cmp_files_metadata(dir_lib_b_ogg, dir_lib_test) == 11
 
 
 @pytest.mark.parametrize("ste", ["file-->file"], indirect=True)
@@ -497,8 +497,8 @@ def _assert_run_mmusicc(*args):
 
 def test_assert_file_tree(dir_lib_b_ogg, dir_lib_c_ogg):
     files_a, files_b = _assert_file_tree(dir_lib_b_ogg, dir_lib_b_ogg)
-    assert len(files_a) == 10
-    assert len(files_b) == 10
+    assert len(files_a) == 11
+    assert len(files_b) == 11
     files_a, files_b = _assert_file_tree(dir_lib_b_ogg, dir_lib_b_ogg, 2)
     assert len(files_a) == 1
     assert len(files_b) == 1

@@ -1,3 +1,6 @@
+#  Copyright (c) 2020 Johannes Nolte
+#  SPDX-License-Identifier: GPL-3.0-or-later
+
 import base64
 
 import mutagen
@@ -181,7 +184,7 @@ class OggFile(VCFile):
     """File type specific subclass of VCFile"""
 
     format = "Ogg Vorbis"
-    mimes = ["audio/vorbis", "audio/ogg; codecs=vorbis"]
+    mimes = ["audio/vorbis", "audio/ogg", "audio/x-ogg"]
     MutagenType = OggVorbis
 
 
@@ -189,7 +192,7 @@ class FLACFile(VCFile):
     """File type specific subclass of VCFile"""
 
     format = "FLAC"
-    mimes = ["audio/x-flac", "application/x-flac"]
+    mimes = ["audio/flac", "audio/x-flac"]
     MutagenType = FLAC
 
 

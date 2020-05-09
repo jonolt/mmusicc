@@ -4,14 +4,14 @@ import pathlib
 import time
 
 from mmusicc import Metadata
-from mmusicc.util.misc import swap_base, check_is_audio
+from mmusicc.util.misc import swap_base, is_supported_audio
 
 
 def cmp_files_metadata(base_a, base_b, ext_b=None):
     """return number of files with identical metadata."""
     equals = 0
     for root, dirs, files in os.walk(base_a, topdown=True):
-        audio_files = [file for file in files if check_is_audio(file)]
+        audio_files = [file for file in files if is_supported_audio(file)]
         for path_a in audio_files:
             path_a = pathlib.Path(root).joinpath(path_a)
             path_b = swap_base(base_a, path_a, base_b)
