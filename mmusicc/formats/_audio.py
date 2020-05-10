@@ -1,3 +1,6 @@
+#  Copyright (c) 2020 Johannes Nolte
+#  SPDX-License-Identifier: GPL-3.0-or-later
+
 import pathlib
 
 from mmusicc.util.metadatadict import MetadataDict
@@ -17,6 +20,7 @@ class AudioFile:
     def __init__(self):
         self._dict_meta = MetadataDict()
         self._file = None
+        self._changed_tags = None
         self.unprocessed_tag = dict()
 
     @property

@@ -16,7 +16,7 @@ def test_dummy_for_init(allocation_map, audio_loaders):
     """test not needed her but otherwise fixture (module level) will not be
         loaded and the init functions are not called
     """
-    assert len(allocation_map.list_tags) == 24
+    assert len(allocation_map.list_tags) == 23
     assert len(audio_loaders) == 8
 
 
@@ -56,7 +56,7 @@ def expected_metadata(dir_orig_data) -> dict:
         "artist": "str_artist",
         "bpm": "128",
         "comment": "str_comment",
-        "composer": "str_composer",
+        "composer": ["str_composer_A", "str_composer_B"],
         "date": "2020",
         "discid": "str_discid",
         "discnumber": "2",
@@ -124,8 +124,6 @@ class TestFormats:
         m_file = mmusicc.formats.MusicFile(media_file)
         m_file.file_read()
         m_file.file_save(remove_existing=False, write_empty=False)
-        if media_file.suffix == ".mp3":
-            return
         assert cmp_files_hash_and_time(media_file, media_file_th) == 1
 
     def test_write_identical_del_existing(self, media_file, media_file_th):

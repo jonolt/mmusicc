@@ -1,3 +1,6 @@
+#  Copyright (c) 2020 Johannes Nolte
+#  SPDX-License-Identifier: GPL-3.0-or-later
+
 import argparse
 import enum
 import logging
@@ -60,7 +63,7 @@ class MmusicC:
 
         # noinspection PyTypeChecker
         self.parser = argparse.ArgumentParser(
-            prog="MmusicC",
+            prog="mmusicc",
             formatter_class=argparse.RawDescriptionHelpFormatter,
             description=str_description,
             # epilog="",
@@ -182,7 +185,7 @@ class MmusicC:
             "--path-config", action="store", help="file path to custom config file"
         )
 
-        logging.debug("MmusicC running with arguments: {}".format(args))
+        logging.debug("mmusicc running with arguments: {}".format(args))
 
         self.result = self.parser.parse_args(args)
 

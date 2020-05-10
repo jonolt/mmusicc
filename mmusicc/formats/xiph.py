@@ -61,6 +61,7 @@ class VCFile(AudioFile):
     def __init__(self, audio):
         super().__init__()
         self._file = audio
+        self._changed_tags = None
 
     def file_read(self):
         """reads file tags into AudioFile tag dictionary (dict_meta)."""
@@ -104,80 +105,100 @@ class VCFile(AudioFile):
             deleted and es kept unchanged. The (possible empty) tag will be deleted,
             when an Empty value is in source and write_empty is False.
         """
+        self._changed_tags = list()
+
         audio = self._file
         if audio.tags is None:
             audio.add_tags()
 
-        new_tag = self.dict_meta.copy_not_none()
-        tag_remove = list()
-        for key in new_tag.keys():
-            if new_tag[key] is None:
-                tag_remove.append(key)
-            elif Empty.is_empty(new_tag[key]):
+        meta = self.dict_meta.copy_not_none()
+
+        # handle write empty policy
+        for key, value in list(meta.items()):
+            if Empty.is_empty(value):
                 if write_empty:
-                    new_tag[key] = ""
+                    meta[key] = ""
                 else:
-                    tag_remove.append(key)
+                    self._changed_tags.append((key, audio[key], "*"))
+                    del meta[key]
+                    del audio[key]
 
-        for key in tag_remove:
-            del new_tag[key]
+        cover_keys = list()
 
-        new_cover_keys = list()
-
-        tag_equal = list()
-        for key in new_tag.keys():
-            tag = new_tag.get(key)
+        for key in meta.keys():
+            tag = meta.get(key)
             if isinstance(tag, AlbumArt):
-                new_cover_keys.append(key)
+                cover_keys.append(key)
                 continue
-            elif isinstance(tag, str):
-                tag = [tag]
-            if audio.tags.get(key) == tag:
-                tag_equal.append(key)
+            self._set_value(audio, key, tag)
 
-        has_metadata_block_picture = 0
-        picture_attribute = False
-        new_covers = [new_tag.pop(key) for key in new_cover_keys]
-        try:
-            old_covers = [_to_album_art(cover) for cover in self._file.pictures]
-            picture_attribute = True
-        except AttributeError:
-            old_covers = [
-                _to_album_art(cover)
-                for cover in self._file.get("metadata_block_picture", [])
-            ]
-            if old_covers:
-                has_metadata_block_picture = 1
+        new_art = [meta.get(key) for key in cover_keys]
+        if hasattr(audio, "pictures"):
+            org_art = [_to_album_art(cover) for cover in audio.pictures]
+            clear = False
+            for art in org_art.copy():
+                if art not in new_art:
+                    self._changed_tags.append(("albumart", art, "*"))
+                    org_art.remove(art)
+                    clear = True
+            if clear:
+                # clear all
+                audio.clear_pictures()
+                # add what was cleared to much
+                [audio.add_picture(_album_art_to_picture(art)) for art in org_art]
+            for art in new_art:
+                if art not in org_art:
+                    self._changed_tags.append(("albumart", "*", art))
+                    audio.add_picture(_album_art_to_picture(art))
+        else:
+            org_art = dict()
+            for block in audio.get("metadata_block_picture", []):
+                org_art[_to_album_art(block)] = block
 
-        if not old_covers == new_covers and old_covers is not []:
-            tag_equal.clear()
-            if picture_attribute:
-                [audio.add_picture(pic) for pic in new_covers]
+            for art in org_art.keys():
+                if art not in new_art:
+                    self._changed_tags.append(("albumart", art, "*"))
+                    audio["metadata_block_picture"].remove(org_art.get(art))
+            for art in new_art:
+                if art not in org_art:
+                    self._changed_tags.append(("albumart", "*", art))
+                    if "metadata_block_picture" not in audio:
+                        audio[
+                            "metadata_block_picture"
+                        ] = _album_art_to_picture_metablock(art)
+                    else:
+                        audio["metadata_block_picture"].append(
+                            _album_art_to_picture_metablock(art)
+                        )
+
+            if audio.get("metadata_block_picture") is None:
+                pass
+            elif len(audio.get("metadata_block_picture", [])) > 0:
+                meta["metadata_block_picture"] = "to not delete"
             else:
-                metablock = [
-                    _album_art_to_picture_metablock(cover) for cover in new_covers
-                ]
-                new_tag["metadata_block_picture"] = metablock
+                del audio["metadata_block_picture"]
 
-        if len(tag_equal) == len(new_tag):
-            tag_count_all = (
-                len(tag_equal) + len(self.unprocessed_tag) + has_metadata_block_picture
-            )
-            if tag_count_all == len(audio.tags.keys()):
-                if remove_existing and len(self.unprocessed_tag):
-                    pass
-                else:
-                    return
-
-        tag_del = [z for z in audio if z in tag_remove]
         if remove_existing:
-            tag_del.extend([z for z in audio if z not in new_tag])
+            for key in [k for k in audio if k not in meta]:
+                self._changed_tags.append((key, audio[key], "*"))
+                del audio[key]
 
-        for z in set(tag_del):
-            del audio[z]
+        if len(self._changed_tags) == 0:
+            return
 
-        self._file.update(new_tag)
+        # self._file.update(meta)
         self._file.save()
+
+    def _set_value(self, dictionary, key, value):
+        try:
+            org = dictionary[key]
+            dictionary[key] = value
+            new = dictionary[key]
+            if not new == org:
+                self._changed_tags.append((key, org, new))
+        except KeyError:
+            dictionary[key] = value
+            self._changed_tags.append((key, "*", value))
 
 
 class OggFile(VCFile):

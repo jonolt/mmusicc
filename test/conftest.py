@@ -1,4 +1,6 @@
-import pathlib
+#  Copyright (c) 2020 Johannes Nolte
+#  SPDX-License-Identifier: GPL-3.0-or-later
+
 from distutils.dir_util import copy_tree
 from distutils.file_util import copy_file
 
@@ -8,6 +10,7 @@ import mmusicc
 import mmusicc.formats
 import mmusicc.util
 import mmusicc.util.allocationmap
+from ._util import *
 
 
 @pytest.fixture(scope="session")
@@ -72,10 +75,13 @@ def dir_lib_x_flac(tmp_path_factory, dir_orig_data):
 @pytest.fixture(scope="session")
 def dir_lib_a_flac(tmp_path_factory, dir_orig_data):
     # original flac data do not overwrite
-    temp_dir = tmp_path_factory.mktemp("A_flac", numbered=False)
+    temp_dir = tmp_path_factory.mktemp("A_flac", numbered=True)
     s_path = dir_orig_data.joinpath("music_lib", "A_flac")
     copy_tree(str(s_path), str(temp_dir))
-    return temp_dir
+    save_info = save_files_hash_and_mtime(temp_dir, touch=True)
+    yield temp_dir
+    # make sure that the original file was not changed
+    assert cmp_files_hash_and_time(temp_dir, save_info) == 12
 
 
 @pytest.fixture(scope="session")

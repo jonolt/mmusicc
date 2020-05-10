@@ -12,7 +12,35 @@ mmusicc shall not replace a metadata editor and only provides methods for automa
 
 mmusicc's source code is inspired by the two music tag programs `quodlibet <https://github.com/quodlibet/quodlibet>`_ and `puddletag <https://github.com/keithgg/puddletag/>`_ and uses some code fragments of those.
 
-mmusicc is still under development and is not yet suitable for productive use, yet.
+
+Installation & Usage
+--------------------
+
+mmusicc is still under development and should not be used to overwrite master data. Using it for 'slave' data is perfectly fine. Multiple test confirm that the master files are not modified and only accessed. It is also tested that the program is deterministic.
+
+.. code-block::
+
+    pip install mmusicc
+
+The script is automatically installed on system. Use ``--help`` for usage info or see its output at `usage on mmusicc.readthedocs.org <https://mmusicc.readthedocs.io/en/latest/usage.html>`_. See also the following examples:
+
+.. code-block::
+
+    # syncing a full library to mp3
+    mmusicc -s Music -t MusicMp3 -f .mp3 --ffmpeg-options "-codec:a libmp3lame -qscale:a 2 -codec:v copy"
+
+
+Remarks
+-------
+
+Catching every special case of certain metadata formats and transferring it to a normalized dict is nearly impossible (especially with id3).
+
+Also different tagging program's have certain specialities how certain uncommon tags are saved or if say are even displayed.
+
+.. note:: Only one Album Cover file is supported at the moment.
+
+.. note:: Support for id3.PairedTextFrames was dropped, since it is not used much and I haven't found a good way to handle them. They might come back in the future. They are used for 'TIPL: Involved People List', 'TMCL: Musicians Credits List'. Some taggers use these field for e.g arranger.
+
 
 Version Milestones
 ------------------
@@ -20,13 +48,13 @@ Version Milestones
 +--------+--------------------------------------------------------------------+
 |version | milestone                                                          |
 +--------+--------------------------------------------------------------------+
-|0.1.0   | Metadata working                                                   |
+|0.1.0   | metadata working                                                   |
 +--------+--------------------------------------------------------------------+
-|0.2.0   | MmusicC working (and first package distribution (test.pypi only))  |
+|0.2.0   | mmusicc working (and first package distribution (test.pypi only))  |
 +--------+--------------------------------------------------------------------+
 |0.3.0   | comprehensive testing and verification (release on pypi)           |
 +--------+--------------------------------------------------------------------+
 |0.5.0   | interactive mode with text user interface (tui) to display changes |
 +--------+--------------------------------------------------------------------+
-|0.7.0   | mmusic can be run in graphical mode from tui (state machine)       |
+|0.7.0   | mmusicc can be run in graphical mode from tui (state machine)      |
 +--------+--------------------------------------------------------------------+

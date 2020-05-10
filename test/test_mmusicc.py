@@ -1,3 +1,6 @@
+#  Copyright (c) 2020 Johannes Nolte
+#  SPDX-License-Identifier: GPL-3.0-or-later
+
 from distutils.dir_util import copy_tree
 from distutils.file_util import copy_file
 
@@ -148,32 +151,38 @@ class TestMetadataOnly:
             "-f .ogg",
             opt,
         )
+
+        equal_to_lib_b = cmp_files_metadata(dir_lib_test, dir_lib_a_flac, ext_b=".flac")
+        if opt is None:
+            # 2 files CD_02 got empty tags not present in source which are not deleted
+            # by the standard operation. At Single the composer is imported as None and
+            # therefore unchanged on file, while some wrong tags are changed. (7-2-1=4)
+            assert equal_to_lib_b == 4
+        elif "--lazy" in opt:
+            # at import the the composer tag is not overwritten with None from source
+            # also the empty values in CD_02 are not replaced with none. Since
+            # write_empty is by default False, a value that is Empty in Metadata will
+            # be deleted on file, therefore CD_02 has no Empty tags left.
+            assert equal_to_lib_b == 6
+        else:
+            # only metadata existing in A is left since org data is deleted
+            assert equal_to_lib_b == 7
+
         # check no file but 3 were modified
         # 7 files were accessed, 3 modified: 7*100+3=703)
         cmp_th = cmp_files_hash_and_time(dir_lib_test, saved_file_info)
-        if cmp_th == 30207:
+        if cmp_th == 30207 or cmp_th == 10007:
             pytest.xfail(
                 "strange behaviour that occurs now and then and "
                 "could be explained yet. Since the hash has changed "
                 "the file must have been modified"
             )
 
-        assert cmp_th == 30307
-        equal_files = cmp_files_metadata(dir_lib_test, dir_lib_a_flac, ext_b=".flac")
         if opt is None:
-            # 2 files CD_02 got empty tags not present in source which are not deleted
-            # by the standard operation. composer is imported as None and therefore
-            # unchanged on file too. (7-2-1=4)
-            assert equal_files == 4
-        elif "--lazy" in opt:
-            # at import the the composer tag is not overwritten with None from source
-            # also the empty values in CD_02 are not replaced with none. Since
-            # write_empty is by default False, a value that is Empty in Metadata will
-            # be deleted on file, therefore CD_02 has no Empty tags left.
-            assert equal_files == 6
+            # Since the files in CD_02 are unchanged only one file is modified.
+            assert cmp_th == 10107
         else:
-            # only metadata existing in A is left since org data is deleted
-            assert equal_files == 7
+            assert cmp_th == 30307
 
     def test_white_and_blacklist(
         self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, dir_subpackages
@@ -387,9 +396,6 @@ class TestMmusicc:
             "--source", dir_lib_a_flac, "--target", dir_lib_test, "-f .ogg", opt
         )
 
-        # check no file but one was modified
-        # 7 files were accessed, 3 modified: 7*100+3=703)
-        assert cmp_files_hash_and_time(org_file_list, saved_file_info) == 30307
         # check that missing files are created
         _assert_file_tree(dir_lib_test, dir_lib_b_ogg)
         path_changed = dir_lib_test.joinpath(
@@ -400,6 +406,13 @@ class TestMmusicc:
         assert metadata.get_tag("date") == "2020"
         assert metadata.get_tag("artist") == "Quod Libet"
 
+        cmp_th = cmp_files_hash_and_time(org_file_list, saved_file_info)
+        # see test_folder_folder_part for explanation
+        if opt is None:
+            assert cmp_th == 10107
+        else:
+            assert cmp_th == 30307
+
         if opt and "--delete-existing-metadata" in opt:
             assert len(metadata.unprocessed_tag) == 0
             if "--lazy" in opt:
@@ -409,6 +422,14 @@ class TestMmusicc:
         else:
             assert len(metadata.unprocessed_tag) > 0
             assert metadata.get_tag("composer") == "should not be here"
+
+        # run a second time to ensure its deterministic
+        saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
+        _assert_run_mmusicc(
+            "--source", dir_lib_a_flac, "--target", dir_lib_test, "-f .ogg", opt
+        )
+        # check no file was modified, first run should have done all
+        assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 11
 
     def test_custom_config_path(self, dir_lib_a_flac, dir_lib_test, dir_orig_data):
         """run mmusicc with testing config file, which is not the default one
@@ -432,7 +453,7 @@ class TestMmusicc:
             abs_path,
             "-f ogg",
         )
-        assert len(am.list_tags) == 24
+        assert len(am.list_tags) == 23
         am.list_tags = list()
         _assert_run_mmusicc(
             "--only-meta",

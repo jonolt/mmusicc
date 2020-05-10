@@ -1,5 +1,5 @@
 SPLIT_CHAR = ["/", "\n", ";"]
-JOIN_CHAR = " ; "
+JOIN_CHAR = "; "
 
 
 def join_str_list(str_list):
@@ -10,7 +10,7 @@ def join_str_list(str_list):
     Args:
         str_list (list<str>): list of strings to be joined
     """
-    return JOIN_CHAR.join(str_list)
+    return JOIN_CHAR.join([s.strip() for s in str_list])
 
 
 def text_parser_get(text):

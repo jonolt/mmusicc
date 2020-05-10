@@ -7,9 +7,6 @@
    internals
 
 
-mmusicc
-===================================
-
 .. include:: ../README.rst
 
 

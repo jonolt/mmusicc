@@ -26,6 +26,7 @@ A_flac
 
 A) Folder with a dot in its name (risk of confusion with file if path does not (yet) exist) and an audio file full of characters that need to be masked in Bash and are most likely to cause problems.
 B) Playlist file that has an "audio/" MIME-Type and should be ignored.
+C) This is also the only testfile with an album cover and a tag overhead (copy of formats_xiph.flac).
 
 C_ogg metadata changes
 """"""""""""""""""""""
@@ -67,7 +68,7 @@ test data structure
     │       │       ├── 01_track1.flac
     │       │       └── 02_track2.flac
     │       └── Escape_Character_No._1_(2012)            --> A)
-    │           ├── A dot. Don't_Stop! & Who put the bomb out?.flac
+    │           ├── A dot. Don't_Stop! & Who put the bomb out?.flac --> C)
     │           └── playlist.m3u                         --> B)
     ├── B_ogg
     │   ├── artist_puddletag
@@ -82,13 +83,15 @@ test data structure
     │   │       ├── 01_track1.ogg
     │   │       └── 02_track2.ogg
     │   └── various_artists
-    │       └── album_best_hits_compilation_(2010)
-    │           ├── CD_01
-    │           │   ├── 01_track1.ogg
-    │           │   └── 02_track2.ogg
-    │           └── CD_02
-    │               ├── 01_track1.ogg
-    │               └── 02_track2.ogg
+    │       ├── album_best_hits_compilation_(2010)
+    │       │   ├── CD_01
+    │       │   │   ├── 01_track1.ogg
+    │       │   │   └── 02_track2.ogg
+    │       │   └── CD_02
+    │       │       ├── 01_track1.ogg
+    │       │       └── 02_track2.ogg
+    │       └── Escape_Character_No._1_(2012)
+    │           └── A dot. Don't_Stop! & Who put the bomb out?.ogg
     ├── C_ogg
     │   ├── artist_quodlibet
     │   │   ├── album_bar_-_single_(2020)

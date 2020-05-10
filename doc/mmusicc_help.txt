@@ -1,4 +1,4 @@
-usage: MmusicC (-s SOURCE | -sdb SOURCE_DB) (-t TARGET | -tdb TARGET_DB) [-h]
+usage: mmusicc (-s SOURCE | -sdb SOURCE_DB) (-t TARGET | -tdb TARGET_DB) [-h]
                [--version] [--album] [--only-meta | --only-files] [--dry-run]
                [-v] [-f FORMAT] [--ffmpeg-options FFMPEG_OPTIONS]
                [--white-list-tags WHITE_LIST_TAGS [WHITE_LIST_TAGS ...]]

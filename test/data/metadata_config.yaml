@@ -62,14 +62,14 @@ ALBUMSORT:
   - ARTIST
 - []
 
-ARRANGER:
-- 5
-- TIPL
-- - ALBUM ARTIST
-- - ALBUMARTISTSORT
-  - Null
-  - ARTIST
-- []
+#ARRANGER:
+#- 5
+#- TIPL
+#- - ALBUM ARTIST
+#- - ALBUMARTISTSORT
+#  - Null
+#  - ARTIST
+#- []
 
 ARTIST:
 - 6

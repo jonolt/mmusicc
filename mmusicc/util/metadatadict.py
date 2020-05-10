@@ -89,6 +89,9 @@ class Empty(object):
         else:
             return False
 
+    def __hash__(self):
+        return 42
+
     @staticmethod
     def is_empty(text) -> bool:
         """Returns True if text is instance Empty or a empty string ''."""
@@ -114,7 +117,10 @@ class AlbumArt(object):
         self.data = b""
 
     def __eq__(self, other):
-        return self.data_hash == other.data_hash and self.ptype == other.ptype
+        if isinstance(other, AlbumArt):
+            return self.data_hash == other.data_hash and self.ptype == other.ptype
+        else:
+            return False
 
     def __repr__(self):
         return self.desc
