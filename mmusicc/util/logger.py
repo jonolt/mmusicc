@@ -1,3 +1,6 @@
+#  Copyright (c) 2020 Johannes Nolte
+#  SPDX-License-Identifier: GPL-3.0-or-later
+
 import logging
 import logging.config
 
@@ -14,15 +17,20 @@ def init_logger(level=25):
         "version": 1,
         "formatters": {
             "simple": {
-                "format": "%(asctime)s %(levelname)-8s %(module)-13s %(message)s",
-            }
+                "format": "%(asctime)s.%(msecs)03d %(levelname)-8s %(module)-13s %(message)s",
+                "datefmt": "%H:%M:%S",
+            },
+            "short": {
+                "format": "%(asctime)s.%(msecs)03d %(message)s",
+                "datefmt": "%H:%M:%S",
+            },
         },
         "handlers": {
             "console": {
                 "class": "logging.StreamHandler",
                 # "level": level if level == logging.DEBUG else logging.ERROR,
                 "level": level,
-                "formatter": "simple",
+                "formatter": "short" if level == 25 else "simple",
                 "stream": "ext://sys.stdout",
             },
         },

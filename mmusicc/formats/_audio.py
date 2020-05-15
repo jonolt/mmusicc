@@ -44,7 +44,7 @@ class AudioFile:
         """reads file tags into AudioFile tag dictionary (dict_meta)."""
         raise NotImplementedError
 
-    def file_save(self, remove_existing=False, write_empty=False):
+    def file_save(self, remove_existing=False, write_empty=False, dry_run=False):
         """saves file tags from tag dictionary (dict_meta) to AudioFile.
 
         Args:
@@ -54,5 +54,9 @@ class AudioFile:
                 false, the tag will not be created and a existing tag will be
                 deleted. Behaviour might slightly differ between tag types.
                 Defaults to False.
+            dry_run (bool): if true, do anything but saving to file. Defaults to False
+
+        Returns:
+            int: 1 if data was saved to file, zero if nothing was changed on file.
         """
         raise NotImplementedError

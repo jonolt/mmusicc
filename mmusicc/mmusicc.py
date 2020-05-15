@@ -2,8 +2,10 @@
 #  SPDX-License-Identifier: GPL-3.0-or-later
 
 import argparse
+import datetime
 import enum
 import logging
+import math
 import os
 import pathlib
 import sys
@@ -13,7 +15,7 @@ from mmusicc._init import init_formats, init_logging, init_allocationmap
 from mmusicc.formats import loaders as audio_loader
 from mmusicc.metadata import Metadata, AlbumMetadata
 from mmusicc.util.allocationmap import get_tags_from_strs
-from mmusicc.util.ffmpeg import FFmpeg
+from mmusicc.util.ffmpeg import FFmpeg, FFRuntimeError
 from mmusicc.util.misc import is_supported_audio, swap_base, process_white_and_blacklist
 from mmusicc.version import __version__ as package_version
 
@@ -126,8 +128,10 @@ class MmusicC:
             "--verbose",
             action="count",
             default=0,
-            help="print log messages. can be stacked up to 2 (info, debug)"
-            # processed before argparser
+            help="print log messages. can be stacked up to 2 (info, debug).",
+        )
+        pg_general.add_argument(
+            "-a", "--all", action="store_true", help="print log for unchanged files."
         )
         # pg_general.add_argument(
         #     '-q', '--quiet',
@@ -179,7 +183,7 @@ class MmusicC:
         pg_meta.add_argument(
             "--delete-existing-metadata",
             action="store_true",
-            help="delete existing metadata on target " "files before writing.",
+            help="delete existing metadata on target files before writing.",
         )
         pg_meta.add_argument(
             "--path-config", action="store", help="file path to custom config file"
@@ -281,6 +285,43 @@ class MmusicC:
             whitelist = process_white_and_blacklist(self.whitelist, self.blacklist)
             logging.info("Tags to be Synced: {}".format(whitelist))
 
+        # stats for report
+        self._unchanged = 0
+        self._created = 0
+        self._metadata = 0
+        self._both = 0
+        time_start = datetime.datetime.now()
+
+        string_opt_args = ""
+        for att in [
+            "album",
+            "delete_existing_metadata",
+            "dry_run",
+            "lazy",
+            "only_files",
+            "only_meta",
+        ]:
+            if getattr(self.result, att, None):
+                string_opt_args += f"{att}={getattr(self.result, att)}; "
+
+        options = [
+            f"             Running mmusicc",
+            f"source type: {self.source_type}",
+            f"source path: {self.source if self.source else self.db_url}",
+            f"target type: {self.target_type}",
+            f"target path: {self.target if self.target else self.db_url}",
+            f"format     : {getattr(self, 'format_extension', '')}"
+            f"{' | ' if self.result.ffmpeg_options else ''}"
+            f"{self.result.ffmpeg_options if self.result.ffmpeg_options else ''}",
+            f"options    : {string_opt_args[:-2]}",
+            f"path config: {self.result.path_config}",
+        ]
+
+        for o in options:
+            logging.log(25, o)
+
+        logging.log(25, "---------------------------------------------------------")
+
         if self.db_url:
             if self.source_type == MmusicC.ElementType.file:
                 self.handle_media2db(self.source)
@@ -337,24 +378,59 @@ class MmusicC:
                             )
                         )
 
+        time_delta = datetime.datetime.now() - time_start
+
+        if self._created + self._metadata + self._both > 0 or self.result.all:
+            logging.log(25, "---------------------------------------------------------")
+
+        report = [
+            f"Total Time : {math.floor(time_delta.total_seconds() / 60)} min "
+            f"{math.fmod(time_delta.total_seconds(), 60)} s",
+            f"Unchanged  : {self._unchanged}",
+            f"Metadata   : {self._metadata}",
+            f"Created    : {self._created}",
+            f"Both       : {self._both}",
+            f"Errors     : to be implemented",
+        ]
+
+        if self.target is MmusicC.ElementType.database:
+            logging.log(25, report[1])
+        else:
+            for r in report:
+                logging.log(25, r)
+
         sys.exit(0)
 
     def handle_files2file(self, file_source, file_target):
         if not is_supported_audio(file_source):
             logging.warning("file f'{file_source}' not a supported audio file.")
-            return
+            return -1
+        # compute filename when only target folder is given
         if self.get_element_type(file_target) == MmusicC.ElementType.folder:
             file_target = file_target.joinpath(file_source.stem + self.format_extension)
+        change = 0
+        change += self._handle_files2file_file(file_source, file_target)
+        change += self._handle_files2file_meta(file_source, file_target)
+        self.log_changes(change, file_target, make_relative=False)
+        return change
+
+    def _handle_files2file_file(self, file_source, file_target):
         if self.run_files and file_source and file_target:
             if file_target.is_file():
-                logging.info("target file exists, ffmpeg skipped, returning")
-                return
-            if not self.result.dry_run:
-                FFmpeg(
-                    str(file_source),
-                    str(file_target),
-                    options=self.result.ffmpeg_options,
-                ).run()
+                logging.debug(f"target file '{file_target}' exists, ffmpeg skipped")
+            elif not self.result.dry_run:
+                try:
+                    FFmpeg(
+                        str(file_source),
+                        str(file_target),
+                        options=self.result.ffmpeg_options,
+                    ).run()
+                    return 2
+                except FFRuntimeError as ex:
+                    logging.warning(ex)  # TODO warning msg
+        return 0
+
+    def _handle_files2file_meta(self, file_source, file_target):
         if self.run_meta:
             meta_source = Metadata(file_source)
             meta_target = Metadata(file_target)
@@ -364,18 +440,40 @@ class MmusicC:
                 blacklist=self.blacklist,
                 skip_none=self.result.lazy,
             )
-            meta_target.write_tags(remove_existing=self.result.delete_existing_metadata)
-        return
+            return meta_target.write_tags(
+                remove_existing=self.result.delete_existing_metadata
+            )
+        return 0
 
     def handle_album2album(self, album_source, album_target):
+        """
+        Note:
+            For the moment, it makes no difference if metadata is synced file by file as
+            Metadata or album wise as AlbumMetadata. This will change, when the
+            interactive mode with album wise comparison is introduced.
+            Therefore the metadata syncing is currently done in run_files, except when
+            the only-meta option is given.
+        """
         if self.run_files and album_source and album_target:
+            changes_file = dict()
             if not album_target.is_dir():
                 album_target.mkdir(parents=True)
-            for file in os.listdir(album_source):
+            for file in sorted(os.listdir(album_source)):
                 if is_supported_audio(file):
                     file_source = album_source.joinpath(file)
-                    self.handle_files2file(file_source, album_target)
-        if self.run_meta:
+                    file_target = album_target.joinpath(
+                        file_source.stem + self.format_extension
+                    )
+                    changes_file[file_target] = self._handle_files2file_file(
+                        file_source, file_target
+                    )
+                    if self.run_meta:
+                        changes_file[file_target] += self._handle_files2file_meta(
+                            file_source, file_target
+                        )
+                    self.log_changes(changes_file[file_target], file_target)
+
+        if self.run_meta and not self.run_files:
             if not album_target.is_dir():
                 logging.warning(
                     "no target folder for given source '{}', "
@@ -390,7 +488,11 @@ class MmusicC:
                 blacklist=self.blacklist,
                 skip_none=self.result.lazy,
             )
-            meta_target.write_tags(remove_existing=self.result.delete_existing_metadata)
+            changes_meta = meta_target.write_tags(
+                remove_existing=self.result.delete_existing_metadata
+            )
+            for file, change in changes_meta.items():
+                self.log_changes(change, file)
 
     def handle_media2db(self, album_source):
         album_target = pathlib.Path(album_source)
@@ -412,6 +514,24 @@ class MmusicC:
             skip_none=self.result.lazy,
         )
         meta_target.write_tags(remove_existing=self.result.delete_existing_metadata)
+
+    def log_changes(self, change, file, make_relative=True):
+        if file.is_absolute() and make_relative:
+            file = file.relative_to(self.target)
+        if change > 0:
+            # logging.log(25, f"{change} > {file}")
+            if change == 1:
+                self._metadata += 1
+            elif change == 2:
+                self._created += 1
+            elif change == 3:
+                self._both += 1
+        else:
+            self._unchanged += 1
+            if not self.result.all:
+                return
+
+        logging.log(25, f"{change} > {file}")
 
     def get_element_type(self, element):
         """Get the element type based on the pathlib.Path object.

@@ -1,3 +1,6 @@
+#  Copyright (c) 2020 Johannes Nolte
+#  SPDX-License-Identifier: GPL-3.0-or-later
+
 import enum
 from collections import defaultdict
 
@@ -43,6 +46,9 @@ class MetadataDict(dict):
             dict: copy of dict items which value is not None.
         """
         return {k: v for k, v in self.items() if v is not None}
+
+    def copy(self):
+        return {k: v for k, v in self.items()}
 
     def convert_none2empty(self):
         """can be used to remove/add all tags that have no value"""
@@ -280,7 +286,7 @@ def scan_dictionary(dict_tags, dict_data, parse_text=False):
             as it is. Defaults to False.
     Returns:
         dict<str, str>: dictionary with all tags whose name could not be
-            associated with.
+            associated with. Note: keys are casfolded.
     """
 
     # Make a copy of the source dictionary, so it is unchanged

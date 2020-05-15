@@ -1,3 +1,6 @@
+#  Copyright (c) 2020 Johannes Nolte
+#  SPDX-License-Identifier: GPL-3.0-or-later
+
 import re
 import warnings
 from distutils.file_util import copy_file
@@ -136,6 +139,9 @@ class TestFormats:
         m_file_2 = mmusicc.formats.MusicFile(media_file)
         m_file_2.file_read()
         assert not set(m_file_1.dict_meta).difference(set(m_file_2.dict_meta))
+        media_file_2_th = save_files_hash_and_mtime(media_file)
+        m_file_2.file_save(remove_existing=True, write_empty=False)
+        assert cmp_files_hash_and_time(media_file, media_file_2_th) == 1
 
     @pytest.mark.parametrize("remove_existing", [False, True])
     @pytest.mark.parametrize("write_empty", [False, True])

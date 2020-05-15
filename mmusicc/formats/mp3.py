@@ -1,5 +1,7 @@
 #  Copyright (c) 2020 Johannes Nolte
 #  SPDX-License-Identifier: GPL-3.0-or-later
+import copy
+import logging
 
 import mutagen
 
@@ -41,15 +43,11 @@ class MP3File(AudioFile):
         self._file = mutagen.File(file_path)
         self._changed_tags = None
 
-    def file_read(self, drop_role=True):
+    def file_read(self):
         """reads file tags into AudioFile tag dictionary (dict_meta).
 
         First tries to associate ID3 tags, than takes all txxx tags and runs
         them through the scan dictionary function.
-
-        Args:
-            drop_role (bool): if True, drop the role of paired text frame and
-                save as a list of strings. If False, save the
         """
         tags_txxx = dict()
 
@@ -97,9 +95,19 @@ class MP3File(AudioFile):
                 self.unprocessed_tag[frame.HashKey] = tag_val
 
         if len(tags_txxx) > 0:
-            self.unprocessed_tag.update(scan_dictionary(tags_txxx, self.dict_meta))
+            unprocessed_txxx = scan_dictionary(tags_txxx, self.dict_meta)
+            # restore original tag hash to be able to delete it
+            restored_txxx = dict()
+            for key in tags_txxx:
+                if key.casefold() in unprocessed_txxx:
+                    restored_txxx["TXXX:" + key] = tags_txxx[key]
+            self.unprocessed_tag.update(restored_txxx)
 
-    def file_save(self, remove_existing=False, write_empty=False, remove_v1=False):
+        return self
+
+    def file_save(
+        self, remove_existing=False, write_empty=False, remove_v1=False, dry_run=False
+    ):
         """saves file tags from tag dictionary (dict_meta) to AudioFile.
 
         Note:
@@ -115,20 +123,25 @@ class MP3File(AudioFile):
                 TXXX tag on file will be deleted. Defaults to False.
             remove_v1       ('bool'): If True, remove existing ID3.V1 tags.
                 Defaults to False.
+            dry_run (bool): if true, do anything but saving to file. Defaults to False
+
+        Returns:
+            int: 1 if data was saved to file, zero if nothing was changed on file.
         """
         self._changed_tags = list()
 
-        audio = self._file
-        if audio.tags is None:
-            audio.add_tags()
-
-        if remove_existing:
-            audio.delete()
+        if not dry_run:
+            audio = self._file
+        else:
+            audio = copy.deepcopy(self._file)
 
         if audio.tags is None:
             audio.add_tags()
 
-        new_tags = self.dict_meta.copy_not_none()
+        if audio.tags is None:
+            audio.add_tags()
+
+        new_tags = self.dict_meta.copy()
         tag_remove = list()
         for tag_key, value in new_tags.items():
 
@@ -154,7 +167,14 @@ class MP3File(AudioFile):
                     tag_remove.append(tag_key)
                     audio.tags.delall(frame.FrameID)
                     continue
+                elif value is None:
+                    if remove_existing:
+                        tag_remove.append(tag_key)
+                        audio.tags.delall(frame.FrameID)
+                    continue
             else:
+                if value is None:
+                    continue
                 # if it does not exist, create a new one and add it to file
                 frame = eval("mutagen.id3.{}()".format(id3_tag))
                 audio.tags.add(frame)
@@ -192,13 +212,24 @@ class MP3File(AudioFile):
         else:  # 1  # ID3v1 tags will be updated  but not added
             v1 = 2  # ID3v1 tags will be created and / or updated
 
-        if len(self._changed_tags) == 0:
-            if remove_existing and len(self.unprocessed_tag):
-                pass
-            else:
-                return
+        if remove_existing:
+            for tag, value in (
+                MP3File(self.file_path).file_read().unprocessed_tag.items()
+            ):
 
-        audio.save(v1=v1, v2_version=4, v23_sep=None)
+                audio.tags.delall(tag)
+                self._changed_tags.append(("delall", tag, value, "*"))
+
+        if len(self._changed_tags) == 0:
+            return 0
+
+        logging.debug(f"changed tag: {self._changed_tags}")
+
+        if not dry_run:
+            audio.save(v1=v1, v2_version=4, v23_sep=None)
+            logging.debug(f"File '{self.file_path}' saved.")
+
+        return 1
 
     def _fill_apic_frame_with_albumart(self, frame, album_art):
         self._set_value(frame, "desc", album_art.desc)

@@ -68,7 +68,7 @@ class FFmpeg(object):
         for line in process_result.stderr.decode().split("\n"):
             for catch in catchers:
                 if catch in line:
-                    logging.log(25, line.strip())
+                    logging.log(20, line.strip())
 
         logging.debug(process_result.stderr.decode())
 

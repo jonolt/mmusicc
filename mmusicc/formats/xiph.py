@@ -2,6 +2,8 @@
 #  SPDX-License-Identifier: GPL-3.0-or-later
 
 import base64
+import copy
+import logging
 
 import mutagen
 from mutagen.flac import FLAC, Picture
@@ -85,7 +87,9 @@ class VCFile(AudioFile):
                     tags[key] = tags[key][0]
             self.unprocessed_tag.update(scan_dictionary(tags, self._dict_meta))
 
-    def file_save(self, remove_existing=False, write_empty=False):
+            return self
+
+    def file_save(self, remove_existing=False, write_empty=False, dry_run=False):
         """saves file tags from tag dictionary (dict_meta) to AudioFile.
 
             if no value changes the file is not saved, therefore there will be
@@ -99,6 +103,10 @@ class VCFile(AudioFile):
                 create a tag with content "". If false no tag will be created
                 and existing tags on file that would be overwritten with ""
                 will be deleted. Defaults to False.
+            dry_run (bool): if true, do anything but saving to file. Defaults to False
+
+        Returns:
+            int: 1 if data was saved to file, zero if nothing was changed on file.
 
         Note:
             A tag not existing in dict_meta or being None in dict_meta will not be
@@ -107,7 +115,11 @@ class VCFile(AudioFile):
         """
         self._changed_tags = list()
 
-        audio = self._file
+        if not dry_run:
+            audio = self._file
+        else:
+            audio = copy.deepcopy(self._file)
+
         if audio.tags is None:
             audio.add_tags()
 
@@ -184,10 +196,15 @@ class VCFile(AudioFile):
                 del audio[key]
 
         if len(self._changed_tags) == 0:
-            return
+            return 0
 
-        # self._file.update(meta)
-        self._file.save()
+        logging.debug(f"changed tag: {self._changed_tags}")
+
+        if not dry_run:
+            self._file.save()
+            logging.debug(f"File '{self.file_path}' saved.")
+
+        return 1
 
     def _set_value(self, dictionary, key, value):
         try:

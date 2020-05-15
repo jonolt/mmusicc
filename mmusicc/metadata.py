@@ -32,7 +32,7 @@ class MetadataMeta(type):
         writing data.
         """
         if cls._dry_run:
-            logging.log(25, "Running in Dry Run mode. " "No data will be written.")
+            logging.debug("Running in Dry Run mode. " "No data will be written.")
         return cls._dry_run
 
     @dry_run.setter
@@ -184,16 +184,20 @@ class Metadata(metaclass=MetadataMeta):
             write_empty (bool): if true write empty tags, exact effect
                 depends on comment type. Either the tag entries will not exist
                 or overwritten with None/Null/"". Defaults to False.
+
+        Returns:
+            int: 1 if data was saved to file, zero if nothing was changed on file.
         Raises:
             Exception: if no file is linked
         """
         if not self._audio:
             raise Exception("no file_path linked")
         self._audio.dict_meta.update(self._dict_data)
-        if not Metadata.dry_run:
-            self._audio.file_save(
-                remove_existing=remove_existing, write_empty=write_empty
-            )
+        return self._audio.file_save(
+            remove_existing=remove_existing,
+            write_empty=write_empty,
+            dry_run=Metadata.dry_run,
+        )
 
     def import_tags(self, source_meta, whitelist=None, blacklist=None, skip_none=True):
         """Imports metadata from another Metadata object.
@@ -395,10 +399,12 @@ class GroupMetadata(Metadata):
 
     def write_tags(self, remove_existing=False, write_empty=False):
         """Super-Method applied to all Objects in list. See Metadata."""
+        result = dict()
         for metadata in self.list_metadata:
-            metadata.write_tags(
+            result[metadata.file_path] = metadata.write_tags(
                 remove_existing=remove_existing, write_empty=write_empty
             )
+        return result
 
     def import_tags(self, source_meta, whitelist=None, blacklist=None, skip_none=True):
         """Super-Method applied to all Objects in list. See Metadata.
@@ -478,7 +484,7 @@ class AlbumMetadata(GroupMetadata):
     def __init__(self, path_album):
         path_album = pathlib.Path(path_album)
         list_metadata = list()
-        for file in os.listdir(path_album):
+        for file in sorted(os.listdir(path_album)):
             file_path = path_album.joinpath(file)
             if is_supported_audio(file_path):
                 list_metadata.append(file_path)

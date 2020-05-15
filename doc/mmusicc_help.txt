@@ -1,6 +1,6 @@
 usage: mmusicc (-s SOURCE | -sdb SOURCE_DB) (-t TARGET | -tdb TARGET_DB) [-h]
                [--version] [--album] [--only-meta | --only-files] [--dry-run]
-               [-v] [-f FORMAT] [--ffmpeg-options FFMPEG_OPTIONS]
+               [-v] [-a] [-f FORMAT] [--ffmpeg-options FFMPEG_OPTIONS]
                [--white-list-tags WHITE_LIST_TAGS [WHITE_LIST_TAGS ...]]
                [--black-list-tags BLACK_LIST_TAGS [BLACK_LIST_TAGS ...]]
                [--lazy] [--delete-existing-metadata]
@@ -36,7 +36,8 @@ General Options:
                         database). It is recommended to use with --only-meta
                         or --only-files, otherwise errors are likely.
   -v, --verbose         print log messages. can be stacked up to 2 (info,
-                        debug)
+                        debug).
+  -a, --all             print log for unchanged files.
 
 File Conversion:
   -f FORMAT, --format FORMAT
