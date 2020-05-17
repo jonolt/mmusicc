@@ -6,7 +6,7 @@ from distutils.file_util import copy_file
 
 import pytest
 
-from mmusicc import MmusicC
+from mmusicc.__main__ import main
 from mmusicc.util.ffmpeg import FFRuntimeError
 from ._util import *
 
@@ -516,7 +516,7 @@ def _assert_run_mmusicc(*args):
         cmd_command().
     """
     with pytest.raises(SystemExit) as excinfo:
-        MmusicC(_cmd_mmusicc(*args))
+        main(_cmd_mmusicc(*args))
     assert excinfo.value.code == 0
 
 

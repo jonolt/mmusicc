@@ -8,10 +8,10 @@ import logging
 import math
 import os
 import pathlib
-import sys
 import textwrap
 
 from mmusicc._init import init_formats, init_logging, init_allocationmap
+from mmusicc.formats import AudioFileError
 from mmusicc.formats import loaders as audio_loader
 from mmusicc.metadata import Metadata, AlbumMetadata
 from mmusicc.util.allocationmap import get_tags_from_strs
@@ -44,10 +44,18 @@ class MmusicC:
             args (:list: string):
         """
 
+        # the arguments the pre parser parses are identical to the main parser. This
+        # allows for a nice help printout, but certain args parsed early on.
         pre_parser = argparse.ArgumentParser(add_help=False)
-        pre_parser.add_argument("-v", "--verbose", action="count", default=0)
+        pre_parser.add_argument(
+            "-v", "--verbose", action="count", default=0,
+        )
+        pre_parser.add_argument(
+            "--log-file", action="store",
+        )
         parsed, remaining = pre_parser.parse_known_args(args)
         self.pre_result_verbose = parsed.verbose
+        self.pre_result_logfile = parsed.log_file
 
         if self.pre_result_verbose == 0:
             log_level = 25
@@ -56,7 +64,7 @@ class MmusicC:
         else:
             log_level = logging.DEBUG
 
-        init_logging(log_level)
+        self._log_path = init_logging(log_level, file_path=self.pre_result_logfile)
         init_formats()
 
         str_description = str_description_rqw.format(
@@ -79,18 +87,18 @@ class MmusicC:
 
         group_source = pg_required.add_mutually_exclusive_group(required=True)
         group_source.add_argument(
-            "-s", "--source", action="store", help="source file/album/lib-root"
+            "-s", "--source", action="store", help="source file/album/lib-root",
         )
         group_source.add_argument(
-            "-sdb", "--source-db", action="store", help="source database"
+            "-sdb", "--source-db", action="store", help="source database",
         )
 
         group_target = pg_required.add_mutually_exclusive_group(required=True)
         group_target.add_argument(
-            "-t", "--target", action="store", help="target file/album/lib-root"
+            "-t", "--target", action="store", help="target file/album/lib-root",
         )
         group_target.add_argument(
-            "-tdb", "--target-db", action="store", help="target database"
+            "-tdb", "--target-db", action="store", help="target database",
         )
 
         pg_general.add_argument(
@@ -102,7 +110,7 @@ class MmusicC:
         )
         pg_general.add_argument("--version", action="version", version=package_version)
         pg_general.add_argument(
-            "--album", action="store_true", help="only sync folder level"
+            "--album", action="store_true", help="only sync folder level",
         )
         group1 = pg_general.add_mutually_exclusive_group()
         group1.add_argument(
@@ -131,14 +139,14 @@ class MmusicC:
             help="print log messages. can be stacked up to 2 (info, debug).",
         )
         pg_general.add_argument(
-            "-a", "--all", action="store_true", help="print log for unchanged files."
+            "-a", "--all", action="store_true", help="print log for unchanged files.",
         )
-        # pg_general.add_argument(
-        #     '-q', '--quiet',
-        #     action='count',
-        #     default='0',
-        #     help='print log messages'
-        # )
+        pg_general.add_argument(
+            "--log-file",
+            action="store",
+            help="Log file for detailed logging at DEBUG level. "
+            "If file exist log is appended.",
+        )
 
         pg_conversion.add_argument(
             "-f",
@@ -186,7 +194,7 @@ class MmusicC:
             help="delete existing metadata on target files before writing.",
         )
         pg_meta.add_argument(
-            "--path-config", action="store", help="file path to custom config file"
+            "--path-config", action="store", help="file path to custom config file",
         )
 
         logging.debug("mmusicc running with arguments: {}".format(args))
@@ -229,9 +237,6 @@ class MmusicC:
 
         self.source_type = self.get_element_type(self.source)
         self.target_type = self.get_element_type(self.target)
-        logging.info(
-            "Source is '{}'. Target is '{}'.".format(self.source_type, self.target_type)
-        )
 
         if not (self.source or self.target) and self.run_files:
             self.parser.error("Target or source is database! I can only run meta!")
@@ -286,10 +291,11 @@ class MmusicC:
             logging.info("Tags to be Synced: {}".format(whitelist))
 
         # stats for report
-        self._unchanged = 0
-        self._created = 0
-        self._metadata = 0
-        self._both = 0
+        self.unchanged = 0
+        self.created = 0
+        self.metadata = 0
+        self.both = 0
+        self.error = 0
         time_start = datetime.datetime.now()
 
         string_opt_args = ""
@@ -300,6 +306,8 @@ class MmusicC:
             "lazy",
             "only_files",
             "only_meta",
+            "log_file",
+            "all",
         ]:
             if getattr(self.result, att, None):
                 string_opt_args += f"{att}={getattr(self.result, att)}; "
@@ -364,7 +372,7 @@ class MmusicC:
                 for root, dirs, files in gen:
                     root = pathlib.Path(root)
                     album_target = swap_base(self.source, root, self.target)
-                    logging.debug("Current root: {}".format(root))
+                    logging.info("Current root: {}".format(root))
                     if len(dirs) == 0:
                         if self.target_type == MmusicC.ElementType.folder:
                             self.handle_album2album(root, album_target)
@@ -380,17 +388,17 @@ class MmusicC:
 
         time_delta = datetime.datetime.now() - time_start
 
-        if self._created + self._metadata + self._both > 0 or self.result.all:
+        if self.created + self.metadata + self.both > 0 or self.result.all:
             logging.log(25, "---------------------------------------------------------")
 
         report = [
             f"Total Time : {math.floor(time_delta.total_seconds() / 60)} min "
             f"{math.fmod(time_delta.total_seconds(), 60)} s",
-            f"Unchanged  : {self._unchanged}",
-            f"Metadata   : {self._metadata}",
-            f"Created    : {self._created}",
-            f"Both       : {self._both}",
-            f"Errors     : to be implemented",
+            f"Unchanged  : {self.unchanged}",
+            f"Metadata   : {self.metadata}",
+            f"Created    : {self.created}",
+            f"Both       : {self.both}",
+            f"Errors     : {self.error}",
         ]
 
         if self.target is MmusicC.ElementType.database:
@@ -399,7 +407,7 @@ class MmusicC:
             for r in report:
                 logging.log(25, r)
 
-        sys.exit(0)
+    # __init___
 
     def handle_files2file(self, file_source, file_target):
         if not is_supported_audio(file_source):
@@ -410,6 +418,8 @@ class MmusicC:
             file_target = file_target.joinpath(file_source.stem + self.format_extension)
         change = 0
         change += self._handle_files2file_file(file_source, file_target)
+        if change < 0:
+            return change
         change += self._handle_files2file_meta(file_source, file_target)
         self.log_changes(change, file_target, make_relative=False)
         return change
@@ -417,32 +427,43 @@ class MmusicC:
     def _handle_files2file_file(self, file_source, file_target):
         if self.run_files and file_source and file_target:
             if file_target.is_file():
-                logging.debug(f"target file '{file_target}' exists, ffmpeg skipped")
+                logging.debug(f"ffmpeg skipped target file exists: '{file_target}'")
             elif not self.result.dry_run:
-                try:
-                    FFmpeg(
-                        str(file_source),
-                        str(file_target),
-                        options=self.result.ffmpeg_options,
-                    ).run()
-                    return 2
-                except FFRuntimeError as ex:
-                    logging.warning(ex)  # TODO warning msg
+                with FFmpeg(
+                    file_source, file_target, options=self.result.ffmpeg_options,
+                ) as ffmpeg:
+                    try:
+                        ffmpeg.run()
+                        return 2
+                    except FFRuntimeError as ex:
+                        tmp_msg = [str(file_target.relative_to(self.target))]
+                        last3 = ex.stderr.split("\n")[-4:-1]
+                        tmp_msg.extend(last3)
+                        tmp_msg_str = ("\n" + " " * 5).join(tmp_msg)
+                        logging.log(25, f"ffmpeg error: {tmp_msg_str}")
+                        return -2
         return 0
 
     def _handle_files2file_meta(self, file_source, file_target):
         if self.run_meta:
-            meta_source = Metadata(file_source)
-            meta_target = Metadata(file_target)
-            meta_target.import_tags(
-                meta_source,
-                whitelist=self.whitelist,
-                blacklist=self.blacklist,
-                skip_none=self.result.lazy,
-            )
-            return meta_target.write_tags(
-                remove_existing=self.result.delete_existing_metadata
-            )
+            try:
+                meta_source = Metadata(file_source)
+                meta_target = Metadata(file_target)
+                meta_target.import_tags(
+                    meta_source,
+                    whitelist=self.whitelist,
+                    blacklist=self.blacklist,
+                    skip_none=self.result.lazy,
+                )
+                return meta_target.write_tags(
+                    remove_existing=self.result.delete_existing_metadata
+                )
+            except AudioFileError as ex:
+                logging.info(ex)
+                return -1
+            except FileNotFoundError as ex:
+                logging.info(ex)
+                return -4
         return 0
 
     def handle_album2album(self, album_source, album_target):
@@ -472,6 +493,8 @@ class MmusicC:
                             file_source, file_target
                         )
                     self.log_changes(changes_file[file_target], file_target)
+                else:
+                    logging.info(f"File is not supported or not valid: {file}")
 
         if self.run_meta and not self.run_files:
             if not album_target.is_dir():
@@ -518,20 +541,22 @@ class MmusicC:
     def log_changes(self, change, file, make_relative=True):
         if file.is_absolute() and make_relative:
             file = file.relative_to(self.target)
-        if change > 0:
-            # logging.log(25, f"{change} > {file}")
+        if change < 0:
+            self.error += 1
+        elif change > 0:
             if change == 1:
-                self._metadata += 1
+                self.metadata += 1
             elif change == 2:
-                self._created += 1
+                self.created += 1
             elif change == 3:
-                self._both += 1
+                self.both += 1
         else:
-            self._unchanged += 1
+            self.unchanged += 1
             if not self.result.all:
+                logging.info(f"{change} > {file}")
                 return
 
-        logging.log(25, f"{change} > {file}")
+        logging.log(25, "{: d} > {}".format(change, file))
 
     def get_element_type(self, element):
         """Get the element type based on the pathlib.Path object.

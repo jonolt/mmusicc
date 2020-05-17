@@ -16,11 +16,7 @@ setuptools.setup(
     version=version["__version__"],
     author="Johannes Nolte",
     author_email="jonolt@mailbox.org",
-    description=(
-        "A lightweight audio file and metadata control and synchronization "
-        "program to transfer the changes made in a master music library to a "
-        "derived music library."
-    ),
+    description="a audio file and metadata synchronization program",
     long_description=long_description,
     long_description_content_type="text/x-rst",
     url="https://github.com/jonolt/mmusicc",
@@ -34,6 +30,7 @@ setuptools.setup(
         "Programming Language :: Python :: 3.8",
         "License :: OSI Approved :: GNU General Public License v3 or later (GPLv3+)",
         "Operating System :: POSIX",
+        "Operating System :: POSIX :: Linux",
         "Topic :: Multimedia :: Sound/Audio",
         "Topic :: Multimedia :: Sound/Audio :: Conversion",
         "Topic :: Multimedia :: Sound/Audio :: Editors",

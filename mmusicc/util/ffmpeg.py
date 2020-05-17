@@ -1,8 +1,5 @@
-"""
-Module adapted and copied from:
-https://github.com/Ch00k/ffmpy
-
-"""
+#  Copyright (c) 2020 Johannes Nolte
+#  SPDX-License-Identifier: GPL-3.0-or-later
 
 import errno
 import logging
@@ -13,8 +10,8 @@ class FFmpeg(object):
     """Wrapper for `FFmpeg <https://www.ffmpeg.org/>`.
 
     Args:
-        source     (str): path to source file
-        target     (str): path to target file
+        source     (pathlib.path): path to source file
+        target     (pathlib.path): path to target file
         options    (str): string containing options for ffmpeg as use in
             console (arguments separated by space)
         executable (str, optional): path to ffmpeg executable. Defaults to
@@ -26,18 +23,28 @@ class FFmpeg(object):
 
         """
         self.executable = executable
+        self._source = source
+        self._target = target
         self._cmd = [executable]
+        self.exit_status = -1
 
-        self._cmd.extend(["-i", source])
+        self._cmd.extend(["-i", str(source)])
         if options:
             self._cmd.extend(options.split())
-        self._cmd.extend([target])
+        self._cmd.append(str(target))
 
         self.cmd = subprocess.list2cmdline(self._cmd)
         self.process = None
 
     def __repr__(self):
         return "<{0!r} {1!r}>".format(self.__class__.__name__, self.cmd)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if not self.exit_status == 0:
+            self._target.unlink()
 
     def run(self):
         """Execute ffmpeg command line. Log stderr output.
@@ -53,31 +60,16 @@ class FFmpeg(object):
             process_result = subprocess.run(self._cmd, stderr=subprocess.PIPE)
         except OSError as e:
             if e.errno == errno.ENOENT:
-                logging.error(
-                    "ffmpeg path not found. either ffmpeg is not "
-                    "installed are not at the standard path."
-                )
                 raise FFExecutableNotFoundError(
                     "Executable '{0}' not found".format(self.executable)
                 )
             else:
                 raise
 
-        catchers = ["Input #0", "Stream #0:", "Output #0"]
-
-        for line in process_result.stderr.decode().split("\n"):
-            for catch in catchers:
-                if catch in line:
-                    logging.log(20, line.strip())
-
         logging.debug(process_result.stderr.decode())
 
-        if process_result.returncode != 0:
-            logging.error(
-                "command \n{}\n produced the following error:\n {}".format(
-                    self.cmd, process_result.stderr
-                )
-            )
+        self.exit_status = process_result.returncode
+        if self.exit_status != 0:
             raise FFRuntimeError(
                 self.cmd,
                 process_result.returncode,
@@ -98,11 +90,11 @@ class FFRuntimeError(Exception):
     def __init__(self, cmd, exit_code, stdout, stderr):
         self.cmd = cmd
         self.exit_code = exit_code
-        self.stdout = stdout
-        self.stderr = stderr
+        self.stdout = (stdout or b"").decode()
+        self.stderr = (stderr or b"").decode()
 
         message = "`{0}` exited with status {1}\n\nSTDOUT:\n{2}\n\nSTDERR:\n{3}".format(
-            self.cmd, exit_code, (stdout or b"").decode(), (stderr or b"").decode()
+            self.cmd, exit_code, stdout, stderr
         )
 
         super(FFRuntimeError, self).__init__(message)
