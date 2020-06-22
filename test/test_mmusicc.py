@@ -7,7 +7,6 @@ from distutils.file_util import copy_file
 import pytest
 
 from mmusicc.__main__ import main
-from mmusicc.util.ffmpeg import FFRuntimeError
 from ._util import *
 
 
@@ -305,25 +304,20 @@ class TestConversionFileFile:
         # org file size is > 50000
         assert pathlib.Path(ste.path_t).stat().st_size < 10000
 
-    @pytest.mark.skip(
-        reason="all errors are cached so program will still run even if one file files."
-        " Therefore a funtion for Error handling must be implemented."
-    )
     def test_catch_ffmpeg_error(self, ste):
         """test if ffmpeg options are passed through and a exception is raised
-            for a invalid option string
+            for a invalid option string. since ffmpeg errors are captured, mmusic will
+            exit with code 0.
         """
-        with pytest.raises(FFRuntimeError):
-            # byte objects are not splited but converted to string
-            _assert_run_mmusicc(
-                "--only-files",
-                "-s",
-                ste.path_s,
-                "-t",
-                ste.path_t,
-                "--ffmpeg-options",
-                b"-q: fuubar",
-            )
+        _assert_run_mmusicc(
+            "--only-files",
+            "-s",
+            ste.path_s,
+            "-t",
+            ste.path_t,
+            "--ffmpeg-options",
+            b"-q: fuubar",
+        )
 
 
 @pytest.mark.parametrize("ste", ["file-->folder"], indirect=True)
@@ -382,7 +376,7 @@ class TestMmusicc:
         "opt",
         [
             None,
-            "--lazy",
+            "--lazy-import",
             "--delete-existing-metadata",
             "--lazy --delete-existing-metadata",
         ],

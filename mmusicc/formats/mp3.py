@@ -1,5 +1,6 @@
 #  Copyright (c) 2020 Johannes Nolte
 #  SPDX-License-Identifier: GPL-3.0-or-later
+
 import copy
 import logging
 
@@ -35,7 +36,7 @@ class MP3File(AudioFile):
         file_path      (str): file path of represented audio file
     """
 
-    format = "MPEG-1/2"
+    format = "MP3"  # "or MPEG-1/3"
     mimes = ["audio/mp3", "audio/x-mp3", "audio/mpeg", "audio/mpg", "audio/x-mpeg"]
 
     def __init__(self, file_path):
@@ -141,9 +142,10 @@ class MP3File(AudioFile):
         if audio.tags is None:
             audio.add_tags()
 
-        new_tags = self.dict_meta.copy()
-        tag_remove = list()
-        for tag_key, value in new_tags.items():
+        tags_self = self.dict_meta.copy()
+        tags_audio = list(audio.tags)
+
+        for tag_key, value in tags_self.items():
 
             id3_tag = am.dict_tag2id3.get(tag_key)
             # load existing frame (or not)
@@ -162,14 +164,15 @@ class MP3File(AudioFile):
                     raise Exception(f"to many tags of {id3_tag} found")
                 else:
                     frame = frame[0]
+                tags_audio.remove(frame.HashKey)
                 # if it exists, check if it has to be deleted
                 if Empty.is_empty(value) and not write_empty:
-                    tag_remove.append(tag_key)
+                    self._changed_tags.append(("delall", frame.FrameID, value, "*"))
                     audio.tags.delall(frame.FrameID)
                     continue
                 elif value is None:
                     if remove_existing:
-                        tag_remove.append(tag_key)
+                        self._changed_tags.append(("delall", frame.FrameID, value, "*"))
                         audio.tags.delall(frame.FrameID)
                     continue
             else:
@@ -207,21 +210,34 @@ class MP3File(AudioFile):
             except AttributeError:
                 pass
 
-        if remove_v1:
-            v1 = 0  # ID3v1 tags will be removed
-        else:  # 1  # ID3v1 tags will be updated  but not added
-            v1 = 2  # ID3v1 tags will be created and / or updated
-
         if remove_existing:
             for tag, value in (
                 MP3File(self.file_path).file_read().unprocessed_tag.items()
             ):
-
+                tags_audio.remove(tag)
                 audio.tags.delall(tag)
                 self._changed_tags.append(("delall", tag, value, "*"))
 
+        # make sure that every tag was checked
+        # it is possible a tag is neither in loaded nor in the unprocessed tags list
+        # this happened when a mp3 file had the to comment tags COMM and TXXX:COM,
+        # where one off them overwrote the other.
+        if not len(tags_audio) == 0:
+            if remove_existing:
+                for tag in tags_audio:
+                    audio.tags.delall(tag)
+                    self._changed_tags.append(("delall", tag, "N.A.", "*"))
+                    logging.info(f"tags mismatch. Tags {tags_audio} were overlooked.")
+            else:
+                logging.warning(f"tags mismatch. Tags {tags_audio} were overlooked.")
+
         if len(self._changed_tags) == 0:
             return 0
+
+        if remove_v1:
+            v1 = 0  # ID3v1 tags will be removed
+        else:  # 1  # ID3v1 tags will be updated  but not added
+            v1 = 2  # ID3v1 tags will be created and / or updated
 
         logging.debug(f"changed tag: {self._changed_tags}")
 

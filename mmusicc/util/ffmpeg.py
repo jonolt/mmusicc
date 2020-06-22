@@ -44,7 +44,8 @@ class FFmpeg(object):
 
     def __exit__(self, exc_type, exc_val, exc_tb):
         if not self.exit_status == 0:
-            self._target.unlink()
+            if self._target.exists():
+                self._target.unlink()
 
     def run(self):
         """Execute ffmpeg command line. Log stderr output.

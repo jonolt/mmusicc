@@ -7,17 +7,18 @@ import logging
 
 import mutagen
 from mutagen.flac import FLAC, Picture
+from mutagen.oggopus import OggOpus
 from mutagen.oggvorbis import OggVorbis
 
 from mmusicc.formats._audio import AudioFile
 from mmusicc.formats._misc import AudioFileError
 from mmusicc.util.metadatadict import Empty, scan_dictionary, AlbumArt
 
-extensions = [".ogg", ".oga", ".flac"]
+extensions = [".ogg", ".oga", ".flac", ".opus"]
 """list of all extensions associated with this module"""
 # loader   see bottom
 # types    see bottom
-ogg_formats = [FLAC, OggVorbis]
+ogg_formats = [FLAC, OggVorbis, OggOpus]
 
 
 def _to_album_art(picture_or_data):
@@ -222,8 +223,14 @@ class OggFile(VCFile):
     """File type specific subclass of VCFile"""
 
     format = "Ogg Vorbis"
-    mimes = ["audio/vorbis", "audio/ogg", "audio/x-ogg"]
+    mimes = ["audio/vorbis", "audio/x-vorbis", "audio/ogg", "audio/x-ogg"]
     MutagenType = OggVorbis
+
+
+class OggOpusFile(VCFile):
+    format = "Ogg Opus"
+    mimes = ["audio/opus", "audio/x-opus", "audio/ogg", "audio/ogg; codecs=opus"]
+    MutagenType = OggOpus
 
 
 class FLACFile(VCFile):
@@ -257,7 +264,7 @@ def loader(file_path):
     if audio is None:
         raise AudioFileError("file type could not be determined")
     mutagen_type = type(audio)
-    for xiph in [FLACFile, OggFile]:
+    for xiph in [FLACFile, OggFile, OggOpusFile]:
         if mutagen_type is getattr(xiph, "MutagenType", None):
             # initialize a VCFile Instance and return it
             return xiph(audio)

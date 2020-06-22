@@ -90,18 +90,26 @@ def test_write_tags(class_meta, dir_lib_x_flac, rem_ex, write_empty):
         assert meta_2._dict_data.get("albumartist") is None
 
 
-@pytest.mark.parametrize("skip_none", [True, False])
+@pytest.mark.parametrize("skip_none, clear_blacklisted", [(False, False), (True, True)])
 @pytest.mark.parametrize("modified_metadata", _dict_files.keys(), indirect=True)
-def test_import_tags(modified_metadata, dir_lib_x_flac, skip_none):
+def test_import_tags(modified_metadata, dir_lib_x_flac, skip_none, clear_blacklisted):
     class_meta, import_source = modified_metadata
     metadata_path = _create_file_path(class_meta, dir_lib_x_flac)
     meta = class_meta(metadata_path)
-    meta.import_tags(import_source, whitelist=["album", "title"], skip_none=skip_none)
+    meta.import_tags(
+        import_source,
+        whitelist=["album", "title"],
+        skip_none=skip_none,
+        clear_blacklisted=clear_blacklisted,
+    )
     # Assert proper import
     assert meta.get_tag("album") == "fuubar"
     # Assert whitelist (blacklist does not need to be tested here, since the
     # actual whitelist of the called func is computed from black and whitelist.
-    assert meta.get_tag("artist") == "str_artist"
+    if not clear_blacklisted:
+        assert meta.get_tag("artist") == "str_artist"
+    else:
+        assert meta.get_tag("artist") is None
     # Assert skip option (parametrized)
     if skip_none:
         if class_meta is Metadata:

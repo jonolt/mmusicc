@@ -199,7 +199,14 @@ class Metadata(metaclass=MetadataMeta):
             dry_run=Metadata.dry_run,
         )
 
-    def import_tags(self, source_meta, whitelist=None, blacklist=None, skip_none=True):
+    def import_tags(
+        self,
+        source_meta,
+        whitelist=None,
+        blacklist=None,
+        skip_none=True,
+        clear_blacklisted=False,
+    ):
         """Imports metadata from another Metadata object.
 
         Args:
@@ -213,10 +220,17 @@ class Metadata(metaclass=MetadataMeta):
                 blacklisted. Defaults to None.
             skip_none (bool, optional): If True, don't overwrite values in
                 target, which are None in source. Defaults to True.
-        """
-        self._import_tags(source_meta._dict_data, whitelist, blacklist, skip_none)
+            clear_blacklisted (bool, optional): Clear tags (set None) that are not in
+                whitelist and/or in blacklist.
 
-    def _import_tags(self, dict_meta, whitelist, blacklist, skip_none):
+        """
+        self._import_tags(
+            source_meta._dict_data, whitelist, blacklist, skip_none, clear_blacklisted
+        )
+
+    def _import_tags(
+        self, dict_meta, whitelist, blacklist, skip_none, clear_blacklisted
+    ):
         tags = process_white_and_blacklist(whitelist, blacklist)
         for tag in am.list_tags:
             if tag in tags:
@@ -224,9 +238,16 @@ class Metadata(metaclass=MetadataMeta):
                 if not val and skip_none:
                     continue
                 self._dict_data[tag] = val
+            elif clear_blacklisted:
+                self._dict_data[tag] = None
 
     def import_tags_from_db(
-        self, primary_key=None, whitelist=None, blacklist=None, skip_none=True
+        self,
+        primary_key=None,
+        whitelist=None,
+        blacklist=None,
+        skip_none=True,
+        clear_blacklisted=False,
     ):
         """Imports metadata from the database.
 
@@ -247,6 +268,8 @@ class Metadata(metaclass=MetadataMeta):
                 blacklisted. Defaults to None.
             skip_none (bool, optional): If True, don't overwrite values in
                 target, which are None in source. Defaults to True.
+            clear_blacklisted (bool, optional): Clear tags (set None) that are not in
+                whitelist and/or in blacklist.
 
             Raises:
              Exception: if no database linked to class
@@ -262,14 +285,16 @@ class Metadata(metaclass=MetadataMeta):
         else:
             data = self._database.read_meta(str(primary_key))
             if data:
-                self._import_tags(data, whitelist, blacklist, skip_none)
+                self._import_tags(
+                    data, whitelist, blacklist, skip_none, clear_blacklisted
+                )
             else:
                 logging.warning(
                     "database read failed, no data imported. "
                     "File might not be in database"
                 )
 
-    def export_tags_to_db(self, root_dir=None):
+    def export_tags_to_db(self):
         """Saves all tags to database.
 
          This is the secure way. Data not wanted does not have to be loaded,
@@ -337,6 +362,8 @@ class GroupMetadata(Metadata):
 
     def __init__(self, list_metadata):
         super().__init__(None)
+        if len(list_metadata) == 0:
+            raise ValueError("list_metadata of GroupMetadata can not be empty.")
         if isinstance(list_metadata[0], Metadata):
             self.list_metadata = list_metadata
         else:
@@ -406,7 +433,14 @@ class GroupMetadata(Metadata):
             )
         return result
 
-    def import_tags(self, source_meta, whitelist=None, blacklist=None, skip_none=True):
+    def import_tags(
+        self,
+        source_meta,
+        whitelist=None,
+        blacklist=None,
+        skip_none=True,
+        clear_blacklisted=False,
+    ):
         """Super-Method applied to all Objects in list. See Metadata.
 
         Args:
@@ -414,6 +448,8 @@ class GroupMetadata(Metadata):
             whitelist (list<str>, optional): See Metadata.import_tags().
             blacklist (list<str>, optional): See Metadata.import_tags().
             skip_none      (bool, optional): See Metadata.import_tags().
+            clear_blacklisted   (bool, optional): See Metadata.import_tags().
+
         """
         paths = dict()
         for sm in source_meta.list_metadata:
@@ -428,23 +464,39 @@ class GroupMetadata(Metadata):
                 whitelist=whitelist,
                 blacklist=blacklist,
                 skip_none=skip_none,
+                clear_blacklisted=clear_blacklisted,
             )
         self.__compare_tags()
 
     def import_tags_from_db(
-        self, whitelist=None, blacklist=None, root_dir=None, skip_none=True
+        self,
+        whitelist=None,
+        blacklist=None,
+        skip_none=True,
+        clear_blacklisted=False,
+        primary_key=None,
     ):
-        """Super-Method applied to all Objects in list. See Metadata."""
+        """Super-Method applied to all Objects in list. See Metadata.
+
+        Args:
+            whitelist (list<str>, optional): See Metadata.import_tags().
+            blacklist (list<str>, optional): See Metadata.import_tags().
+            skip_none      (bool, optional): See Metadata.import_tags().
+            clear_blacklisted   (bool, optional): See Metadata.import_tags().
+            primary_key (str, None): no function .
+
+        """
         for metadata in self.list_metadata:
             metadata.import_tags_from_db(
                 primary_key=None,
                 whitelist=whitelist,
                 blacklist=blacklist,
                 skip_none=skip_none,
+                clear_blacklisted=clear_blacklisted,
             )
         self.__compare_tags()
 
-    def export_tags_to_db(self, root_dir=None):
+    def export_tags_to_db(self):
         """Super-Method applied to all Objects in list. See Metadata."""
         for metadata in self.list_metadata:
             metadata.export_tags_to_db()

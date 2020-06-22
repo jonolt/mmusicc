@@ -20,7 +20,7 @@ def test_dummy_for_init(allocation_map, audio_loaders):
         loaded and the init functions are not called
     """
     assert len(allocation_map.list_tags) == 23
-    assert len(audio_loaders) == 8
+    assert len(audio_loaders) == 9
 
 
 @pytest.fixture(scope="class")
@@ -111,7 +111,7 @@ def media_file_th(media_file):
 
 
 @pytest.mark.parametrize(
-    "media_file", [".mp3", ".flac", ".ogg"], indirect=["media_file"]
+    "media_file", [".mp3", ".flac", ".ogg", ".opus"], indirect=["media_file"]
 )
 class TestFormats:
     def test_read(self, media_file, media_file_th, expected_metadata):

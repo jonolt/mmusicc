@@ -28,7 +28,8 @@ def copy_log_file(path_target):
 
 def del_log_file():
     """delete current log file of FileHandler"""
-    get_log_file().unlink()
+    if get_log_file():
+        get_log_file().unlink()
 
 
 def get_log_file():
@@ -36,6 +37,18 @@ def get_log_file():
     Returns:
         pathlib.Path: path of file logged to by FileHandler
     """
+    manager = getattr(logging.Logger, "manager")
+
+    if not manager.root.handlers:
+        return None
+
+    if "LogCaptureHandler" in str(manager.root.handlers[0]):
+        # mmusicc was started from pytest. pytest adds a LogCaptureHandler to logger.
+        # Which causes init logger to think the logger is already initialized and does
+        # not add root or file handlers. Since its not wanted when testing anyways,
+        # this is quite convenient. As there is no file handler there is no file.
+        return None
+
     return pathlib.Path(
         getattr(logging.Logger, "manager").root.handlers[1].baseFilename
     )

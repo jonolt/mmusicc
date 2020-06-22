@@ -13,6 +13,7 @@ import textwrap
 from mmusicc._init import init_formats, init_logging, init_allocationmap
 from mmusicc.formats import AudioFileError
 from mmusicc.formats import loaders as audio_loader
+from mmusicc.formats import types as audio_types
 from mmusicc.metadata import Metadata, AlbumMetadata
 from mmusicc.util.allocationmap import get_tags_from_strs
 from mmusicc.util.ffmpeg import FFmpeg, FFRuntimeError
@@ -21,13 +22,16 @@ from mmusicc.version import __version__ as package_version
 
 str_description_rqw = textwrap.dedent(
     """\
-    metadata and file syncing the following combination are possible:
+    Metadata and file syncing the following combination are possible:
       - file   --> file
       - file   --> parent folder (target name is generated from source)
       - folder --> folder        (use --album to not to move through tree)
       - folder --> db            (full path as primary key)
       - db     --> folder        (key matching starts at leave of path)
-    Supported Formats for Metadata: 
+
+    Supported Formats: 
+    {}
+    in Containers:
     {}
     """
 )
@@ -39,7 +43,7 @@ class MmusicC:
     # TODO allow a predefined config file with all parser options to be passed
 
     def __init__(self, args):
-        """Create a ViewControl object with the given options.
+        """Create a mmusicc object with the given options.
         Args:
             args (:list: string):
         """
@@ -68,7 +72,8 @@ class MmusicC:
         init_formats()
 
         str_description = str_description_rqw.format(
-            textwrap.fill(str(sorted(list(audio_loader))))
+            textwrap.fill(str(sorted([t.format for t in audio_types]))),
+            textwrap.fill(str(sorted(list(audio_loader)))),
         )
 
         # noinspection PyTypeChecker
@@ -78,6 +83,7 @@ class MmusicC:
             description=str_description,
             # epilog="",
             add_help=False,
+            allow_abbrev=True,
         )
 
         pg_required = self.parser.add_argument_group("Required Options")
@@ -87,18 +93,21 @@ class MmusicC:
 
         group_source = pg_required.add_mutually_exclusive_group(required=True)
         group_source.add_argument(
-            "-s", "--source", action="store", help="source file/album/lib-root",
+            "-s", "--source", action="store", help="source file/album/lib-root.",
         )
         group_source.add_argument(
-            "-sdb", "--source-db", action="store", help="source database",
+            "-sdb",
+            "--source-db",
+            action="store",
+            help="source database (SQLite database file or (not tested) database URL.",
         )
 
         group_target = pg_required.add_mutually_exclusive_group(required=True)
         group_target.add_argument(
-            "-t", "--target", action="store", help="target file/album/lib-root",
+            "-t", "--target", action="store", help="target file/album/lib-root.",
         )
         group_target.add_argument(
-            "-tdb", "--target-db", action="store", help="target database",
+            "-tdb", "--target-db", action="store", help="target database.",
         )
 
         pg_general.add_argument(
@@ -117,12 +126,12 @@ class MmusicC:
             "--only-meta",
             action="store_true",
             help="only sync meta, don't sync files. "
-            "Auto set when syncing from/to database",
+            "Auto set when syncing from/to database.",
         )
         group1.add_argument(
             "--only-files",
             action="store_true",
-            help="only sync files, don't update metadata",
+            help="only sync files, don't update metadata.",
         )
         pg_general.add_argument(
             "--dry-run",
@@ -154,20 +163,22 @@ class MmusicC:
             action="store",
             required=False,
             help="output container format of ffmpeg conversion "
-            "(ignored when target is file_path)",
+            "(ignored when target is file_path).",
         )
         pg_conversion.add_argument(
+            "-o",
             "--ffmpeg-options",
             action="store",
-            help="conversion options for ffmpeg conversion. "
-            "If empty ffmpeg defaults are used.",
+            help="conversion options for ffmpeg conversion, if empty ffmpeg defaults "
+            "are used. It is recommended to test them directly with ffmpeg before "
+            "they are used with mmusicc.",
         )
 
         tmp_double_txt_2 = (
             "Can be passed as file (Plain text file, "
             "#containing "
             "tags separated with a new line) or as one or "
-            "multiple arguments"
+            "multiple arguments."
         )
         pg_meta.add_argument(
             "--white-list-tags",
@@ -182,19 +193,21 @@ class MmusicC:
             help="Tags to be blacklisted. " + tmp_double_txt_2,
         )
         pg_meta.add_argument(
-            "--lazy",
+            "--lazy-import",
             action="store_true",
-            help="don't overwrite existing value in target with None from source. "
-            "Only  effects metadata import. Use '--delete-existing-metadata' to "
-            "remove unwanted or empty tags.",
+            help="do not overwrite an existing non-None tag with None when importing "
+            "metadata. Therefore,  if a tag is not excluded in the source it is "
+            "not deleted in the target and the tag in the target remains "
+            "unchanged.",
         )
         pg_meta.add_argument(
             "--delete-existing-metadata",
             action="store_true",
-            help="delete existing metadata on target files before writing.",
+            help="delete existing metadata from target. This includes all defined, "
+            "and unprocessed tags.",
         )
         pg_meta.add_argument(
-            "--path-config", action="store", help="file path to custom config file",
+            "--path-config", action="store", help="file path to custom config file.",
         )
 
         logging.debug("mmusicc running with arguments: {}".format(args))
@@ -271,7 +284,7 @@ class MmusicC:
                 )
         except KeyError as err:
             self.parser.error(
-                "Whitelist: {}. If input is file it is mot found.".format(err)
+                "Whitelist: {}. If input is file it is not found.".format(err)
             )
 
         self.blacklist = None
@@ -282,7 +295,7 @@ class MmusicC:
                 )
         except KeyError as err:
             self.parser.error(
-                "Blacklist: {}. If input is file it is mot found.".format(err)
+                "Blacklist: {}. If input is file it is not found.".format(err)
             )
 
         # just fot the log
@@ -303,7 +316,7 @@ class MmusicC:
             "album",
             "delete_existing_metadata",
             "dry_run",
-            "lazy",
+            "lazy_import",
             "only_files",
             "only_meta",
             "log_file",
@@ -373,13 +386,15 @@ class MmusicC:
                     root = pathlib.Path(root)
                     album_target = swap_base(self.source, root, self.target)
                     logging.info("Current root: {}".format(root))
-                    if len(dirs) == 0:
+
+                    if any(is_supported_audio(f) for f in files):
                         if self.target_type == MmusicC.ElementType.folder:
                             self.handle_album2album(root, album_target)
                         else:
                             self.handle_media2db(root)
-                    elif len(files) > 0:
-                        self.handle_album2album(root, album_target)
+
+                    # i like when singles have their own folder like albums have
+                    if len(files) > 0 and len(dirs) > 0:
                         logging.info(
                             "Found files not in album {} at folder '{}'".format(
                                 files, root
@@ -411,8 +426,9 @@ class MmusicC:
 
     def handle_files2file(self, file_source, file_target):
         if not is_supported_audio(file_source):
-            logging.warning("file f'{file_source}' not a supported audio file.")
+            logging.warning(f"file '{file_source}' not a supported audio file.")
             return -1
+        logging.debug(f"handle_files2file: {file_source}->{file_target}")
         # compute filename when only target folder is given
         if self.get_element_type(file_target) == MmusicC.ElementType.folder:
             file_target = file_target.joinpath(file_source.stem + self.format_extension)
@@ -453,7 +469,8 @@ class MmusicC:
                     meta_source,
                     whitelist=self.whitelist,
                     blacklist=self.blacklist,
-                    skip_none=self.result.lazy,
+                    skip_none=self.result.lazy_import,
+                    clear_blacklisted=self.result.delete_existing_metadata,
                 )
                 return meta_target.write_tags(
                     remove_existing=self.result.delete_existing_metadata
@@ -475,6 +492,7 @@ class MmusicC:
             Therefore the metadata syncing is currently done in run_files, except when
             the only-meta option is given.
         """
+        logging.debug(f"handle_album2album: {album_source}->{album_target}")
         if self.run_files and album_source and album_target:
             changes_file = dict()
             if not album_target.is_dir():
@@ -509,7 +527,8 @@ class MmusicC:
                 meta_source,
                 whitelist=self.whitelist,
                 blacklist=self.blacklist,
-                skip_none=self.result.lazy,
+                skip_none=self.result.lazy_import,
+                clear_blacklisted=self.result.delete_existing_metadata,
             )
             changes_meta = meta_target.write_tags(
                 remove_existing=self.result.delete_existing_metadata
@@ -534,7 +553,8 @@ class MmusicC:
         meta_target.import_tags_from_db(
             whitelist=self.whitelist,
             blacklist=self.blacklist,
-            skip_none=self.result.lazy,
+            skip_none=self.result.lazy_import,
+            clear_blacklisted=self.result.delete_existing_metadata,
         )
         meta_target.write_tags(remove_existing=self.result.delete_existing_metadata)
 
