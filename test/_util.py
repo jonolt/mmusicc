@@ -64,9 +64,6 @@ def cmp_files_hash_and_time(list_files, hash_dict):
                 while i < 10 and hash_dict.get(file)[1] == file.stat().st_mtime:
                     time.sleep(0.02)
                     i += 1
-            # file was accessed (or overwritten with original)
-            if not hash_dict.get(file)[1] == file.stat().st_atime:
-                exit_code += 1
             if not hash_dict.get(file)[1] == file.stat().st_mtime:
                 exit_code += 100
         return exit_code

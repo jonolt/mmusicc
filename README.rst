@@ -45,6 +45,8 @@ mmusicc is still under development and should not be used to overwrite master da
 
 The script is automatically installed on system. Use ``--help`` for usage info or see its output at `usage on mmusicc.readthedocs.org <https://mmusicc.readthedocs.io/en/latest/usage.html>`_. See also the following examples:
 
+Note: I only test the maintained Python version, that means mmusicc should run on all versions from 3.6 (EOL 2021-12-23) even if they are not explicitly supported.
+
 .. code-block:: bash
 
     # syncing a full library to mp3

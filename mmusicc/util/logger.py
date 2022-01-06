@@ -42,7 +42,7 @@ def get_log_file():
     if not manager.root.handlers:
         return None
 
-    if "LogCaptureHandler" in str(manager.root.handlers[0]):
+    if "LogCaptureHandler" in str(manager.root.handlers):
         # mmusicc was started from pytest. pytest adds a LogCaptureHandler to logger.
         # Which causes init logger to think the logger is already initialized and does
         # not add root or file handlers. Since its not wanted when testing anyways,

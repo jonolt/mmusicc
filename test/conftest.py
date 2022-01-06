@@ -81,7 +81,7 @@ def dir_lib_a_flac(tmp_path_factory, dir_orig_data):
     save_info = save_files_hash_and_mtime(temp_dir, touch=True)
     yield temp_dir
     # make sure that the original file was not changed
-    assert cmp_files_hash_and_time(temp_dir, save_info) == 12
+    assert cmp_files_hash_and_time(temp_dir, save_info) == 0
 
 
 @pytest.fixture(scope="session")

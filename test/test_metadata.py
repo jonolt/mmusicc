@@ -190,7 +190,7 @@ def test_dry_run(dir_lib_x_flac, temp_database):
     with pytest.raises(KeyError):
         meta.import_tags_from_db()
     # reset class variable to default
-    assert cmp_files_hash_and_time(metadata_path, th) == 1
+    assert cmp_files_hash_and_time(metadata_path, th) == 0
     Metadata.dry_run = False
 
 

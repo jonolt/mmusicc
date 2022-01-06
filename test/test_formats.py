@@ -120,14 +120,14 @@ class TestFormats:
         keys = list(m_file.unprocessed_tag)
         assert len(keys) == 1
         assert m_file.unprocessed_tag.get(keys[0]) == "not in tag list"
-        assert cmp_files_hash_and_time(media_file, media_file_th) == 1
+        assert cmp_files_hash_and_time(media_file, media_file_th) == 0
 
     def test_write_identical(self, media_file, media_file_th):
         """write read data unchanged, files should not be modified."""
         m_file = mmusicc.formats.MusicFile(media_file)
         m_file.file_read()
         m_file.file_save(remove_existing=False, write_empty=False)
-        assert cmp_files_hash_and_time(media_file, media_file_th) == 1
+        assert cmp_files_hash_and_time(media_file, media_file_th) == 0
 
     def test_write_identical_del_existing(self, media_file, media_file_th):
         """write read data unchanged, bur remove_existing forcing a write to the
@@ -135,13 +135,13 @@ class TestFormats:
         m_file_1 = mmusicc.formats.MusicFile(media_file)
         m_file_1.file_read()
         m_file_1.file_save(remove_existing=True, write_empty=False)
-        assert cmp_files_hash_and_time(media_file, media_file_th) == 10101
+        assert cmp_files_hash_and_time(media_file, media_file_th) == 10100
         m_file_2 = mmusicc.formats.MusicFile(media_file)
         m_file_2.file_read()
         assert not set(m_file_1.dict_meta).difference(set(m_file_2.dict_meta))
         media_file_2_th = save_files_hash_and_mtime(media_file)
         m_file_2.file_save(remove_existing=True, write_empty=False)
-        assert cmp_files_hash_and_time(media_file, media_file_2_th) == 1
+        assert cmp_files_hash_and_time(media_file, media_file_2_th) == 0
 
     @pytest.mark.parametrize("remove_existing", [False, True])
     @pytest.mark.parametrize("write_empty", [False, True])
@@ -185,7 +185,7 @@ class TestFormats:
         else:
             assert m_file.dict_meta["artist"] is None
 
-        assert cmp_files_hash_and_time(media_file, media_file_th) == 10101
+        assert cmp_files_hash_and_time(media_file, media_file_th) == 10100
 
     def test_read_and_write_no_header(self, media_file, expected_metadata):
         """try reading file with no header, header is deleted by mutagen"""
