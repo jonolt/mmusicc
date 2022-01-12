@@ -39,7 +39,9 @@ def main(args=None):
 
         sys.exit(0)
 
-    except Exception:
+    except Exception:  # noqa
+        if "pytest" in sys.modules:
+            raise
         logging.error("Exception occurred", exc_info=True)
         if "--log-file" in args:
             print("A error occurred in python, stack trace saved to log file.")

@@ -11,7 +11,6 @@ import pathlib
 import textwrap
 
 from mmusicc._init import init_formats, init_logging, init_allocationmap
-from mmusicc.formats import AudioFileError
 from mmusicc.formats import loaders as audio_loader
 from mmusicc.formats import types as audio_types
 from mmusicc.metadata import Metadata, GroupMetadata, parse_path_to_metadata
@@ -379,6 +378,7 @@ class MmusicC:
 
         logging.log(25, "---------------------------------------------------------")
 
+        # noinspection PyShadowingNames
         def walk_album(root_path):
             # initially it is assumed that every folder is an album
             # using os path tp keep using strings
@@ -387,7 +387,6 @@ class MmusicC:
                 return root_path, {root_path: ""}
 
             common_path = os.path.commonpath(folders)
-            # folders = [pathlib.Path(p).relative_to(common_path) for p in folders][1:]
             folders = [os.path.relpath(p, common_path) for p in folders][1:]
             albums = dict()
             for folder_path in folders:
@@ -452,6 +451,7 @@ class MmusicC:
 
         if self.db_url:
             # copy metadata to or from file depending on if its source or target
+            # TODO this must create a output to (especially for db-->file/folder
             if self.source_tree:
                 for metadata in self.source_tree.values():
                     if metadata is None:
@@ -472,17 +472,55 @@ class MmusicC:
                     )
         else:  # only file/folder --> file/folder is left
 
-            for key_path in self.source_tree.keys():  # source can not not exist
+            global_result_dict = dict()
+
+            for key_path in self.source_tree.keys():  # source can not, not exist
 
                 if self.source_tree[key_path] is None:
                     # path is structural or empty (no audio) folder
                     continue
 
+                res_a = {}
                 if self.run_files:
-                    self.group_metadata_run_file(key_path)
+                    res_a = self.group_metadata_run_file(key_path)
 
+                res_b = {}
                 if self.run_meta:
-                    self.group_metadata_run_meta(key_path)
+                    res_b = self.group_metadata_run_meta(key_path)
+
+                if self.source_type == MmusicC.ElementType.folder:
+                    file_names = [
+                        f.stem for f in self.source_tree[key_path].file_path_list
+                    ]
+                else:
+                    # FIXME this can be done nicer!
+                    file_names = [set(res_a.keys()).union(set(res_b.keys())).pop()]
+                result = {
+                    key: res_a.get(key, 0) + res_b.get(key, 0) for key in file_names
+                }
+
+                global_result_dict[key_path] = result
+
+                neg = [i for i in result.values() if i < 0]
+                pos = [j for j in result.values() if j >= 0]
+                sum_unchanged = sum([z == 0 for z in pos])
+                self.unchanged += sum_unchanged
+                sum_metadata = sum([z == 1 for z in pos])
+                self.metadata += sum_metadata
+                sum_created = sum([z == 2 for z in pos])
+                self.created += sum_created
+                sum_both = sum([z == 3 for z in pos])
+                self.both += sum_both
+                self.error += len(neg)
+
+                if not self.result.all and sum(result.values()) > 0:
+                    str_list = list()
+                    str_list.append(
+                        f"{len(result)-sum_unchanged:02d}/{len(result):02d} > {key_path}"
+                    )
+                    for r, v in result.items():
+                        str_list.append(f"    {v} >> {r}")
+                    logging.log(25, "\n".join(str_list))
 
         time_delta = datetime.datetime.now() - time_start
 
@@ -533,7 +571,7 @@ class MmusicC:
                         None,
                     ]
                 for metadata in self.target_tree[key_path].list_metadata:
-                    if not metadata.file_path.stem in prepared:
+                    if metadata.file_path.stem not in prepared:
                         raise Exception(
                             "Consistency Error, list metadata should be equal"
                         )
@@ -552,7 +590,8 @@ class MmusicC:
             if not folder_path.exists():
                 folder_path.mkdir(parents=True)
 
-            for meta_s, meta_t in prepared.values():
+            result = dict()
+            for file_name, (meta_s, meta_t) in prepared.items():
                 if not meta_t.audio_file_linked:
                     if meta_t.file_path.is_file():
                         logging.debug(
@@ -564,10 +603,23 @@ class MmusicC:
                     else:
                         res = self.convert_file(meta_s.file_path, meta_t.file_path)
 
-                    if res > 0:
-                        meta_t.link_audio_file()
-                    else:
-                        raise FileNotFoundError("file could not be created")
+                    if res >= 0:
+                        try:
+                            meta_t.link_audio_file()
+                        except FileNotFoundError:
+                            logging.warning(
+                                f"File {meta_t.file_path} could not be linked, it might be missing."
+                            )
+                            res = -2
+
+                else:
+                    res = 0
+
+                result[file_name] = res
+
+            return result
+
+        return {}
 
     def convert_file(self, source, target):
         with FFmpeg(
@@ -577,19 +629,19 @@ class MmusicC:
         ) as ffmpeg:
             try:
                 ffmpeg.run()
-                return 2
+                return 1
             except FFRuntimeError as ex:
                 logging.debug(ex)
                 logging.log(
                     25,
                     f"ffmpeg error for: {source.relative_to(self.source_common_path)}",
                 )
-                return -2
+                return -4
 
     def group_metadata_run_meta(self, key_path):
         if key_path not in self.target_tree:
             logging.debug("skipping")
-            return
+            return {}
 
         self.target_tree[key_path].import_tags(
             self.source_tree[key_path],
@@ -604,28 +656,8 @@ class MmusicC:
         if self.source_type == MmusicC.ElementType.file:
             # FIXME have another look at this! Is this even used?
             # in case of file --> file actions the names can differ. This ensures the dict keys exists.
-            res = {pathlib.Path(key_path): res}
-        return res
-
-    def log_changes(self, change, file, make_relative=True):
-        if file.is_absolute() and make_relative:
-            file = file.relative_to(self.target)
-        if change < 0:
-            self.error += 1
-        elif change > 0:
-            if change == 1:
-                self.metadata += 1
-            elif change == 2:
-                self.created += 1
-            elif change == 3:
-                self.both += 1
-        else:
-            self.unchanged += 1
-            if not self.result.all:
-                logging.info(f"{change} > {file}")
-                return
-
-        logging.log(25, "{: d} > {}".format(change, file))
+            res = {self.source.relative_to(self.source_common_path): res}
+        return {k.stem: v for k, v in res.items()}
 
     def get_element_type(self, element):
         """Get the element type based on the pathlib.Path object.

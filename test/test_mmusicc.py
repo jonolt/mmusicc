@@ -11,7 +11,7 @@ from ._util import *
 
 
 class Ste:
-    """Source Target Expected. Object holding files path for testing"""
+    """Source Target Expected. Object holding file paths for testing"""
 
     def __init__(self, combo, path_s, path_t, path_e, add_args=None):
         self.combo = combo
@@ -136,8 +136,8 @@ class TestMetadataOnly:
 
     @pytest.mark.parametrize("opt", [None, "--lazy", "--delete-existing-metadata"])
     def test_folder_folder_part(self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, opt):
-        """test folder folder metadata sync, where target has not got all
-            elements of source folder
+        """test folder -> folder metadata sync, where target has not got all
+        elements of source folder
         """
         copy_tree(str(dir_lib_c_ogg), str(dir_lib_test))
         saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
@@ -158,7 +158,7 @@ class TestMetadataOnly:
             # therefore unchanged on file, while some wrong tags are changed. (7-2-1=4)
             assert equal_to_lib_b == 4
         elif "--lazy" in opt:
-            # at import the the composer tag is not overwritten with None from source
+            # at import the composer tag is not overwritten with None from source
             # also the empty values in CD_02 are not replaced with none. Since
             # write_empty is by default False, a value that is Empty in Metadata will
             # be deleted on file, therefore CD_02 has no Empty tags left.
@@ -226,7 +226,10 @@ class TestMetadataOnly:
         )
         path_t = dir_lib_test.joinpath("01_track1.ogg")
         _assert_run_mmusicc(
-            "--source", path_s, "--target-db", database_path,
+            "--source",
+            path_s,
+            "--target-db",
+            database_path,
         )
         assert pathlib.Path(database_path).is_file()
 
@@ -246,11 +249,18 @@ class TestMetadataOnly:
         assert Metadata(path_s).dict_data == Metadata(path_t).dict_data
 
     def test_folder_database_in_and_export(
-        self, dir_lib_a_flac, dir_lib_b_ogg, dir_lib_c_ogg, dir_lib_test,
+        self,
+        dir_lib_a_flac,
+        dir_lib_b_ogg,
+        dir_lib_c_ogg,
+        dir_lib_test,
     ):
         database_path = dir_lib_test.joinpath("fuubar.db3")
         _assert_run_mmusicc(
-            "--source", dir_lib_a_flac, "--target-db", database_path,
+            "--source",
+            dir_lib_a_flac,
+            "--target-db",
+            database_path,
         )
         assert pathlib.Path(database_path).is_file()
 
@@ -276,8 +286,8 @@ class TestConversionFileFile:
 
     @pytest.mark.parametrize("opt_format", ["mp3", "ogg"])
     def test_option_format(self, ste, opt_format):
-        """ both cases are converted to mp3 since -f is ignored and the
-            extension is known from the target
+        """both cases are converted to mp3/ogg since -f is ignored and the
+        extension is known from the target
         """
         # not tested if format can be neglected at file-->file
         _assert_run_mmusicc(
@@ -288,7 +298,7 @@ class TestConversionFileFile:
 
     def test_ffmpeg_options(self, ste):
         """test if ffmpeg options are passed through"""
-        # byte objects are not splited but converted to string
+        # byte objects are not split but converted to string
         _assert_run_mmusicc(
             "--only-files",
             "-s",
@@ -305,9 +315,9 @@ class TestConversionFileFile:
         assert pathlib.Path(ste.path_t).stat().st_size < 10000
 
     def test_catch_ffmpeg_error(self, ste):
-        """test if ffmpeg options are passed through and a exception is raised
-            for a invalid option string. since ffmpeg errors are captured, mmusic will
-            exit with code 0.
+        """test if ffmpeg options are passed through and an exception is raised
+        for an invalid option string. since ffmpeg errors are captured, mmusicc will
+        exit with code 0.
         """
         _assert_run_mmusicc(
             "--only-files",
@@ -385,13 +395,22 @@ class TestMmusicc:
         self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, dir_lib_b_ogg, opt
     ):
         """test the program for the default case it is made for with most used
-            parameters
+        parameters
         """
         copy_tree(str(dir_lib_c_ogg), str(dir_lib_test))
         org_file_list = get_file_list_tree(dir_lib_test)
         saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
+        log_file_path = dir_lib_test.joinpath("mmusicc_log.log")
         _assert_run_mmusicc(
-            "--source", dir_lib_a_flac, "--target", dir_lib_test, "-f .ogg", opt
+            "--source",
+            dir_lib_a_flac,
+            "--target",
+            dir_lib_test,
+            "-f .ogg",
+            opt,
+            "--log-file",
+            log_file_path,
+            "-v",
         )
 
         # check that missing files are created
@@ -432,10 +451,10 @@ class TestMmusicc:
     def test_custom_config_path(self, dir_lib_a_flac, dir_lib_test, dir_orig_data):
         """run mmusicc with testing config file, which is not the default one
 
-            because init_allocationmap will be skipped when list_tags is
-            already filled. It is cleared so the init will load the new
-            config file. Since the map is force initialized module wise by
-            the fixture it is reset to the default.
+        because init_allocationmap will be skipped when list_tags is
+        already filled. It is cleared so the init will load the new
+        config file. Since the map is force initialized module wise by
+        the fixture it is reset to the default.
         """
         import mmusicc.util.allocationmap as am
 
@@ -467,7 +486,7 @@ class TestMmusicc:
 def _assert_file_tree(tree_a, tree_b, depth=None) -> (list, list):
     """asserts if tree structure of sub-files and directories is identical
 
-        and returns a lists of the compared files as tuple (files_a, files_b).
+    and returns a lists of the compared files as tuple (files_a, files_b).
     """
     files_a, base_length_a = get_file_list_tree(tree_a, depth=depth, ret_base=True)
     files_b, base_length_b = get_file_list_tree(tree_b, depth=depth, ret_base=True)
@@ -482,8 +501,8 @@ def _assert_file_tree(tree_a, tree_b, depth=None) -> (list, list):
 def _cmd_mmusicc(*args):
     """create and return a proper command list from a mixed input list
 
-        strings will be splited at whitespaces, to pass a string like object
-        without splitting (eg. for ffmpeg args) pass it as bytes.
+    strings will be split at whitespaces, to pass a string like object
+    without splitting (e.g. for ffmpeg args) pass it as bytes.
     """
     final_cmd = list()
     if isinstance(args, pathlib.Path):
@@ -507,11 +526,11 @@ def _cmd_mmusicc(*args):
 
 def _assert_run_mmusicc(*args):
     """runs mmusicc with the given arguments. args will be preprocessed with
-        cmd_command().
+    cmd_command().
     """
-    with pytest.raises(SystemExit) as excinfo:
+    with pytest.raises(SystemExit) as exc_info:
         main(_cmd_mmusicc(*args))
-    assert excinfo.value.code == 0
+    assert exc_info.value.code == 0
 
 
 def test_assert_file_tree(dir_lib_b_ogg, dir_lib_c_ogg):

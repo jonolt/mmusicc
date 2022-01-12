@@ -91,7 +91,7 @@ class Metadata(metaclass=MetadataMeta):
     either from a linked file or loaded from a database.
 
     Args:
-        file_path (str or pathlib.Path, optional): path to an supported audio
+        file_path (str or pathlib.Path, optional): path to a supported audio
             file, can be set later with 'link_audio_file()' too. Defaults to
             None.
         read_tag (bool, optional): enables automatic reading of metadata from
@@ -141,7 +141,7 @@ class Metadata(metaclass=MetadataMeta):
 
     @property
     def audio_file_linked(self):
-        """bool: Get True if a audio file is linked to instance."""
+        """bool: Get True if am audio file is linked to instance."""
         if self._audio:
             return True
         return False
@@ -273,7 +273,7 @@ class Metadata(metaclass=MetadataMeta):
         Args:
             primary_key (str, None): unique identifier of the item
                 which data has to be loaded. The save function only uses the
-                absolute filepath atm. If value is None, a algorithm takes the
+                absolute filepath atm. If value is None, am algorithm takes the
                 path of the linked file works and works itself backward
                 (beginning at the leave) in the key list of the DB until only
                 one key is left, which is used. In other words, its acts like
@@ -362,7 +362,7 @@ class Metadata(metaclass=MetadataMeta):
 
 
 class GroupMetadata(Metadata):
-    """Class holding one ore many Metadata Objects. Subclasses Metadata and
+    """Class holding one or many Metadata Objects. Subclasses Metadata and
 
     overwrites Metadata functions so that you don't have to care if you have
     one file or a list of files like an album. Tags in dict are a summary of
@@ -471,23 +471,19 @@ class GroupMetadata(Metadata):
         """Super-Method applied to all Objects in list. See Metadata."""
         result = dict()
         for metadata in self.list_metadata:
+            dict_key = metadata.file_path.relative_to(self.common_path)
             try:
-                result[metadata.file_path] = metadata.write_tags(
+                result[dict_key] = metadata.write_tags(
                     remove_existing=remove_existing, write_empty=write_empty
                 )
             except AudioFileError as ex:
                 if raise_exception:
                     raise
                 logging.info(ex)
-                result[metadata.file_path] = -1
+                result[dict_key] = -1
             except FileNotFoundError as ex:
-                if raise_exception:
-                    raise
-                logging.info(ex)
-                result[metadata.file_path] = -4
-
-        # return {self.__reduce_path_info(k, relative_to_common, without_suffix): v for k, v in result.items()}
-        # return self.manipulate_path_info(result, relative_to_common, without_suffix)
+                logging.error(ex)
+                raise
         return result
 
     def import_tags(
@@ -596,7 +592,7 @@ class GroupMetadata(Metadata):
         raise NotImplementedError()
 
 
-class AlbumMetadata(GroupMetadata):
+class AlbumMetadata(GroupMetadata):  # noqa
     """Special case of GroupMetadata where Metadata list is created from a
     Folder/Album path. Skips non audio files.
 
