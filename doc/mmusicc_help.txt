@@ -1,6 +1,7 @@
 usage: mmusicc (-s SOURCE | -sdb SOURCE_DB) (-t TARGET | -tdb TARGET_DB) [-h]
-               [--version] [--album] [--only-meta | --only-files] [--dry-run]
-               [-v] [-a] [--log-file LOG_FILE] [-f FORMAT] [-o FFMPEG_OPTIONS]
+               [--version] [--album]
+               [--only-meta | --only-files | --delete-files] [--dry-run] [-v]
+               [-a] [--log-file LOG_FILE] [-f FORMAT] [-o FFMPEG_OPTIONS]
                [--white-list-tags WHITE_LIST_TAGS [WHITE_LIST_TAGS ...]]
                [--black-list-tags BLACK_LIST_TAGS [BLACK_LIST_TAGS ...]]
                [--lazy-import] [--delete-existing-metadata]
@@ -37,6 +38,10 @@ General Options:
   --only-meta           only sync meta, don't sync files. Auto set when
                         syncing from/to database.
   --only-files          only sync files, don't update metadata.
+  --delete-files        delete audio files and folders that are not in
+                        source.While Non Audio Files and Folder are ignored,
+                        all files regardless of type are deleted when their
+                        containing audio folder is deleted.
   --dry-run             do everything as usual, but without writing (file and
                         database). It is recommended to use with --only-meta
                         or --only-files, otherwise errors are likely.

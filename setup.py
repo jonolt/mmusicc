@@ -40,6 +40,6 @@ setuptools.setup(
     ],
     python_requires=">=3.6",
     package_data={"mmusicc": ["data/config.yaml"]},
-    install_requires=["mutagen>=1.41.0", "PyYAML>=3.01", "SQLAlchemy>=1.3.0"],
+    install_requires=["mutagen>=1.41.0", "PyYAML>=5.1", "SQLAlchemy>=1.3.0"],
     entry_points={"console_scripts": ["mmusicc = mmusicc.__main__:main"]},
 )

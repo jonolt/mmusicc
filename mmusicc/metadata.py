@@ -20,6 +20,8 @@ from mmusicc.util.misc import (
 class MetadataMeta(type):
     """Meta Object for Metadata class."""
 
+    link_modes = ["try", "raise", "not"]
+
     def __init__(cls, name, bases, nmspc):
         super(MetadataMeta, cls).__init__(name, bases, nmspc)
         cls._dry_run = False
@@ -97,11 +99,15 @@ class Metadata(metaclass=MetadataMeta):
         read_tag (bool, optional): enables automatic reading of metadata from
             file at class initialisation (if an audio file is linked).
             Defaults to True.
+        link_mode str:
     """
 
     def __init__(
-        self, file_path=None, read_tag=True, link_mode="force"
-    ):  # FIXME change force to raise?
+        self, file_path=None, read_tag=True, link_mode="raise"
+    ):
+
+        if link_mode not in Metadata.link_modes:
+            raise ValueError(f"link_mode must be in {Metadata.link_modes}")
 
         if not am.list_tags:
             raise Exception("mmusicc not initialized! Please Initialize first")
@@ -162,6 +168,9 @@ class Metadata(metaclass=MetadataMeta):
             self._audio = MusicFile(file_path)
         else:
             raise FileNotFoundError("Error Audio File does not exist")
+
+    def unlink_audio_file(self):
+        self._audio = None
 
     @property
     def unprocessed_tag(self):
@@ -379,7 +388,7 @@ class GroupMetadata(Metadata):
         file_path, obviously). Stick with the documented ones.
     """
 
-    def __init__(self, list_metadata, common_path=None, link_mode="force"):
+    def __init__(self, list_metadata, common_path=None, link_mode="raise"):
         super().__init__(None)
         if len(list_metadata) == 0:
             raise ValueError("list_metadata of GroupMetadata can not be empty.")
@@ -412,6 +421,10 @@ class GroupMetadata(Metadata):
         self.common_path = pathlib.Path(common_path).resolve()
 
         self.dict_auto_fill_org = None
+
+    def remove_metadata(self, obj):
+        # TODO allow path as name as argument
+        return self.list_metadata.pop(self.list_metadata.index(obj))
 
     def get_tag(self, str_tag_key):
         """Super-Method applied to all Objects in list. See Metadata."""
@@ -509,6 +522,7 @@ class GroupMetadata(Metadata):
             paths[sm.file_path] = sm
         path_keys = list(paths.keys())
 
+        # FIXME this assumes an album is complete
         for metadata_self in self.list_metadata:
             key = get_the_right_one(path_keys, metadata_self.file_path)
             metadata_source = paths.get(key)
@@ -614,7 +628,7 @@ class AlbumMetadata(GroupMetadata):  # noqa
 
 
 def parse_path_to_metadata(
-    root, is_file=False, list_file_paths=None, link_mode="force"
+    root, is_file=False, list_file_paths=None, link_mode="raise"
 ):
     """parses file to Metadata and Folder to GroupMetadata
 

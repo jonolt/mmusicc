@@ -8,6 +8,7 @@ import logging
 import math
 import os
 import pathlib
+import shutil
 import textwrap
 
 from mmusicc._init import init_formats, init_logging, init_allocationmap
@@ -148,6 +149,14 @@ class MmusicC:
             "--only-files",
             action="store_true",
             help="only sync files, don't update metadata.",
+        )
+        group1.add_argument(
+            "--delete-files",
+            action="store_true",
+            help="delete audio files and folders that are not in source."
+            "While Non Audio Files and Folder are ignored, all files "
+            "regardless of type are deleted when their containing audio "
+            "folder is deleted.",
         )
         pg_general.add_argument(
             "--dry-run",
@@ -344,6 +353,7 @@ class MmusicC:
         self.metadata = 0
         self.both = 0
         self.error = 0
+        self.deleted = 0
         time_start = datetime.datetime.now()
 
         string_opt_args = ""
@@ -352,8 +362,9 @@ class MmusicC:
             "delete_existing_metadata",
             "dry_run",
             "lazy_import",
-            "only_files",
             "only_meta",
+            "only_files",
+            "delete_files",
             "log_file",
             "all",
         ]:
@@ -401,7 +412,11 @@ class MmusicC:
         self.source_tree = None
         self.target_common_path = None
         self.target_tree = None
+        self.target_delete_tree = None
 
+        self.error_occurred_flag = False
+
+        # create a content tree
         if self.source_type == MmusicC.ElementType.folder:
             if self.result.album:
                 self.source_common_path = self.source
@@ -438,14 +453,14 @@ class MmusicC:
                     for k, v in album.items()
                 }
 
-        # using if as target type can might be changed in previous condition
+        # using if instead of elif as target type might be changed in previous condition
         if self.target_type == MmusicC.ElementType.file:
             self.target_common_path = self.target.parent
             self.target_tree = {
                 "": parse_path_to_metadata(
                     self.target,
                     is_file=True,
-                    link_mode="try" if self.run_files else "force",
+                    link_mode="try" if self.run_files else "raise",
                 )
             }
 
@@ -472,7 +487,80 @@ class MmusicC:
                     )
         else:  # only file/folder --> file/folder is left
 
-            global_result_dict = dict()
+            if (
+                self.result.delete_files
+                and self.target_type == MmusicC.ElementType.folder
+            ):
+
+                logging.log(
+                    25, "---------------------------------------------------------"
+                )
+                logging.log(25, "Deleting Folders ...")
+
+                diff = set(self.target_tree).difference(self.source_tree)
+                # the sorting ensures we start with the deepest directory
+                diff = sorted(diff, key=len, reverse=True)
+
+                def remove_metadata_file(metadata_obj: Metadata):
+                    try:
+                        metadata_obj.unlink_audio_file()
+                        # TODO add option moving file to trash can
+                        metadata_obj.file_path.unlink()
+                        self.deleted += 1
+                        logging.log(25, f". {metadata_obj.file_path}")
+                    except FileNotFoundError:
+                        self.error += 1
+                        logging.log(25, f"E {metadata_obj.file_path}")
+
+                for path in diff:
+                    o = self.target_tree[path]
+                    if isinstance(o, GroupMetadata):
+                        for metadata in o.list_metadata:
+                            remove_metadata_file(metadata)
+                    elif isinstance(o, Metadata):
+                        remove_metadata_file(o)
+
+                    # remove all other none audio files then delete folder
+                    if isinstance(o, GroupMetadata) or o is None:
+                        dir_path = self.target_common_path.joinpath(path)
+                        for file_path in dir_path.iterdir():
+                            if file_path.is_file():
+                                file_path.unlink()
+                            else:
+                                logging.warning(
+                                    f"resource {file_path} is not a file, aborting deletion of folder {dir_path}"
+                                )
+                                break
+                        else:  # break should never happen
+                            dir_path.rmdir()
+
+                    self.target_tree.pop(path)
+
+                logging.log(
+                    25, "---------------------------------------------------------"
+                )
+                logging.log(25, "Deleting Files (in albums) ... ")
+
+                # source and target tree folders should now be equal
+                for path in self.source_tree:
+                    if isinstance(self.source_tree[path], GroupMetadata):
+                        files_source = {
+                            m.file_path.stem: m
+                            for m in self.source_tree[path].list_metadata
+                        }
+                        files_target = {
+                            m.file_path.stem: m
+                            for m in self.target_tree[path].list_metadata
+                        }
+                        diff = set(files_target) - set(files_source)
+                        for file in diff:
+                            meta_obj = self.target_tree[path].remove_metadata(
+                                files_target[file]
+                            )
+                            remove_metadata_file(meta_obj)
+
+            logging.log(25, "---------------------------------------------------------")
+            logging.log(25, "Running Sync ...")
 
             for key_path in self.source_tree.keys():  # source can not, not exist
 
@@ -498,8 +586,6 @@ class MmusicC:
                 result = {
                     key: res_a.get(key, 0) + res_b.get(key, 0) for key in file_names
                 }
-
-                global_result_dict[key_path] = result
 
                 neg = [i for i in result.values() if i < 0]
                 pos = [j for j in result.values() if j >= 0]
@@ -534,6 +620,7 @@ class MmusicC:
             f"Metadata   : {self.metadata}",
             f"Created    : {self.created}",
             f"Both       : {self.both}",
+            f"Deleted    : {self.deleted if self.result.delete_files else 'Not Applicable'}",
             f"Errors     : {self.error}",
         ]
 
@@ -559,7 +646,7 @@ class MmusicC:
                 ]
             )
             # FIXME there is still a possibility a album is incomplete!
-            # Fix with count supported audio files function and compare number?
+            #    Fix with count supported audio files function and compare number?
 
         if self.target_tree[key_path].audio_file_linked < 1:
             # there is at least one metadata without a linked file
@@ -658,6 +745,13 @@ class MmusicC:
             # in case of file --> file actions the names can differ. This ensures the dict keys exists.
             res = {self.source.relative_to(self.source_common_path): res}
         return {k.stem: v for k, v in res.items()}
+
+    def on_error_rmtree(self, function, path, excinfo):
+        logging.warning(
+            f"Could bnot remove file '{path}'. "
+            f"The follorwing error was raised: {excinfo}"
+        )
+        self.error_occurred_flag = True
 
     def get_element_type(self, element):
         """Get the element type based on the pathlib.Path object.

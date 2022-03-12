@@ -1,6 +1,6 @@
 #  Copyright (c) 2020 Johannes Nolte
 #  SPDX-License-Identifier: GPL-3.0-or-later
-
+import shutil
 from distutils.dir_util import copy_tree
 from distutils.file_util import copy_file
 
@@ -377,6 +377,63 @@ class TestConversionFolderFolder:
             assert cmp_files_hash_and_time(org_file_list, saved_file_info) == 0
         else:
             _assert_file_tree(ste.path_t, ste.path_e)
+
+
+def test_delete_files(dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg):
+    source_path = dir_lib_test.joinpath("source")
+    shutil.copytree(dir_lib_a_flac, source_path)
+    target_path = dir_lib_test.joinpath("target")
+    shutil.copytree(dir_lib_b_ogg, target_path)
+    shutil.rmtree(source_path.joinpath("artist_puddletag"))
+    target_path.joinpath("artist_puddletag", "empty_dir_in_del_album").mkdir()
+    correct_file = source_path.joinpath(
+        "various_artists", "Escape_Character_No._1_(2012)", "playlist.m3u"
+    )
+    shutil.copyfile(
+        correct_file, target_path.joinpath(correct_file.relative_to(source_path))
+    )
+    extra_file_1 = target_path.joinpath(
+        "various_artists",
+        "album_best_hits_compilation_(2010)",
+        "CD_01",
+        correct_file.name,
+    )
+    extra_file_2 = target_path.joinpath(
+        "various_artists",
+        "album_best_hits_compilation_(2010)",
+        "CD_02",
+        correct_file.name,
+    )
+    shutil.copyfile(correct_file, extra_file_1)
+    shutil.copyfile(correct_file, extra_file_2)
+
+    duplicated = target_path.joinpath(
+        "various_artists/album_best_hits_compilation_(2010)/CD_02/02_track2.ogg"
+    )
+    shutil.copyfile(
+        duplicated, duplicated.with_name("02_trak2").with_suffix(duplicated.suffix)
+    )  # with_stem new @python3.9
+
+    no_media_folder = source_path.joinpath("no_media_folder")
+    no_media_folder.mkdir()
+    no_media_folder.joinpath("no_media_file").touch()
+
+    shutil.copytree(no_media_folder, target_path.joinpath(no_media_folder.name))
+    shutil.copytree(
+        no_media_folder, target_path.joinpath(no_media_folder.name + "not_in_source")
+    )
+
+    target_path.joinpath("artist_quodlibet", "empty_dir_in_album").mkdir()
+
+    _assert_run_mmusicc(
+        "--source", source_path, "--target", target_path, "-f .ogg", "--delete-files"
+    )
+    assert correct_file.exists()
+    a = set(p.relative_to(source_path).with_suffix("") for p in source_path.rglob("*"))
+    b = set(p.relative_to(target_path).with_suffix("") for p in target_path.rglob("*"))
+    assert len(a.symmetric_difference(b)) == 2  # one non-media playlist file
+    assert extra_file_1.exists()
+    assert extra_file_2.exists()
 
 
 class TestMmusicc:
