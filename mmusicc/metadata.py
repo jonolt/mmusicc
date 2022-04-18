@@ -1,6 +1,6 @@
 #  Copyright (c) 2020 Johannes Nolte
 #  SPDX-License-Identifier: GPL-3.0-or-later
-
+import abc
 import logging
 import os
 import pathlib
@@ -9,15 +9,15 @@ import re
 import mmusicc.util.allocationmap as am
 from mmusicc.database import MetaDB
 from mmusicc.formats import MusicFile, AudioFileError
+from mmusicc.formats import UnsupportedAudio, NoAudioFileError, is_audio
 from mmusicc.util.metadatadict import MetadataDict, Empty, Div
 from mmusicc.util.misc import (
-    is_supported_audio,
     process_white_and_blacklist,
     get_the_right_one,
 )
 
 
-class MetadataMeta(type):
+class MetadataMeta(abc.ABCMeta):
     """Meta Object for Metadata class."""
 
     link_modes = ["try", "raise", "not"]
@@ -87,7 +87,65 @@ class MetadataMeta(type):
     #         logging.log(25, "Existing Metadata will be deleted!")
 
 
-class Metadata(metaclass=MetadataMeta):
+class MetadataBase(abc.ABC):
+    @property
+    @abc.abstractmethod
+    def file_path(self):
+        ...
+
+    @property
+    @abc.abstractmethod
+    def unprocessed_tag(self):
+        ...
+
+    @abc.abstractmethod
+    def get_tag(self, str_tag_key):
+        ...
+
+    @abc.abstractmethod
+    def set_tag(self, str_tag_key, value):
+        ...
+
+    @abc.abstractmethod
+    def read_tags(self):
+        ...
+
+    @abc.abstractmethod
+    def write_tags(self, remove_existing=False, write_empty=False):
+        ...
+
+    @abc.abstractmethod
+    def import_tags(
+        self,
+        source_meta,
+        whitelist=None,
+        blacklist=None,
+        skip_none=True,
+        clear_blacklisted=False,
+    ):
+        ...
+
+    @abc.abstractmethod
+    def import_tags_from_db(
+        self,
+        primary_key=None,
+        whitelist=None,
+        blacklist=None,
+        skip_none=True,
+        clear_blacklisted=False,
+    ):
+        ...
+
+    @abc.abstractmethod
+    def export_tags_to_db(self):
+        ...
+
+    @abc.abstractmethod
+    def auto_fill_tags(self):
+        ...
+
+
+class Metadata(MetadataBase, metaclass=MetadataMeta):
     """Class containing Metadata Information,
 
     either from a linked file or loaded from a database.
@@ -102,9 +160,7 @@ class Metadata(metaclass=MetadataMeta):
         link_mode str:
     """
 
-    def __init__(
-        self, file_path=None, read_tag=True, link_mode="raise"
-    ):
+    def __init__(self, file_path=None, read_tag=True, link_mode="raise"):
 
         if link_mode not in Metadata.link_modes:
             raise ValueError(f"link_mode must be in {Metadata.link_modes}")
@@ -134,7 +190,7 @@ class Metadata(metaclass=MetadataMeta):
     @property
     def file_path(self):
         """pathlib.Path: Get file path of linked audio file."""
-        if self._audio:
+        if self.audio_file_linked:
             return self._audio.file_path
         else:
             return self.file_path_init
@@ -146,11 +202,15 @@ class Metadata(metaclass=MetadataMeta):
     #     return [self.file_path]
 
     @property
+    def is_audio_supported(self):
+        return not isinstance(self._audio, UnsupportedAudio)
+
+    @property
     def audio_file_linked(self):
         """bool: Get True if am audio file is linked to instance."""
-        if self._audio:
-            return True
-        return False
+        if self._audio is None:
+            return False
+        return True
 
     def link_audio_file(self, file_path=None):
         """Links audio file with given path to instance.
@@ -177,7 +237,7 @@ class Metadata(metaclass=MetadataMeta):
         """pathlib.Path: Get file path of linked audio file."""
         if self._audio:
             return self._audio.unprocessed_tag
-        return None
+        return {}
 
     @property
     def dict_data(self):
@@ -252,9 +312,18 @@ class Metadata(metaclass=MetadataMeta):
                 whitelist and/or in blacklist.
 
         """
-        self._import_tags(
-            source_meta._dict_data, whitelist, blacklist, skip_none, clear_blacklisted
-        )
+        if source_meta.is_audio_supported:
+            self._import_tags(
+                source_meta._dict_data,
+                whitelist,
+                blacklist,
+                skip_none,
+                clear_blacklisted,
+            )
+        else:
+            logging.info(
+                "skipping import from unsupported audio file to prevent data loss"
+            )
 
     def _import_tags(
         self, dict_meta, whitelist, blacklist, skip_none, clear_blacklisted
@@ -370,7 +439,7 @@ class Metadata(metaclass=MetadataMeta):
                     self._dict_data[tag] = eval(val_parse)
 
 
-class GroupMetadata(Metadata):
+class GroupMetadata(MetadataBase):
     """Class holding one or many Metadata Objects. Subclasses Metadata and
 
     overwrites Metadata functions so that you don't have to care if you have
@@ -389,7 +458,7 @@ class GroupMetadata(Metadata):
     """
 
     def __init__(self, list_metadata, common_path=None, link_mode="raise"):
-        super().__init__(None)
+        self._dict_data = MetadataDict()
         if len(list_metadata) == 0:
             raise ValueError("list_metadata of GroupMetadata can not be empty.")
         if isinstance(list_metadata[0], Metadata):
@@ -400,18 +469,18 @@ class GroupMetadata(Metadata):
             )  # FIXME metadata should not be changed after init
             is_linked = 0
             for file_path in list_metadata:
-                if is_supported_audio(
-                    file_path
-                ):  # FIXME check only if file path exists
+                try:
                     self.list_metadata.append(
                         Metadata(file_path, link_mode=link_mode, read_tag=False)
                     )
                     is_linked += self.list_metadata[-1].audio_file_linked
-                else:
-                    logging.warning("File '{}' is no audio file".format(file_path))
+                except NoAudioFileError:
+                    logging.debug("File '{}' is no audio file, skipping.".format(file_path))
 
-        if self.audio_file_linked > 0:
-            self.read_tags()
+        self.read_tags()
+
+        if any([isinstance(m, UnsupportedAudio) for m in self.list_metadata]):
+            logging.warning(f"Group contains one or more not supported audio files!")
 
         if not common_path:
             if len(self.list_metadata) == 1:
@@ -451,7 +520,8 @@ class GroupMetadata(Metadata):
     def read_tags(self):
         """Super-Method applied to all Objects in list. See Metadata."""
         for metadata in self.list_metadata:
-            metadata.read_tags()
+            if metadata.audio_file_linked:
+                metadata.read_tags()
         self.__compare_tags()
 
     def __compare_tags(self):
@@ -493,7 +563,7 @@ class GroupMetadata(Metadata):
                 if raise_exception:
                     raise
                 logging.info(ex)
-                result[dict_key] = -1
+                result[dict_key] = 1 << 6  # 64
             except FileNotFoundError as ex:
                 logging.error(ex)
                 raise
@@ -569,23 +639,11 @@ class GroupMetadata(Metadata):
             metadata.export_tags_to_db()
 
     @property
-    def audio_file_linked(self):
-        """Do not use this property. Only applies to Metadata."""
-        tmp = sum([m.audio_file_linked for m in self.list_metadata]) - len(
-            self.list_metadata
-        )
-        if tmp == 0:
-            return 1
-        else:
-            return tmp
-
-    @property
     def unprocessed_tag(self):
         """Super-Method applied to all Objects in list. See Metadata."""
         unprocessed_tags = dict()
         for metadata in self.list_metadata:
-            if metadata._audio:
-                unprocessed_tags.update(self._audio.unprocessed_tag)
+            unprocessed_tags.update(metadata.unprocessed_tag)
         return unprocessed_tags
 
     @property
@@ -619,11 +677,11 @@ class AlbumMetadata(GroupMetadata):  # noqa
         list_metadata = list()
         for file in sorted(os.listdir(path_album)):
             file_path = path_album.joinpath(file)
-            if is_supported_audio(file_path):
+            if is_audio(file_path):
                 list_metadata.append(file_path)
-        # FIXME inform user if audio files are present but not recognised.
+
         if len(list_metadata) == 0:
-            raise ValueError("Album does not contain (supported) audio files.")
+            raise ValueError("Album does not contain any audio files.")
         super().__init__(list_metadata, common_path=path_album)
 
 
@@ -642,9 +700,7 @@ def parse_path_to_metadata(
         list_file_paths = list()
         for file in sorted(os.listdir(path_album)):
             file_path = path_album.joinpath(file)
-            if is_supported_audio(file_path) or (
-                not file_path.exists() and link_mode == "try"
-            ):
+            if is_audio(file_path) or (not file_path.exists() and link_mode == "try"):
                 list_file_paths.append(file_path)
     if len(list_file_paths) == 0:
         return None

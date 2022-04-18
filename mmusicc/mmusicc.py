@@ -14,10 +14,11 @@ import textwrap
 from mmusicc._init import init_formats, init_logging, init_allocationmap
 from mmusicc.formats import loaders as audio_loader
 from mmusicc.formats import types as audio_types
+from mmusicc.formats import is_supported_audio
 from mmusicc.metadata import Metadata, GroupMetadata, parse_path_to_metadata
 from mmusicc.util.allocationmap import get_tags_from_strs
 from mmusicc.util.ffmpeg import FFmpeg, FFRuntimeError
-from mmusicc.util.misc import is_supported_audio, process_white_and_blacklist
+from mmusicc.util.misc import process_white_and_blacklist
 from mmusicc.version import __version__ as package_version
 
 str_description_rqw = textwrap.dedent(
@@ -268,6 +269,7 @@ class MmusicC:
 
         if self.result.source:
             self.source = pathlib.Path(self.result.source).expanduser().resolve()
+            # TODO asume album if source has no subfolders
         else:
             # self.source = None
             self.db_url = self.result.source_db
@@ -394,6 +396,13 @@ class MmusicC:
             # initially it is assumed that every folder is an album
             # using os path tp keep using strings
             folders = sorted([x[0] for x in os.walk(root_path)])
+            # if len(folders) == 0:
+            #     return root_path,  {root_path: ""}
+            # elif len(folders) == 1:
+            if len(folders) == 0:
+                raise Exception(
+                    "no subfolders found if it is an album pleacey applecozly specifiy album option"
+                )
             if len(folders) == 1:
                 return root_path, {root_path: ""}
 
@@ -440,8 +449,17 @@ class MmusicC:
                     self.source.name
                 ).with_suffix(self.format_extension)
             elif self.result.album:
-                # FIXME whats the difference to normal folder?
+                # album get some special treatment
                 self.target_common_path = self.target
+                if not self.target_common_path.exists():
+                    if self.target_common_path.parent.exists():
+                        self.target_common_path.mkdir()
+                    else:
+                        raise FileNotFoundError(
+                            "Nor the target folder or ist parent exists. The target "
+                            "folder can only be automatically created if its parent "
+                            "does exist!"
+                        )
                 self.target_tree = {
                     self.target: parse_path_to_metadata(self.target, link_mode="try")
                 }
@@ -526,6 +544,10 @@ class MmusicC:
                         for file_path in dir_path.iterdir():
                             if file_path.is_file():
                                 file_path.unlink()
+                                logging.log(
+                                    25,
+                                    f"  {file_path.relative_to(self.target_common_path)}",
+                                )
                             else:
                                 logging.warning(
                                     f"resource {file_path} is not a file, aborting deletion of folder {dir_path}"
@@ -533,6 +555,9 @@ class MmusicC:
                                 break
                         else:  # break should never happen
                             dir_path.rmdir()
+                            logging.log(
+                                25, f"  {dir_path.relative_to(self.target_common_path)}"
+                            )
 
                     self.target_tree.pop(path)
 
@@ -559,7 +584,7 @@ class MmusicC:
                             )
                             remove_metadata_file(meta_obj)
 
-            logging.log(25, "---------------------------------------------------------")
+                logging.log(25, "---------------------------------------------------------")
             logging.log(25, "Running Sync ...")
 
             for key_path in self.source_tree.keys():  # source can not, not exist
@@ -587,7 +612,7 @@ class MmusicC:
                     key: res_a.get(key, 0) + res_b.get(key, 0) for key in file_names
                 }
 
-                neg = [i for i in result.values() if i < 0]
+                neg = [i for i in result.values() if i > 3]
                 pos = [j for j in result.values() if j >= 0]
                 sum_unchanged = sum([z == 0 for z in pos])
                 self.unchanged += sum_unchanged
@@ -632,8 +657,18 @@ class MmusicC:
 
     def group_metadata_run_file(self, key_path):
 
-        if key_path not in self.target_tree:
-
+        if key_path not in self.target_tree or (
+            isinstance(self.source_tree[key_path], GroupMetadata)
+            and len(
+                {
+                    x.file_path for x in self.source_tree[key_path].list_metadata
+                }.difference(
+                    {x.file_path for x in self.target_tree[key_path].list_metadata}
+                )
+            )
+            > 0
+        ):
+            # album does not exist or is not complete
             self.target_tree[key_path] = GroupMetadata(
                 [
                     Metadata(
@@ -645,68 +680,62 @@ class MmusicC:
                     for metadata in self.source_tree[key_path].list_metadata
                 ]
             )
-            # FIXME there is still a possibility a album is incomplete!
-            #    Fix with count supported audio files function and compare number?
+        logging.error("fuu")
+        prepared = dict()
+        if isinstance(self.target_tree[key_path], GroupMetadata):
+            # first create a list of source
+            for metadata in self.source_tree[key_path].list_metadata:
+                prepared[metadata.file_path.stem] = [
+                    metadata,
+                    None,
+                ]
+            # then match the target by stem
+            for metadata in self.target_tree[key_path].list_metadata:
+                if metadata.file_path.stem not in prepared:
+                    raise Exception("Consistency Error, list metadata should be equal")
+                prepared[metadata.file_path.stem][1] = metadata
+            folder_path = self.target_tree[key_path].common_path
 
-        if self.target_tree[key_path].audio_file_linked < 1:
-            # there is at least one metadata without a linked file
-            prepared = dict()
-            if isinstance(self.target_tree[key_path], GroupMetadata):
-                for metadata in self.source_tree[key_path].list_metadata:
-                    prepared[metadata.file_path.stem] = [
-                        metadata,
-                        None,
-                    ]
-                for metadata in self.target_tree[key_path].list_metadata:
-                    if metadata.file_path.stem not in prepared:
-                        raise Exception(
-                            "Consistency Error, list metadata should be equal"
-                        )
-                    prepared[metadata.file_path.stem][1] = metadata
-                folder_path = self.target_tree[key_path].common_path
+        else:  # Metadata
+            prepared = {
+                self.source_tree[key_path].file_path.stem: [
+                    self.source_tree[key_path],
+                    self.target_tree[key_path],
+                ]
+            }
+            folder_path = self.target_tree[key_path].file_path.parent
 
-            else:  # Metadata
-                prepared = {
-                    self.source_tree[key_path].file_path.stem: [
-                        self.source_tree[key_path],
-                        self.target_tree[key_path],
-                    ]
-                }
-                folder_path = self.target_tree[key_path].file_path.parent
+        if not folder_path.exists():
+            folder_path.mkdir(parents=True)
 
-            if not folder_path.exists():
-                folder_path.mkdir(parents=True)
-
-            result = dict()
-            for file_name, (meta_s, meta_t) in prepared.items():
-                if not meta_t.audio_file_linked:
-                    if meta_t.file_path.is_file():
-                        logging.debug(
-                            f"ffmpeg skipped target file exists: '{meta_t.file_path}'"
-                        )
-                        res = 0
-                    elif self.result.dry_run:
-                        res = 2
-                    else:
-                        res = self.convert_file(meta_s.file_path, meta_t.file_path)
-
-                    if res >= 0:
-                        try:
-                            meta_t.link_audio_file()
-                        except FileNotFoundError:
-                            logging.warning(
-                                f"File {meta_t.file_path} could not be linked, it might be missing."
-                            )
-                            res = -2
-
-                else:
+        result = dict()
+        for file_name, (meta_s, meta_t) in prepared.items():
+            if not meta_t.audio_file_linked:
+                if meta_t.file_path.is_file():
+                    logging.debug(
+                        f"ffmpeg skipped target file exists (but is not linked): '{meta_t.file_path}'"
+                    )
                     res = 0
+                elif self.result.dry_run:
+                    res = 2
+                else:
+                    res = self.convert_file(meta_s.file_path, meta_t.file_path)
 
-                result[file_name] = res
+                if res >= 0:
+                    try:
+                        meta_t.link_audio_file()
+                    except FileNotFoundError:
+                        logging.warning(
+                            f"File {meta_t.file_path} could not be linked, it might be missing."
+                        )
+                        res = 1 << 4  # 16
 
-            return result
+            else:
+                res = 0
 
-        return {}
+            result[file_name] = res
+
+        return result
 
     def convert_file(self, source, target):
         with FFmpeg(
@@ -716,14 +745,14 @@ class MmusicC:
         ) as ffmpeg:
             try:
                 ffmpeg.run()
-                return 1
+                return 2
             except FFRuntimeError as ex:
                 logging.debug(ex)
                 logging.log(
                     25,
                     f"ffmpeg error for: {source.relative_to(self.source_common_path)}",
                 )
-                return -4
+                return 1 << 5  # 32
 
     def group_metadata_run_meta(self, key_path):
         if key_path not in self.target_tree:

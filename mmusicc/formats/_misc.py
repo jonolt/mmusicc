@@ -10,9 +10,13 @@ Attributes:
 
 
 import logging
+import mimetypes
 import os
 
+import mutagen
+
 from mmusicc import util
+from mmusicc.formats._audio import AudioFile
 
 mimes = set()
 
@@ -22,7 +26,7 @@ types = set()
 
 
 def init():
-    """Initialize the formats module, loading all formats for loader.
+    """Initialize the formats' module, loading all formats for loader.
 
     Before this is called loading a file and unpickling will not work.
     If the module was already initialized, the initialisation is skipped.
@@ -59,6 +63,24 @@ def init():
         raise SystemExit("No formats found!")
 
 
+def is_supported_audio(file):
+    """Return True if file is a supported audio file."""
+    mimetype = mimetypes.guess_type(str(file))
+
+    if mimetype[0] in mimes:
+        return True
+    else:
+        return False
+
+
+def is_audio(file):
+    """Return True if file is a supported audio file."""
+    mimetype = mimetypes.guess_type(str(file))
+    if mimetype[0] is None:
+        return False
+    return mimetype[0].startswith("audio")
+
+
 def get_loader(file_path):
     """Returns a callable which takes a filename and returns AudioFile
 
@@ -91,12 +113,36 @@ def MusicFile(file_path):
     if loader is not None:
         return loader(file_path)
     else:
-        logging.error("FileType not supported")
-        raise Exception(
-            "FileType '{}' not supported. Supported Loaders: {}".format(
-                os.path.splitext(str(file_path))[-1], str(loaders)
+        if is_audio(file_path):
+            logging.debug(f"loading UnsupportedAudio with file {file_path}")
+            return UnsupportedAudio(file_path)
+        else:
+            logging.error("File is not a audio!")
+            raise NoAudioFileError("File is not a audio!")
+
+
+class UnsupportedAudio(AudioFile):
+    def __init__(self, file_path):
+        super().__init__()
+        self._file = mutagen.File(file_path)
+        if self._file is None:
+            raise NoAudioFileError(
+                f"file of mime type '{mimetypes.guess_type(file_path)}' is no audio file"
             )
-        )
+
+    def __repr__(self):
+        return str(self._file)
+
+    def file_read(self):
+        logging.debug("trying to read metadata from unsupported audio file")
+
+    def file_save(self, remove_existing=False, write_empty=False, dry_run=False):
+        logging.warning("trying to save metadata to unsupported audio file")
+        return 0
+
+
+class NoAudioFileError(Exception):
+    """file is not an audio file"""
 
 
 class AudioFileError(Exception):

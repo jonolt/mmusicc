@@ -1,7 +1,9 @@
 #  Copyright (c) 2020 Johannes Nolte
 #  SPDX-License-Identifier: GPL-3.0-or-later
-
+import logging
 import pathlib
+
+import mutagen
 
 from mmusicc.util.metadatadict import MetadataDict
 
@@ -12,7 +14,7 @@ class AudioFile:
     Attributes:
         _file       (pathlib.Path): file path of file.
         _dict_meta  (MetadataDict): metadata from file (the parsed one)
-        unprocessed_tag     (dict): metadata that could'nt be associated.
+        unprocessed_tag     (dict): metadata that couldn't be associated.
             Manly used to manually update the association list with new
             tags/tag names.
     """
@@ -51,7 +53,7 @@ class AudioFile:
             remove_existing (bool): if true clear all tags before writing.
                 Defaults to False.
             write_empty     (bool): if true write tags with Empty Value, if
-                false, the tag will not be created and a existing tag will be
+                false, the tag will not be created and an existing tag will be
                 deleted. Behaviour might slightly differ between tag types.
                 Defaults to False.
             dry_run (bool): if true, do anything but saving to file. Defaults to False

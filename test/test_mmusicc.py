@@ -54,7 +54,7 @@ def ste(request, dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg, dir_lib_c_ogg):
         return Ste(
             combo,
             dir_lib_a_flac.joinpath("artist_puddletag"),
-            dir_lib_test,
+            dir_lib_test.joinpath("album_sub_folder_not_existing"),
             dir_lib_b_ogg.joinpath("artist_puddletag"),
             "--album",
         )

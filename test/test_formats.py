@@ -10,6 +10,7 @@ import pytest
 
 import mmusicc.formats
 import mmusicc.util.allocationmap
+from mmusicc.formats import UnsupportedAudio
 from mmusicc.metadata import Empty
 from mmusicc.util.metadatadict import metadatadict
 from ._util import *
@@ -108,6 +109,18 @@ def media_file_th(media_file):
 
 # TODO find a way to load extension dynamically
 # TODO run tests per-class configuration
+
+
+@pytest.mark.parametrize(
+    "media_file", [".wav"], indirect=["media_file"]
+)
+def test_unsupported_audio(media_file, media_file_th, expected_metadata):
+    hash_dict = save_files_hash_and_mtime(media_file)
+    m_file = mmusicc.formats.MusicFile(media_file)
+    assert isinstance(m_file, UnsupportedAudio)
+    m_file.file_read()
+    m_file.file_save()
+    assert cmp_files_hash_and_time(media_file, hash_dict) == 0
 
 
 @pytest.mark.parametrize(

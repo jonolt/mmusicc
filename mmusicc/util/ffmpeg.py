@@ -2,8 +2,10 @@
 #  SPDX-License-Identifier: GPL-3.0-or-later
 
 import errno
+import json
 import logging
 import subprocess
+import typing
 
 
 class FFmpeg(object):
@@ -77,6 +79,32 @@ class FFmpeg(object):
                 process_result.stdout,
                 process_result.stderr,
             )
+
+
+class FFProbeResult(typing.NamedTuple):
+    return_code: int
+    std_out_json: str
+    error: str
+
+
+def ffprobe(file_path) -> FFProbeResult:
+    command_array = ["ffprobe",
+                     "-v", "quiet",
+                     "-print_format", "json",
+                     "-show_format",
+                     "-show_streams",
+                     file_path]
+    result = subprocess.run(command_array, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+    return FFProbeResult(return_code=result.returncode,
+                         std_out_json=result.stdout,
+                         error=result.stderr)
+
+
+def audio_format_name(file_path):
+    result = ffprobe(file_path)
+    if result.return_code == 0:
+        return json.loads(result.std_out_json)["format"]["format_name"]
+    return False
 
 
 class FFExecutableNotFoundError(Exception):

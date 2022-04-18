@@ -4,7 +4,8 @@ import pathlib
 import time
 
 from mmusicc import Metadata
-from mmusicc.util.misc import swap_base, is_supported_audio
+from mmusicc.util.misc import swap_base
+from mmusicc.formats import is_supported_audio
 
 
 def cmp_files_metadata(base_a, base_b, ext_b=None):
