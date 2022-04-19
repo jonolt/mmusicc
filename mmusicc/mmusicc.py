@@ -8,13 +8,12 @@ import logging
 import math
 import os
 import pathlib
-import shutil
 import textwrap
 
 from mmusicc._init import init_formats, init_logging, init_allocationmap
+from mmusicc.formats import is_supported_audio
 from mmusicc.formats import loaders as audio_loader
 from mmusicc.formats import types as audio_types
-from mmusicc.formats import is_supported_audio
 from mmusicc.metadata import Metadata, GroupMetadata, parse_path_to_metadata
 from mmusicc.util.allocationmap import get_tags_from_strs
 from mmusicc.util.ffmpeg import FFmpeg, FFRuntimeError
@@ -269,7 +268,7 @@ class MmusicC:
 
         if self.result.source:
             self.source = pathlib.Path(self.result.source).expanduser().resolve()
-            # TODO asume album if source has no subfolders
+            # TODO assume album if source has no sub-folders
         else:
             # self.source = None
             self.db_url = self.result.source_db
@@ -401,7 +400,8 @@ class MmusicC:
             # elif len(folders) == 1:
             if len(folders) == 0:
                 raise Exception(
-                    "no subfolders found if it is an album pleacey applecozly specifiy album option"
+                    "no sub-folders found. If it is an album please add the "
+                    "--album option, otherwise check your file path."
                 )
             if len(folders) == 1:
                 return root_path, {root_path: ""}
@@ -546,11 +546,12 @@ class MmusicC:
                                 file_path.unlink()
                                 logging.log(
                                     25,
-                                    f"  {file_path.relative_to(self.target_common_path)}",
+                                    f"  {file_path.relative_to(self.target_common_path)}",  # noqa
                                 )
                             else:
                                 logging.warning(
-                                    f"resource {file_path} is not a file, aborting deletion of folder {dir_path}"
+                                    f"resource {file_path} is not a file, "
+                                    f"aborting deletion of folder {dir_path}"
                                 )
                                 break
                         else:  # break should never happen
@@ -584,7 +585,9 @@ class MmusicC:
                             )
                             remove_metadata_file(meta_obj)
 
-                logging.log(25, "---------------------------------------------------------")
+                logging.log(
+                    25, "---------------------------------------------------------"
+                )
             logging.log(25, "Running Sync ...")
 
             for key_path in self.source_tree.keys():  # source can not, not exist
@@ -627,7 +630,7 @@ class MmusicC:
                 if not self.result.all and sum(result.values()) > 0:
                     str_list = list()
                     str_list.append(
-                        f"{len(result)-sum_unchanged:02d}/{len(result):02d} > {key_path}"
+                        f"{len(result)-sum_unchanged:02d}/{len(result):02d} > {key_path}"  # noqa
                     )
                     for r, v in result.items():
                         str_list.append(f"    {v} >> {r}")
@@ -645,7 +648,7 @@ class MmusicC:
             f"Metadata   : {self.metadata}",
             f"Created    : {self.created}",
             f"Both       : {self.both}",
-            f"Deleted    : {self.deleted if self.result.delete_files else 'Not Applicable'}",
+            f"Deleted    : {self.deleted if self.result.delete_files else 'Not Applicable'}",  # noqa
             f"Errors     : {self.error}",
         ]
 
@@ -713,7 +716,8 @@ class MmusicC:
             if not meta_t.audio_file_linked:
                 if meta_t.file_path.is_file():
                     logging.debug(
-                        f"ffmpeg skipped target file exists (but is not linked): '{meta_t.file_path}'"
+                        f"ffmpeg skipped target file exists (but is not linked): "
+                        f"'{meta_t.file_path}'"
                     )
                     res = 0
                 elif self.result.dry_run:
@@ -726,7 +730,8 @@ class MmusicC:
                         meta_t.link_audio_file()
                     except FileNotFoundError:
                         logging.warning(
-                            f"File {meta_t.file_path} could not be linked, it might be missing."
+                            f"File {meta_t.file_path} could not be linked, "
+                            f"it might be missing."
                         )
                         res = 1 << 4  # 16
 
@@ -771,14 +776,15 @@ class MmusicC:
         )
         if self.source_type == MmusicC.ElementType.file:
             # FIXME have another look at this! Is this even used?
-            # in case of file --> file actions the names can differ. This ensures the dict keys exists.
+            # in case of file --> file actions the names can differ.
+            # This ensures the dict keys exists.
             res = {self.source.relative_to(self.source_common_path): res}
         return {k.stem: v for k, v in res.items()}
 
-    def on_error_rmtree(self, function, path, excinfo):
+    def on_error_rmtree(self, function, path, exc_info):
         logging.warning(
-            f"Could bnot remove file '{path}'. "
-            f"The follorwing error was raised: {excinfo}"
+            f"Could not remove file '{path}'. "
+            f"The following error was raised: {exc_info}"
         )
         self.error_occurred_flag = True
 

@@ -127,7 +127,7 @@ class UnsupportedAudio(AudioFile):
         self._file = mutagen.File(file_path)
         if self._file is None:
             raise NoAudioFileError(
-                f"file of mime type '{mimetypes.guess_type(file_path)}' is no audio file"
+                f"file of mimetype '{mimetypes.guess_type(file_path)}' is no audio file"
             )
 
     def __repr__(self):

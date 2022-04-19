@@ -104,4 +104,4 @@ def dir_lib_c_ogg(tmp_path_factory, dir_orig_data):
 
 @pytest.fixture(scope="function")
 def dir_lib_test(tmp_path_factory):
-    return tmp_path_factory.mktemp("libt_")
+    return tmp_path_factory.mktemp("libt_")  # noqa

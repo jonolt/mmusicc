@@ -20,7 +20,9 @@ setuptools.setup(
     long_description=long_description,
     long_description_content_type="text/x-rst",
     url="https://github.com/jonolt/mmusicc",
-    project_urls={"Documentation": "https://mmusicc.readthedocs.io/en/latest/",},
+    project_urls={
+        "Documentation": "https://mmusicc.readthedocs.io/en/latest/",
+    },
     packages=setuptools.find_packages(),
     classifiers=[
         "Development Status :: 4 - Beta",

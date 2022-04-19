@@ -6,7 +6,7 @@ from ._util import *
 _dict_files = {
     Metadata: "1-str_title_A.flac",
     GroupMetadata: ["1-str_title_A.flac", "2-str_title_B.flac", "3-str_title_C.flac"],
-    AlbumMetadata: None,  # _create_file_path return an folder path
+    AlbumMetadata: None,  # _create_file_path return a folder path
 }
 
 
@@ -104,7 +104,7 @@ def test_import_tags(modified_metadata, dir_lib_x_flac, skip_none, clear_blackli
     )
     # Assert proper import
     assert meta.get_tag("album") == "fuubar"
-    # Assert whitelist (blacklist does not need to be tested here, since the
+    # Assert whitelist, blacklist does not need to be tested here, since the
     # actual whitelist of the called func is computed from black and whitelist.
     if not clear_blacklisted:
         assert meta.get_tag("artist") == "str_artist"

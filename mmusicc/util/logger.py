@@ -71,7 +71,7 @@ def generate_logger_config(file_path, log_level):
         "formatters": {
             "simple": {
                 "()": MultiLineFormatter,
-                "format": "%(asctime)s.%(msecs)03d %(levelname)-8s %(module)-13s %(message)s",
+                "format": "%(asctime)s.%(msecs)03d %(levelname)-8s %(module)-13s %(message)s",  # noqa
                 "datefmt": "%H:%M:%S",
             },
             "short": {

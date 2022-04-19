@@ -475,7 +475,9 @@ class GroupMetadata(MetadataBase):
                     )
                     is_linked += self.list_metadata[-1].audio_file_linked
                 except NoAudioFileError:
-                    logging.debug("File '{}' is no audio file, skipping.".format(file_path))
+                    logging.debug(
+                        "File '{}' is no audio file, skipping.".format(file_path)
+                    )
 
         self.read_tags()
 

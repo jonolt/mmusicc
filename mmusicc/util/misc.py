@@ -1,9 +1,7 @@
 import logging
-import mimetypes
 import pathlib
 
 import mmusicc.util.allocationmap as am
-from mmusicc.formats import mimes
 
 
 def process_white_and_blacklist(whitelist, blacklist):

@@ -41,7 +41,7 @@ def audio_files(audio_loaders, dir_subpackages) -> dict:
             loaders.remove(audio_loaders.get(path.suffix))
         except KeyError:
             pass
-    # if loaders is empty all loaders have/will been tested
+    # if loaders is empty all loaders have been/will be tested
     # extensions is just for info what supported extension types are not tested
     if len(loaders) > 0:
         warnings.warn(
@@ -115,6 +115,7 @@ def media_file_th(media_file):
     "media_file", [".wav"], indirect=["media_file"]
 )
 def test_unsupported_audio(media_file, media_file_th, expected_metadata):
+    media_file = pathlib.Path(media_file)
     hash_dict = save_files_hash_and_mtime(media_file)
     m_file = mmusicc.formats.MusicFile(media_file)
     assert isinstance(m_file, UnsupportedAudio)
@@ -143,8 +144,8 @@ class TestFormats:
         assert cmp_files_hash_and_time(media_file, media_file_th) == 0
 
     def test_write_identical_del_existing(self, media_file, media_file_th):
-        """write read data unchanged, bur remove_existing forcing a write to the
-        file. Files have to be modified but the content must be identical."""
+        """write read data unchanged, but remove_existing forcing a write action to the
+                file. Files have to be modified but the content must be identical."""
         m_file_1 = mmusicc.formats.MusicFile(media_file)
         m_file_1.file_read()
         m_file_1.file_save(remove_existing=True, write_empty=False)
@@ -170,14 +171,14 @@ class TestFormats:
         _write_meta_to_file(
             media_file, metadata_write_tags, remove_existing, write_empty
         )
-        # from test_read we already know that we reading works
+        # from test_read we already know that reading works
         m_file = _assert_read_and_compare_file(
             media_file, metadata_write_tags, exclude=["artist", "albumartist"]
         )
 
         # in the test file is one tag placed (encoder settings) that is not in
         # the tag dictionary. This tag can be only removed with the
-        # remove-existing option. Also with remove existing, a reread with the
+        # remove-existing option. Also, with remove existing, a reread with the
         # same tag list will always lead 0 unprocessed_tag.
 
         assert m_file.dict_meta["album"] == "str_album_2"
@@ -226,7 +227,7 @@ def _write_meta_to_file(path, dict_meta, remove_existing, write_empty=True):
 
 
 def _assert_read_and_compare_file(path, dict_answer, exclude=None):
-    """helper reads a audio file and compare its contents with expected values
+    """helper reads an audio file and compare its contents with expected values
         given in dict_answer. Single tags can be excluded.
     """
     m_file = mmusicc.formats.MusicFile(path)

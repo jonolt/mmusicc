@@ -43,7 +43,7 @@ class MetaDB:
         return self._engine.url
 
     def _create_table(self, list_keys):
-        """Create a Tables in Database if it does not already exists,
+        """Create a Tables in Database if it does not already exist,
 
         where each column represents a tag (=key in list_keys).
 
@@ -92,7 +92,7 @@ class MetaDB:
 
         Args:
             primary_key         (str): unique identifier of the item which data
-                is to read (eg. Filepath).
+                is to read (e.g. Filepath).
             tags        (list of str): list of strings to be read, reads all if
                 None. Defaults to None.
 

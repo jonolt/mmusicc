@@ -59,7 +59,7 @@ def cmp_files_hash_and_time(list_files, hash_dict):
             if not hash_dict.get(file)[0] == hash_file(file):
                 exit_code += 10000
                 # the file system is not fast enough updating the metadata. Since access
-                # seems to be faster and you can only modify a file by accessing it,
+                # seems to be faster, and you can only modify a file by accessing it,
                 # add a delay to make sure metadata gets updated.
                 i = 0
                 while i < 10 and hash_dict.get(file)[1] == file.stat().st_mtime:

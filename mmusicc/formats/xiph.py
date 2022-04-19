@@ -6,7 +6,7 @@ import copy
 import logging
 
 import mutagen
-from mutagen.flac import FLAC, Picture
+from mutagen.flac import FLAC, Picture  # noqa protected
 from mutagen.oggopus import OggOpus
 from mutagen.oggvorbis import OggVorbis
 
@@ -100,7 +100,7 @@ class VCFile(AudioFile):
         Args:
             remove_existing (bool): if true clear all tags on file before
                 writing. Defaults to False.
-            write_empty     (bool): if true write empty tags an therefore
+            write_empty     (bool): if true write empty tags and therefore
                 create a tag with content "". If false no tag will be created
                 and existing tags on file that would be overwritten with ""
                 will be deleted. Defaults to False.

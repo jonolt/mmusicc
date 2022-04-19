@@ -17,13 +17,11 @@ class FFmpeg(object):
         options    (str): string containing options for ffmpeg as use in
             console (arguments separated by space)
         executable (str, optional): path to ffmpeg executable. Defaults to
-            'ffmpeg': Can be overwritten in case e.g libav is used.
+            'ffmpeg': Can be overwritten in case e.g. libav is used.
     """
 
     def __init__(self, source, target, options=None, executable="ffmpeg"):
-        """Initialize ffmpeg command line wrapper.
-
-        """
+        """Initialize ffmpeg command line wrapper."""
         self.executable = executable
         self._source = source
         self._target = target
@@ -88,16 +86,25 @@ class FFProbeResult(typing.NamedTuple):
 
 
 def ffprobe(file_path) -> FFProbeResult:
-    command_array = ["ffprobe",
-                     "-v", "quiet",
-                     "-print_format", "json",
-                     "-show_format",
-                     "-show_streams",
-                     file_path]
-    result = subprocess.run(command_array, stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
-    return FFProbeResult(return_code=result.returncode,
-                         std_out_json=result.stdout,
-                         error=result.stderr)
+    command_array = [
+        "ffprobe",
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
+        "-show_format",
+        "-show_streams",
+        file_path,
+    ]
+    result = subprocess.run(
+        command_array,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+    )
+    return FFProbeResult(
+        return_code=result.returncode, std_out_json=result.stdout, error=result.stderr
+    )
 
 
 def audio_format_name(file_path):
@@ -112,9 +119,7 @@ class FFExecutableNotFoundError(Exception):
 
 
 class FFRuntimeError(Exception):
-    """Raise when ffmpeg command line execution returns a non-zero exit code.
-
-    """
+    """Raise when ffmpeg command line execution returns a non-zero exit code."""
 
     def __init__(self, cmd, exit_code, stdout, stderr):
         self.cmd = cmd

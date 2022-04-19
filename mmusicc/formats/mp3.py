@@ -203,7 +203,7 @@ class MP3File(AudioFile):
                     value = join_str_list(value)
                 self._set_value(frame, "text", value)
             if not frame.encoding:
-                self._set_value(frame, "encoding", mutagen.id3.Encoding.UTF16)
+                self._set_value(frame, "encoding", mutagen.id3.Encoding.UTF16)  # noqa
             try:
                 lang = frame.lang
                 if not lang:
