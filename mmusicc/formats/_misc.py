@@ -90,7 +90,7 @@ def get_loader(file_path):
 
 
 # noinspection PyPep8Naming
-def MusicFile(file_path):
+def MusicFile(file_path, return_unsupported=False):
     """Returns a AudioFile instance or None if file type is not supported
 
     Note:
@@ -102,16 +102,17 @@ def MusicFile(file_path):
     Returns:
         AudioFile: audio file instance of file in specified path
     """
-    loader = get_loader(file_path)
-    if loader is not None:
-        return loader(file_path)
+    if not return_unsupported:
+        loader = get_loader(file_path)
+        if loader is not None:
+            return loader(file_path)
+
+    if is_audio(file_path):
+        logging.debug(f"loading UnsupportedAudio with file {file_path}")
+        return UnsupportedAudio(file_path)
     else:
-        if is_audio(file_path):
-            logging.debug(f"loading UnsupportedAudio with file {file_path}")
-            return UnsupportedAudio(file_path)
-        else:
-            logging.error("File is not a audio!")
-            raise NoAudioFileError("File is not a audio!")
+        logging.error("File is not a audio!")
+        raise NoAudioFileError("File is not a audio!")
 
 
 class UnsupportedAudio(AudioFile):

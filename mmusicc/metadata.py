@@ -21,7 +21,7 @@ from mmusicc.util.misc import (
 class MetadataMeta(abc.ABCMeta):
     """Meta Object for Metadata class."""
 
-    link_modes = ["try", "raise", "not"]
+    link_modes = ["try", "raise", "not", "u_try", "u_raise"]
 
     def __init__(cls, name, bases, nmspc):
         super(MetadataMeta, cls).__init__(name, bases, nmspc)
@@ -162,6 +162,18 @@ class Metadata(MetadataBase, metaclass=MetadataMeta):
     """
 
     def __init__(self, file_path=None, read_tag=True, link_mode="raise"):
+        """
+
+        Args:
+            file_path:
+            read_tag:
+            link_mode:
+                raise:
+                try:
+                not:
+                u_raise:
+                u_try:
+        """
 
         if link_mode not in Metadata.link_modes:
             raise ValueError(f"link_mode must be in {Metadata.link_modes}")
@@ -177,10 +189,11 @@ class Metadata(MetadataBase, metaclass=MetadataMeta):
         self._dict_data = MetadataDict()
 
         if file_path and not link_mode == "not":
+
             try:
-                self.link_audio_file(file_path)
+                self.link_audio_file(file_path, use_unsupported=link_mode.startswith("u_"))
             except FileNotFoundError:
-                if not link_mode == "try":
+                if not link_mode.endswith("try"):
                     raise
 
             if read_tag and self.audio_file_linked:
@@ -213,7 +226,7 @@ class Metadata(MetadataBase, metaclass=MetadataMeta):
             return False
         return True
 
-    def link_audio_file(self, file_path=None):
+    def link_audio_file(self, file_path=None, use_unsupported=False):
         """Links audio file with given path to instance.
 
         Args:
@@ -226,7 +239,7 @@ class Metadata(MetadataBase, metaclass=MetadataMeta):
             file_path = self.file_path_init
         file_path = pathlib.Path(file_path)
         if file_path.exists():
-            self._audio = MusicFile(file_path)
+            self._audio = MusicFile(file_path, return_unsupported=use_unsupported)
         else:
             raise FileNotFoundError("Error Audio File does not exist")
 
@@ -705,7 +718,7 @@ def parse_path_to_metadata(
         list_file_paths = list()
         for file in sorted(os.listdir(path_album)):
             file_path = path_album.joinpath(file)
-            if is_audio(file_path) or (not file_path.exists() and link_mode == "try"):
+            if is_audio(file_path) or (not file_path.exists() and link_mode in ["try", "!meta"]):
                 list_file_paths.append(file_path)
     if len(list_file_paths) == 0:
         return None

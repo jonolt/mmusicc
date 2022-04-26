@@ -155,9 +155,9 @@ class MmusicC:
             "--delete-files",
             action="store_true",
             help="delete audio files and folders that are not in source."
-            "While Non Audio Files and Folder are ignored, all files "
-            "regardless of type are deleted when their containing audio "
-            "folder is deleted.",
+            "Hidden folders and their contents are ignored. Folders without "
+            "audio files or of deleted albums are removed with all their content. "
+            "The contents of audio folders are not changed.",
         )
         pg_general.add_argument(
             "--dry-run",
@@ -433,20 +433,35 @@ class MmusicC:
 
         self.error_occurred_flag = False
 
+        source_link_mode = "raise"
+        target_link_mode = "try"
+        if self.result.only_files:
+            source_link_mode = "u_" + source_link_mode
+            target_link_mode = "u_" + target_link_mode
+
         # create a content tree
         if self.source_type == MmusicC.ElementType.folder:
             if self.result.album:
                 self.source_common_path = self.source
-                self.source_tree = {self.source: parse_path_to_metadata(self.source)}
+                self.source_tree = {
+                    self.source: parse_path_to_metadata(
+                        self.source, link_mode=source_link_mode
+                    )
+                }
             else:
                 common_path, album = walk_album(self.source)
                 self.source_common_path = pathlib.Path(common_path)
                 self.source_tree = {
-                    k: parse_path_to_metadata(v) for k, v in album.items()
+                    k: parse_path_to_metadata(v, link_mode=source_link_mode)
+                    for k, v in album.items()
                 }
         elif self.source_type == MmusicC.ElementType.file:
             self.source_common_path = self.source.parent
-            self.source_tree = {"": parse_path_to_metadata(self.source, is_file=True)}
+            self.source_tree = {
+                "": parse_path_to_metadata(
+                    self.source, is_file=True, link_mode=source_link_mode
+                )
+            }
 
         if self.target_type == MmusicC.ElementType.folder:
             if self.source_type == MmusicC.ElementType.file:  # file->folder
@@ -469,13 +484,15 @@ class MmusicC:
                             "does exist!"
                         )
                 self.target_tree = {
-                    self.target: parse_path_to_metadata(self.target, link_mode="try")
+                    self.target: parse_path_to_metadata(
+                        self.target, link_mode=target_link_mode
+                    )
                 }
             else:
                 common_path, album = walk_album(self.target)
                 self.target_common_path = pathlib.Path(common_path)
                 self.target_tree = {
-                    k: parse_path_to_metadata(v, link_mode="try")
+                    k: parse_path_to_metadata(v, link_mode=target_link_mode)
                     for k, v in album.items()
                 }
 
@@ -486,7 +503,7 @@ class MmusicC:
                 "": parse_path_to_metadata(
                     self.target,
                     is_file=True,
-                    link_mode="try" if self.run_files else "raise",
+                    link_mode=target_link_mode if self.run_files else source_link_mode,
                 )
             }
 
@@ -830,7 +847,7 @@ class MmusicC:
 
     class ElementType(enum.Enum):
         file = (1,)
-        album = (5, )
+        album = (5,)
         folder = (2,)
         database = (3,)
         other = 4
