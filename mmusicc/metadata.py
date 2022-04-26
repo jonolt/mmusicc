@@ -9,7 +9,8 @@ import re
 import mmusicc.util.allocationmap as am
 from mmusicc.database import MetaDB
 from mmusicc.formats import MusicFile, AudioFileError
-from mmusicc.formats import UnsupportedAudio, NoAudioFileError, is_audio
+from mmusicc.formats import UnsupportedAudio, NoAudioFileError
+from mmusicc.util.ffmpeg import is_audio
 from mmusicc.util.metadatadict import MetadataDict, Empty, Div
 from mmusicc.util.misc import (
     process_white_and_blacklist,
@@ -676,15 +677,18 @@ class AlbumMetadata(GroupMetadata):  # noqa
 
     def __init__(self, path_album):
         path_album = pathlib.Path(path_album)
-        list_metadata = list()
+        self.list_metadata = list()
+        self.list_other_files = list()
         for file in sorted(os.listdir(path_album)):
             file_path = path_album.joinpath(file)
             if is_audio(file_path):
-                list_metadata.append(file_path)
+                self.list_metadata.append(file_path)
+            else:
+                self.list_other_files.append(file_path)
 
-        if len(list_metadata) == 0:
+        if len(self.list_metadata) == 0:
             raise ValueError("Album does not contain any audio files.")
-        super().__init__(list_metadata, common_path=path_album)
+        super().__init__(self.list_metadata, common_path=path_album)
 
 
 def parse_path_to_metadata(
@@ -695,7 +699,6 @@ def parse_path_to_metadata(
     FIXME GroupMetadata could be replaced with album metadata!
     """
     path_album = pathlib.Path(root)
-    is_file = is_file
     if is_file:
         return Metadata(path_album, link_mode=link_mode)
     elif list_file_paths is None:

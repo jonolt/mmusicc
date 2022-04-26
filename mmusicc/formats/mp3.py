@@ -12,7 +12,7 @@ from mmusicc.formats._audio import AudioFile
 from mmusicc.util.metadatadict import Empty, scan_dictionary, AlbumArt
 from mmusicc.util.util import text_parser_get, join_str_list
 
-extensions = [".mp3", ".mp2", ".mp1", ".mpg", ".mpeg"]
+extensions = [".mp3"]
 """list of all extensions associated with this module"""
 # loader   see bottom
 # types    see bottom

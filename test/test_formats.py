@@ -21,7 +21,9 @@ def test_dummy_for_init(allocation_map, audio_loaders):
         loaded and the init functions are not called
     """
     assert len(allocation_map.list_tags) == 23
-    assert len(audio_loaders) == 9
+    assert len(audio_loaders) == 5
+
+
 
 
 @pytest.fixture(scope="class")

@@ -17,8 +17,7 @@ Metadata and file syncing the following combination are possible:
 Supported Formats: 
 ['FLAC', 'MP3', 'Ogg Opus', 'Ogg Vorbis']
 in Containers:
-['.flac', '.mp1', '.mp2', '.mp3', '.mpeg', '.mpg', '.oga', '.ogg',
-'.opus']
+['.flac', '.mp3', '.oga', '.ogg', '.opus']
 
 Required Options:
   -s SOURCE, --source SOURCE

@@ -4,7 +4,7 @@ import pathlib
 import time
 
 from mmusicc import Metadata
-from mmusicc.util.misc import swap_base
+from mmusicc.util.misc import swap_base, is_hidden_path
 from mmusicc.formats import is_supported_audio
 
 
@@ -86,19 +86,35 @@ def hash_file(path) -> str:
     return sha1.hexdigest()
 
 
-def get_file_list_tree(tree_root, depth=None, ret_base=False):
+def get_file_list_tree(tree_root, depth=None, ret_base=False, ignore_hidden=True):
     """return a list off all files in folder (at given search depth)"""
     if not depth:
         depth = 100
-    files = sorted(tree_root.resolve().rglob("*"))
+
+    files = list()
+    for dirpath, dirnames, filenames in os.walk(tree_root):
+        # dirnames, remove hidden folders (linux only atm)
+        # FIXME recognize windows hidden
+        [dirnames.remove(name) for name in dirnames if name.startswith(".")]
+        # dirpath, append to folder list
+        for filename in filenames:
+            files.append(pathlib.Path(dirpath).joinpath(filename))
+
+    files = sorted(files)
+
     base_length = len(tree_root.parts)
 
     max_len_parts_a = base_length + depth
     for i in sorted(range(len(files)), reverse=True):
         if len(files[i].parts) > max_len_parts_a:
-            files.pop(i)
+            pass
         elif files[i].is_dir():
-            files.pop(i)
+            pass
+        elif ignore_hidden and is_hidden_path(files[i]):
+            pass
+        else:
+            continue
+        files.pop(i)
     if ret_base:
         return files, base_length
     return files

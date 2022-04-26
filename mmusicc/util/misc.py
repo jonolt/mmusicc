@@ -1,7 +1,17 @@
 import logging
+import os
 import pathlib
+import stat
 
 import mmusicc.util.allocationmap as am
+
+
+def is_hidden_path(path):
+    res = os.stat(path)
+    if hasattr(res, "st_file_attributes"):
+        return bool(res.st_file_attributes & stat.FILE_ATTRIBUTE_HIDDEN)
+    else:
+        return pathlib.Path(path).stem.startswith(".")
 
 
 def process_white_and_blacklist(whitelist, blacklist):

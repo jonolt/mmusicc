@@ -17,6 +17,7 @@ import mutagen
 
 from mmusicc import util
 from mmusicc.formats._audio import AudioFile
+from mmusicc.util.ffmpeg import is_audio
 
 mimes = set()
 
@@ -71,14 +72,6 @@ def is_supported_audio(file):
         return True
     else:
         return False
-
-
-def is_audio(file):
-    """Return True if file is a supported audio file."""
-    mimetype = mimetypes.guess_type(str(file))
-    if mimetype[0] is None:
-        return False
-    return mimetype[0].startswith("audio")
 
 
 def get_loader(file_path):

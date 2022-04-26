@@ -10,6 +10,7 @@ import os
 import pathlib
 import textwrap
 
+from mmusicc import version
 from mmusicc._init import init_formats, init_logging, init_allocationmap
 from mmusicc.formats import is_supported_audio
 from mmusicc.formats import loaders as audio_loader
@@ -17,7 +18,7 @@ from mmusicc.formats import types as audio_types
 from mmusicc.metadata import Metadata, GroupMetadata, parse_path_to_metadata
 from mmusicc.util.allocationmap import get_tags_from_strs
 from mmusicc.util.ffmpeg import FFmpeg, FFRuntimeError
-from mmusicc.util.misc import process_white_and_blacklist
+from mmusicc.util.misc import process_white_and_blacklist, is_hidden_path
 from mmusicc.version import __version__ as package_version
 
 str_description_rqw = textwrap.dedent(
@@ -264,19 +265,18 @@ class MmusicC:
 
         self.db_url = None
         self.source = None
-        self.target = None
 
         if self.result.source:
             self.source = pathlib.Path(self.result.source).expanduser().resolve()
-            # TODO assume album if source has no sub-folders
+            # TODO assume album if source has no sub-folders --> do this in detect type
         else:
-            # self.source = None
+            self.source = None
             self.db_url = self.result.source_db
 
         if self.result.target:
             self.target = pathlib.Path(self.result.target).expanduser().resolve()
         else:
-            # self.target = None
+            self.target = None
             self.db_url = self.result.target_db
 
         if self.db_url:
@@ -373,7 +373,7 @@ class MmusicC:
                 string_opt_args += f"{att}={getattr(self.result, att)}; "
 
         options = [
-            f"             Running mmusicc",
+            f"             Running mmusicc {version.__version__}",
             f"source type: {self.source_type}",
             f"source path: {self.source if self.source else self.db_url}",
             f"target type: {self.target_type}",
@@ -394,7 +394,15 @@ class MmusicC:
         def walk_album(root_path):
             # initially it is assumed that every folder is an album
             # using os path tp keep using strings
-            folders = sorted([x[0] for x in os.walk(root_path)])
+            folders = list()  # sorted([x[0] for x in os.walk(root_path)])
+
+            for dirpath, dirnames, filenames in os.walk(root_path):
+                # dirnames, remove hidden folders (linux only atm)
+                # FIXME recognize windows hidden
+                [dirnames.remove(name) for name in dirnames if name.startswith(".")]
+                # dirpath, append to folder list
+                folders.append(dirpath)
+
             # if len(folders) == 0:
             #     return root_path,  {root_path: ""}
             # elif len(folders) == 1:
@@ -510,6 +518,9 @@ class MmusicC:
                 and self.target_type == MmusicC.ElementType.folder
             ):
 
+                # move to trashcan
+                # TODO allow ignoring some special files (e.g. syncthing .stfolder)
+
                 logging.log(
                     25, "---------------------------------------------------------"
                 )
@@ -567,8 +578,9 @@ class MmusicC:
                 )
                 logging.log(25, "Deleting Files (in albums) ... ")
 
-                # source and target tree folders should now be equal
-                for path in self.source_tree:
+                # source and target tree folders should now be equal except albums that
+                # will be converted in the sync step
+                for path in self.target_tree:
                     if isinstance(self.source_tree[path], GroupMetadata):
                         files_source = {
                             m.file_path.stem: m
@@ -683,7 +695,7 @@ class MmusicC:
                     for metadata in self.source_tree[key_path].list_metadata
                 ]
             )
-        logging.error("fuu")
+
         prepared = dict()
         if isinstance(self.target_tree[key_path], GroupMetadata):
             # first create a list of source
@@ -801,6 +813,7 @@ class MmusicC:
             else:
                 return MmusicC.ElementType.other
 
+        # TODO check this
         if element.suffix in audio_loader.keys():  # target is file
             if element.exists():
                 if not is_supported_audio(element):
@@ -817,6 +830,7 @@ class MmusicC:
 
     class ElementType(enum.Enum):
         file = (1,)
+        album = (5, )
         folder = (2,)
         database = (3,)
         other = 4

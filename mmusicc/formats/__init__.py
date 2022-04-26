@@ -10,7 +10,6 @@ from mmusicc.formats._misc import (
     mimes,
     AudioFileError,
     NoAudioFileError,
-    is_audio,
     is_supported_audio,
 )
 
@@ -23,6 +22,5 @@ __all__ = [
     "mimes",
     "AudioFileError",
     "NoAudioFileError",
-    "is_audio",
     "is_supported_audio",
 ]

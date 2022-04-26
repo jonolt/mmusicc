@@ -4,6 +4,9 @@
 import errno
 import json
 import logging
+import mimetypes
+import pathlib
+import re
 import subprocess
 import typing
 
@@ -79,6 +82,31 @@ class FFmpeg(object):
             )
 
 
+def ffmpeg_formats():
+    result = subprocess.run(
+        ["ffmpeg", "-formats", "-print_format", "json"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+    )
+    return {
+        "." + k: v
+        for k, v in re.findall(
+            r"(?:(?:D )|(?:DE)|(?: E)) ([^\s]*)\s+(.*)", result.stdout
+        )
+    }
+
+
+try:
+    formats = ffmpeg_formats()
+except FileNotFoundError:
+    logging.warning(
+        "ffmpeg is not installed. \n"
+        "File conversion will raise Errors. \n"
+        "Audio file recognition falls back to mimetypes."
+    )
+
+
 class FFProbeResult(typing.NamedTuple):
     return_code: int
     std_out_json: str
@@ -94,7 +122,7 @@ def ffprobe(file_path) -> FFProbeResult:
         "json",
         "-show_format",
         "-show_streams",
-        file_path,
+        str(file_path),
     ]
     result = subprocess.run(
         command_array,
@@ -111,6 +139,24 @@ def audio_format_name(file_path):
     result = ffprobe(file_path)
     if result.return_code == 0:
         return json.loads(result.std_out_json)["format"]["format_name"]
+    return False
+
+
+def is_audio(file_path: pathlib.Path):
+    """Return True if file is a supported audio file."""
+    mimetype = mimetypes.guess_type(str(file_path))
+    if mimetype[0] is None or not mimetype[0].startswith("audio"):
+        return False
+    if formats:
+        if file_path.suffix in formats:
+            return True
+    else:
+        # fallback to mimetypes, which was checked before
+        return True
+
+    logging.warning(
+        f"File type of {file_path} could not be determined! Returning False"
+    )
     return False
 
 

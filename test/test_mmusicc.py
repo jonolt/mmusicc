@@ -384,7 +384,8 @@ def test_delete_files(dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg):
     shutil.copytree(dir_lib_a_flac, source_path)
     target_path = dir_lib_test.joinpath("target")
     shutil.copytree(dir_lib_b_ogg, target_path)
-    shutil.rmtree(source_path.joinpath("artist_puddletag"))
+    shutil.rmtree(source_path.joinpath("artist_puddletag"))  # in target not in source
+    shutil.rmtree(target_path.joinpath("artist_quodlibet"))  # in source not in target
     target_path.joinpath("artist_puddletag", "empty_dir_in_del_album").mkdir()
     correct_file = source_path.joinpath(
         "various_artists", "Escape_Character_No._1_(2012)", "playlist.m3u"
@@ -409,7 +410,7 @@ def test_delete_files(dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg):
 
     duplicated = target_path.joinpath(
         "various_artists/album_best_hits_compilation_(2010)/CD_02/02_track2.ogg"
-    )
+    )  # this one is deleted by mmusicc
     shutil.copyfile(
         duplicated, duplicated.with_name("02_trak2").with_suffix(duplicated.suffix)
     )  # with_stem new @python3.9
@@ -423,17 +424,25 @@ def test_delete_files(dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg):
         no_media_folder, target_path.joinpath(no_media_folder.name + "not_in_source")
     )
 
-    target_path.joinpath("artist_quodlibet", "empty_dir_in_album").mkdir()
+    target_path.joinpath("various_artists", "empty_dir_in_artist").mkdir()
+
+    a = {p.relative_to(source_path).with_suffix("") for p in source_path.rglob("*")}
+    b = {p.relative_to(target_path).with_suffix("") for p in target_path.rglob("*")}
+    assert len(a.symmetric_difference(b)) == 20
 
     _assert_run_mmusicc(
         "--source", source_path, "--target", target_path, "-f .ogg", "--delete-files"
     )
     assert correct_file.exists()
-    a = set(p.relative_to(source_path).with_suffix("") for p in source_path.rglob("*"))
-    b = set(p.relative_to(target_path).with_suffix("") for p in target_path.rglob("*"))
-    assert len(a.symmetric_difference(b)) == 2  # one non-media playlist file
-    assert extra_file_1.exists()
-    assert extra_file_2.exists()
+    assert extra_file_1.exists()  # file still exists as no audio contents will not
+    assert extra_file_2.exists()  # deleted except when folder is deleted
+
+    a = {p.relative_to(source_path).with_suffix("") for p in source_path.rglob("*")}
+    b = {p.relative_to(target_path).with_suffix("") for p in target_path.rglob("*")}
+    # 2x no media playlist.m3u file
+    # 1x hidden folder
+    # 1x non hidden file in hidden folder
+    assert len(a.symmetric_difference(b)) == 4
 
 
 class TestMmusicc:
