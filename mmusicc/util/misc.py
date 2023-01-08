@@ -14,6 +14,13 @@ def is_hidden_path(path):
         return pathlib.Path(path).stem.startswith(".")
 
 
+def walk_directories(root_path, ignore_hidden=True):
+    for dir_path, _, _ in os.walk(root_path):
+        if ignore_hidden and is_hidden_path(dir_path):
+            continue
+        yield pathlib.Path(dir_path)
+
+
 def process_white_and_blacklist(whitelist, blacklist):
     """creates a whitelist from one whitelist and one blacklist.
 

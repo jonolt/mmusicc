@@ -38,9 +38,10 @@ General Options:
                         syncing from/to database.
   --only-files          only sync files, don't update metadata.
   --delete-files        delete audio files and folders that are not in
-                        source.While Non Audio Files and Folder are ignored,
-                        all files regardless of type are deleted when their
-                        containing audio folder is deleted.
+                        source.Hidden folders and their contents are ignored.
+                        Folders without audio files or of deleted albums are
+                        removed with all their content. The contents of audio
+                        folders are not changed.
   --dry-run             do everything as usual, but without writing (file and
                         database). It is recommended to use with --only-meta
                         or --only-files, otherwise errors are likely.

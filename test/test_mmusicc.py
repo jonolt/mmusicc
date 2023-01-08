@@ -379,7 +379,8 @@ class TestConversionFolderFolder:
             _assert_file_tree(ste.path_t, ste.path_e)
 
 
-def test_delete_files(dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg):
+@pytest.mark.parametrize("target_is_empty", [False, True])
+def test_delete_files(dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg, target_is_empty):
     source_path = dir_lib_test.joinpath("source")
     shutil.copytree(dir_lib_a_flac, source_path)
     target_path = dir_lib_test.joinpath("target")
@@ -421,7 +422,7 @@ def test_delete_files(dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg):
 
     shutil.copytree(no_media_folder, target_path.joinpath(no_media_folder.name))
     shutil.copytree(
-        no_media_folder, target_path.joinpath(no_media_folder.name + "not_in_source")
+        no_media_folder, target_path.joinpath(no_media_folder.name + "_not_in_source")
     )
 
     target_path.joinpath("various_artists", "empty_dir_in_artist").mkdir()
@@ -430,15 +431,31 @@ def test_delete_files(dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg):
     b = {p.relative_to(target_path).with_suffix("") for p in target_path.rglob("*")}
     assert len(a.symmetric_difference(b)) == 20
 
+    if target_is_empty:
+        # remove everything just created (the least complex way to ensure same source)
+        for path in target_path.iterdir():
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink()
+
     _assert_run_mmusicc(
         "--source", source_path, "--target", target_path, "-f .ogg", "--delete-files"
     )
+
+    a = {p.relative_to(source_path).with_suffix("") for p in source_path.rglob("*")}
+    b = {p.relative_to(target_path).with_suffix("") for p in target_path.rglob("*")}
+
+    if target_is_empty:
+        # 1+1x no media folder + file
+        # 1x m3u file not synced
+        assert len(a.difference(b)) == 3
+        return
+
     assert correct_file.exists()
     assert extra_file_1.exists()  # file still exists as no audio contents will not
     assert extra_file_2.exists()  # deleted except when folder is deleted
 
-    a = {p.relative_to(source_path).with_suffix("") for p in source_path.rglob("*")}
-    b = {p.relative_to(target_path).with_suffix("") for p in target_path.rglob("*")}
     # 2x no media playlist.m3u file
     # 1x hidden folder
     # 1x non hidden file in hidden folder
