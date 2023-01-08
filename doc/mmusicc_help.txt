@@ -21,12 +21,15 @@ in Containers:
 
 Required Options:
   -s SOURCE, --source SOURCE
-                        source file/album/lib-root.
+                        source file/album/lib-root. File or folder paths can
+                        have arbitrary names (type determined by their
+                        existenz).
   -sdb SOURCE_DB, --source-db SOURCE_DB
                         source database (SQLite database file or (not tested)
                         database URL.
   -t TARGET, --target TARGET
-                        target file/album/lib-root.
+                        target file/album/lib-root. Files must have a suffix,
+                        directories must not have extension.
   -tdb TARGET_DB, --target-db TARGET_DB
                         target database.
 
@@ -37,11 +40,11 @@ General Options:
   --only-meta           only sync meta, don't sync files. Auto set when
                         syncing from/to database.
   --only-files          only sync files, don't update metadata.
-  --delete-files        delete audio files and folders that are not in
+  --delete-files        Delete audio files and folders that are not in
                         source.Hidden folders and their contents are ignored.
                         Folders without audio files or of deleted albums are
-                        removed with all their content. The contents of audio
-                        folders are not changed.
+                        removed with all their content. The non audio contents
+                        of folders having supported audio are ignored.
   --dry-run             do everything as usual, but without writing (file and
                         database). It is recommended to use with --only-meta
                         or --only-files, otherwise errors are likely.
@@ -53,8 +56,8 @@ General Options:
 
 File Conversion:
   -f FORMAT, --format FORMAT
-                        output container format of ffmpeg conversion (ignored
-                        when target is file_path).
+                        output container format of ffmpeg conversion , ignored
+                        when target is a file_path.
   -o FFMPEG_OPTIONS, --ffmpeg-options FFMPEG_OPTIONS
                         conversion options for ffmpeg conversion, if empty
                         ffmpeg defaults are used. It is recommended to test

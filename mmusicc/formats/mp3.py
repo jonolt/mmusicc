@@ -110,7 +110,9 @@ class MP3File(AudioFile):
     def file_save(
         self, remove_existing=False, write_empty=False, remove_v1=False, dry_run=False
     ):
-        """saves file tags from tag dictionary (dict_meta) to AudioFile.
+        """Saves file tags from tag dictionary (dict_meta) to AudioFile.
+
+        The save (write) is only applied when there is an actual change of the metadata.
 
         Note:
             write_empty may have no effect. Since mutagen will not load empty
@@ -200,7 +202,16 @@ class MP3File(AudioFile):
                 continue
             else:
                 if isinstance(value, list):
-                    value = join_str_list(value)
+                    try:
+                        value = join_str_list(value)
+                    except AttributeError as ex:
+                        logging.warning(
+                            f"Unable to join list for frame "
+                            f"with id'{frame.FrameID}' "
+                            f"of file '{self.file_path}' "
+                            f"with exception '{ex}' "
+                            f"and content '{value}'"
+                        )
                 self._set_value(frame, "text", value)
             if not frame.encoding:
                 self._set_value(frame, "encoding", mutagen.id3.Encoding.UTF16)  # noqa

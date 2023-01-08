@@ -11,7 +11,6 @@ import textwrap
 
 from mmusicc import version
 from mmusicc._init import init_formats, init_logging, init_allocationmap
-from mmusicc.formats import is_supported_audio
 from mmusicc.formats import loaders as audio_loader
 from mmusicc.formats import types as audio_types
 from mmusicc.metadata import Metadata, GroupMetadata, parse_path_to_metadata
@@ -102,7 +101,8 @@ class MmusicC:
             "-s",
             "--source",
             action="store",
-            help="source file/album/lib-root.",
+            help="source file/album/lib-root. File or folder paths can have "
+            "arbitrary names (type determined by their existenz).",
         )
         group_source.add_argument(
             "-sdb",
@@ -116,7 +116,8 @@ class MmusicC:
             "-t",
             "--target",
             action="store",
-            help="target file/album/lib-root.",
+            help="target file/album/lib-root. Files must have a suffix, "
+            "directories must not have extension.",
         )
         group_target.add_argument(
             "-tdb",
@@ -201,7 +202,7 @@ class MmusicC:
             action="store",
             required=False,
             help="output container format of ffmpeg conversion "
-            "(ignored when target is file_path).",
+            ", ignored when target is a file_path.",
         )
         pg_conversion.add_argument(
             "-o",
@@ -277,7 +278,6 @@ class MmusicC:
 
         if self.result.source:
             self.source = pathlib.Path(self.result.source).expanduser().resolve()
-            # TODO assume album if source has no sub-folders --> do this in detect type
         else:
             self.source = None
             self.db_url = self.result.source_db
@@ -293,23 +293,50 @@ class MmusicC:
                 Metadata.unlink_database()
             Metadata.link_database(self.db_url)
 
-        self.source_type = self.get_element_type(self.source)
-        self.target_type = self.get_element_type(self.target)
+        # analyze source input (file or folder must exist)
+        if self.source is None:
+            if self.db_url is None:
+                self.parser.error("Either a source or a db_url must be given.")
+            self.source_type = MmusicC.ElementType.database
+        elif self.source.is_dir():
+            self.source_type = MmusicC.ElementType.folder
+        elif self.source.is_file():
+            if self.source.suffix not in audio_loader.keys():
+                self.parser.error(
+                    f"File with suffix {self.source.suffix} is not supported. "
+                    f"See --help for supported formats."
+                )
+            self.source_type = MmusicC.ElementType.file
+        else:
+            self.parser.error("Congrats, you managed to an unexpected case")
+
+        # analyze target input
+        if self.target is None:
+            if self.db_url is None:
+                self.parser.error("Either a target or a db_url must be given.")
+            if self.source_type is MmusicC.ElementType.database:
+                self.parser.error("Can't sync from database to database!")
+            self.target_type = MmusicC.ElementType.database
+        else:
+            if self.target.suffix == "":  # directory
+                self.target_type = MmusicC.ElementType.folder
+            else:  # only file left (db file is handles above)
+                if self.target.suffix not in audio_loader.keys():
+                    self.parser.error(
+                        f"File with suffix {self.target.suffix} is not supported. "
+                        f"See --help for supported formats."
+                    )
+                self.target_type = MmusicC.ElementType.file
 
         if not (self.source or self.target) and self.run_files:
             self.parser.error("Target or source is database! I can only run meta!")
 
-        if not self.source and not self.target:
-            self.parser.error("Can't sync from database to database!")
-            # as db is linked as class attribute only one can exist!
-
         if self.source and self.target:
             self.format_extension = None
 
-            # FIXME file extension beats format specifier, correct?
             if self.target_type == MmusicC.ElementType.file:
-                # if "." in self.target.suffix:  # target is file
-                self.format_extension = self.target.suffix
+                if not self.target.suffix == "":
+                    self.format_extension = self.target.suffix
 
             if not self.format_extension and self.result.format:
                 # target is folder a format has to be given!
@@ -319,9 +346,8 @@ class MmusicC:
 
             if not self.format_extension:
                 self.parser.error(
-                    "the following arguments are required: "
-                    "-f/--format, except at file-->file and "
-                    "album/lib-->database operations."
+                    "-f/--format argument is required when target is a folder."
+                    "If the target is a file it must have the target format suffix."
                 )
 
         if (
@@ -397,8 +423,6 @@ class MmusicC:
         for o in options:
             logging.log(25, o)
 
-        logging.log(25, "---------------------------------------------------------")
-
         self.source_tree = None
         self.target_tree = None
         self.target_delete_tree = None
@@ -412,7 +436,7 @@ class MmusicC:
             target_link_mode = "u_" + target_link_mode
 
         logging.log(25, "---------------------------------------------------------")
-        logging.log(25, "Creating Content Trees (growing music forest) ...")
+        logging.log(25, "Creating Content Trees ...")
 
         # create a content tree
         if self.source_type == MmusicC.ElementType.folder:
@@ -489,6 +513,17 @@ class MmusicC:
             and self.target_type == MmusicC.ElementType.folder
         ):  # not database
 
+            def remove_metadata_file(metadata_obj: Metadata):
+                try:
+                    metadata_obj.unlink_audio_file()
+                    # TODO add option moving file to trash can
+                    metadata_obj.file_path.unlink()
+                    self.deleted += 1
+                    logging.log(25, f". {metadata_obj.file_path}")
+                except FileNotFoundError:
+                    self.error += 1
+                    logging.log(25, f"E {metadata_obj.file_path}")
+
             logging.log(25, "---------------------------------------------------------")
 
             diff = set(self.target_tree).difference(self.source_tree)
@@ -505,17 +540,6 @@ class MmusicC:
                 diff = sorted(
                     diff, key=lambda x: [len(x.parts), x.parent], reverse=True
                 )
-
-                def remove_metadata_file(metadata_obj: Metadata):
-                    try:
-                        metadata_obj.unlink_audio_file()
-                        # TODO add option moving file to trash can
-                        metadata_obj.file_path.unlink()
-                        self.deleted += 1
-                        logging.log(25, f". {metadata_obj.file_path}")
-                    except FileNotFoundError:
-                        self.error += 1
-                        logging.log(25, f"E {metadata_obj.file_path}")
 
                 for path in diff:
                     o = self.target_tree[path]
@@ -548,31 +572,27 @@ class MmusicC:
 
                     self.target_tree.pop(path)
 
-                logging.log(
-                    25, "---------------------------------------------------------"
-                )
-                logging.log(
-                    25, "Comapring and Deleting Files (of remaining folders) ... "
-                )
+            logging.log(25, "---------------------------------------------------------")
+            logging.log(25, "Comapring and Deleting Files (of remaining folders) ... ")
 
-                # source and target are equal on folder level. Now iterate through
-                # remaining folders at file level.
-                for path in self.target_tree:
-                    if isinstance(self.source_tree[path], GroupMetadata):
-                        files_source = {
-                            m.file_path.stem: m
-                            for m in self.source_tree[path].list_metadata
-                        }
-                        files_target = {
-                            m.file_path.stem: m
-                            for m in self.target_tree[path].list_metadata
-                        }
-                        diff = set(files_target) - set(files_source)
-                        for file in diff:
-                            meta_obj = self.target_tree[path].remove_metadata(
-                                files_target[file]
-                            )
-                            remove_metadata_file(meta_obj)
+            # source and target are equal on folder level. Now iterate through
+            # remaining folders at file level.
+            for path in self.target_tree:
+                if isinstance(self.source_tree[path], GroupMetadata):
+                    files_source = {
+                        m.file_path.stem: m
+                        for m in self.source_tree[path].list_metadata
+                    }
+                    files_target = {
+                        m.file_path.stem: m
+                        for m in self.target_tree[path].list_metadata
+                    }
+                    diff = set(files_target) - set(files_source)
+                    for file in diff:
+                        meta_obj = self.target_tree[path].remove_metadata(
+                            files_target[file]
+                        )
+                        remove_metadata_file(meta_obj)
 
             logging.log(25, "---------------------------------------------------------")
 
@@ -580,7 +600,7 @@ class MmusicC:
 
         if self.db_url:
             # copy metadata to or from file depending on if its source or target
-            # TODO this must create a output to (especially for db-->file/folder
+            # TODO this must create a output to (especially for db-->file/folder)
             if self.source_tree:
                 for metadata in self.source_tree.values():
                     if metadata is None:
@@ -648,8 +668,7 @@ class MmusicC:
 
         time_delta = datetime.datetime.now() - time_start
 
-        if self.created + self.metadata + self.both > 0 or self.result.all:
-            logging.log(25, "---------------------------------------------------------")
+        logging.log(25, "---------------------------------------------------------")
 
         report = [
             f"Total Time : {math.floor(time_delta.total_seconds() / 60)} min "
@@ -797,37 +816,9 @@ class MmusicC:
         )
         self.error_occurred_flag = True
 
-    def get_element_type(self, element):
-        """Get the element type based on the pathlib.Path object.
-
-        Instance method in clarifying that the function is instance dependent.
-
-        """
-
-        if not element:
-            if Metadata.is_linked_database:
-                return MmusicC.ElementType.database
-            else:
-                return MmusicC.ElementType.other
-
-        # TODO check this
-        if element.suffix in audio_loader.keys():  # target is file
-            if element.exists():
-                if not is_supported_audio(element):
-                    self.parser.error(f"File '{element}' not supported!")
-            return MmusicC.ElementType.file
-        else:
-            # TODO make sure!
-            if "." in element.suffix:
-                logging.info(
-                    f"Path identified as folder, although it can also be an "
-                    f"unsupported file with extension {element.suffix}"
-                )
-            return MmusicC.ElementType.folder
-
     class ElementType(enum.Enum):
         file = (1,)
-        album = (5,)
+        album = (5,)  # not used
         folder = (2,)
         database = (3,)
         other = 4
