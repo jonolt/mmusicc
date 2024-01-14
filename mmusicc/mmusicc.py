@@ -384,12 +384,12 @@ class MmusicC:
             logging.info("Tags to be Synced: {}".format(whitelist))
 
         # stats for report
-        self.unchanged = 0
-        self.created = 0
-        self.metadata = 0
-        self.both = 0
-        self.error = 0
-        self.deleted = 0
+        self.stats_unchanged = 0
+        self.stats_created = 0
+        self.stats_metadata = 0
+        self.stats_both = 0
+        self.stats_error = 0
+        self.stats_deleted = 0
         time_start = datetime.datetime.now()
 
         string_opt_args = ""
@@ -453,7 +453,7 @@ class MmusicC:
                     )
                     for folder_path in walk_directories(self.source)
                 }
-                if len(self.source_tree) == 1:  # FIXME not tested
+                if len(self.source_tree) == 1:
                     # asking for explicit album option results one case less to guess
                     self.parser.error(
                         "no sub-folders found. If it is an album please explicitly add "
@@ -518,10 +518,10 @@ class MmusicC:
                     metadata_obj.unlink_audio_file()
                     # TODO add option moving file to trash can
                     metadata_obj.file_path.unlink()
-                    self.deleted += 1
+                    self.stats_deleted += 1
                     logging.log(25, f". {metadata_obj.file_path}")
                 except FileNotFoundError:
-                    self.error += 1
+                    self.stats_error += 1
                     logging.log(25, f"E {metadata_obj.file_path}")
 
             logging.log(25, "---------------------------------------------------------")
@@ -530,7 +530,7 @@ class MmusicC:
             # if target is empty diff will always be empty
             if len(self.target_tree) == 1:
                 logging.log(25, "Target is empty, skipping Deleting Folders.")
-            elif len(diff) == 0:  # FIXME not tested
+            elif len(diff) == 0:
                 logging.log(25, "No Folders to delete. Continue.")
             else:
                 logging.log(25, "Comparing and Deleting Folders ...")
@@ -645,17 +645,15 @@ class MmusicC:
                     key: res_a.get(key, 0) + res_b.get(key, 0) for key in file_names
                 }
 
-                neg = [i for i in result.values() if i > 3]
-                pos = [j for j in result.values() if j >= 0]
-                sum_unchanged = sum([z == 0 for z in pos])
-                self.unchanged += sum_unchanged
-                sum_metadata = sum([z == 1 for z in pos])
-                self.metadata += sum_metadata
-                sum_created = sum([z == 2 for z in pos])
-                self.created += sum_created
-                sum_both = sum([z == 3 for z in pos])
-                self.both += sum_both
-                self.error += len(neg)
+                sum_unchanged = sum([z == 0 for z in result.values()])
+                self.stats_unchanged += sum_unchanged
+                sum_metadata = sum([z == 1 for z in result.values()])
+                self.stats_metadata += sum_metadata
+                sum_created = sum([z == 2 for z in result.values()])
+                self.stats_created += sum_created
+                sum_both = sum([z == 3 for z in result.values()])
+                self.stats_both += sum_both
+                self.stats_error += sum([z > 3 for z in result.values()])
 
                 if not self.result.all and sum(result.values()) > 0:
                     str_list = list()
@@ -673,12 +671,12 @@ class MmusicC:
         report = [
             f"Total Time : {math.floor(time_delta.total_seconds() / 60)} min "
             f"{math.fmod(time_delta.total_seconds(), 60)} s",
-            f"Unchanged  : {self.unchanged}",
-            f"Metadata   : {self.metadata}",
-            f"Created    : {self.created}",
-            f"Both       : {self.both}",
-            f"Deleted    : {self.deleted if self.result.delete_files else 'Not Applicable'}",  # noqa
-            f"Errors     : {self.error}",
+            f"Unchanged  : {self.stats_unchanged}",
+            f"Metadata   : {self.stats_metadata}",
+            f"Created    : {self.stats_created}",
+            f"Both       : {self.stats_both}",
+            f"Deleted    : {self.stats_deleted if self.result.delete_files else 'Not Applicable'}",  # noqa
+            f"Errors     : {self.stats_error}",
         ]
 
         if self.target is MmusicC.ElementType.database:
@@ -700,7 +698,9 @@ class MmusicC:
             )
             > 0
         ):
-            # album does not exist or is not complete
+            # album does not exist or is not complete, update the target tree
+            # GroupMetadata entries by creating a new one and try to link files.
+            # Missing ones are represented by a Metadata object without a file linked.
             self.target_tree[key_path] = GroupMetadata(
                 [
                     Metadata(

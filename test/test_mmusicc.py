@@ -72,9 +72,9 @@ class TestMetadataOnly:
         "opt",
         [
             None,
-            "--lazy",
+            "--lazy-import",
             "--delete-existing-metadata",
-            "--lazy --delete-existing-metadata",
+            "--lazy-import --delete-existing-metadata",
         ],
     )
     def test_file_file(self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, opt, combo):
@@ -111,7 +111,7 @@ class TestMetadataOnly:
 
         if opt and "--delete-existing-metadata" in opt:
             assert len(metadata.unprocessed_tag) == 0
-            if "--lazy" in opt:
+            if "--lazy-import" in opt:
                 assert metadata.get_tag("composer") == "should not be here"
             else:
                 assert metadata.get_tag("composer") is None
@@ -134,7 +134,9 @@ class TestMetadataOnly:
         # check no file was modified (11 files were accessed: 11*100=1000)
         assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 0
 
-    @pytest.mark.parametrize("opt", [None, "--lazy", "--delete-existing-metadata"])
+    @pytest.mark.parametrize(
+        "opt", [None, "--lazy-import", "--delete-existing-metadata"]
+    )
     def test_folder_folder_part(self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, opt):
         """test folder -> folder metadata sync, where target has not got all
         elements of source folder
@@ -157,7 +159,7 @@ class TestMetadataOnly:
             # by the standard operation. At Single the composer is imported as None and
             # therefore unchanged on file, while some wrong tags are changed. (7-2-1=4)
             assert equal_to_lib_b == 4
-        elif "--lazy" in opt:
+        elif "--lazy-import" in opt:
             # at import the composer tag is not overwritten with None from source
             # also the empty values in CD_02 are not replaced with none. Since
             # write_empty is by default False, a value that is Empty in Metadata will
@@ -466,25 +468,35 @@ class TestMmusicc:
     """Test complete program"""
 
     @pytest.mark.parametrize(
-        "opt",
+        "opt, e_stats",
         [
-            None,
-            "--lazy-import",
-            "--delete-existing-metadata",
-            "--lazy --delete-existing-metadata",
+            (None, [6, 1, 3, 1, 0, 0]),
+            ("--lazy-import --delete-files", [4, 3, 3, 1, 0, 1]),
+            ("--delete-existing-metadata --delete-files", [4, 3, 0, 4, 0, 0]),
+            ("--lazy-import --delete-existing-metadata", [4, 3, 0, 4, 0, 0]),
         ],
     )
     def test_default(
-        self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, dir_lib_b_ogg, opt
+        self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, dir_lib_b_ogg, opt, e_stats
     ):
         """test the program for the default case it is made for with most used
         parameters
         """
         copy_tree(str(dir_lib_c_ogg), str(dir_lib_test))
         org_file_list = get_file_list_tree(dir_lib_test)
+        if e_stats[5] == 1:  # add a file to be deleted
+            extra_file = dir_lib_test.joinpath(
+                "artist_quodlibet/album_bar_-_single_(2020)/02_track2.ogg"
+            )
+            copy_file(
+                dir_lib_test.joinpath(
+                    "artist_quodlibet/album_bar_-_single_(2020)/01_track1.ogg"
+                ),
+                extra_file,
+            )
         saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
         log_file_path = dir_lib_test.joinpath("mmusicc_log.log")
-        _assert_run_mmusicc(
+        m = _assert_run_mmusicc(
             "--source",
             dir_lib_a_flac,
             "--target",
@@ -494,7 +506,12 @@ class TestMmusicc:
             "--log-file",
             log_file_path,
             "-v",
+            "pytest",
         )
+
+        stats = _get_stats(m)
+
+        _assert_stats(m, e_stats)
 
         # check that missing files are created
         _assert_file_tree(dir_lib_test, dir_lib_b_ogg)
@@ -530,6 +547,24 @@ class TestMmusicc:
         )
         # check no file was modified, first run should have done all
         assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 0
+
+    def test_album(self, dir_lib_a_flac, dir_lib_test):
+        source_dir = dir_lib_a_flac.joinpath("artist_puddletag/album_good_(2018)")
+
+        args = [
+            "--source",
+            source_dir,
+            "--target",
+            dir_lib_test,
+            "-f .ogg",
+        ]
+        # expected to fail
+        with pytest.raises(SystemExit) as exc_info:
+            main(_cmd_mmusicc(*args))
+        assert exc_info.value.code == 2
+        # when we follow the error message then it works
+        args.append("--album")
+        _assert_run_mmusicc(*args)
 
     def test_custom_config_path(self, dir_lib_a_flac, dir_lib_test, dir_orig_data):
         """run mmusicc with testing config file, which is not the default one
@@ -611,9 +646,32 @@ def _assert_run_mmusicc(*args):
     """runs mmusicc with the given arguments. args will be preprocessed with
     cmd_command().
     """
+    if "pytest" in args:
+        return main(_cmd_mmusicc(*args))
+
     with pytest.raises(SystemExit) as exc_info:
         main(_cmd_mmusicc(*args))
     assert exc_info.value.code == 0
+
+
+def _assert_stats(m, expected_values: list):
+    assert m.stats_unchanged == expected_values[0]
+    assert m.stats_metadata == expected_values[1]
+    assert m.stats_created == expected_values[2]
+    assert m.stats_both == expected_values[3]
+    assert m.stats_error == expected_values[4]
+    assert m.stats_deleted == expected_values[5]
+
+
+def _get_stats(m):
+    return [
+        m.stats_unchanged,
+        m.stats_metadata,
+        m.stats_created,
+        m.stats_both,
+        m.stats_error,
+        m.stats_deleted,
+    ]
 
 
 def test_assert_file_tree(dir_lib_b_ogg, dir_lib_c_ogg):
