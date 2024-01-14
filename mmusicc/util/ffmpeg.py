@@ -2,8 +2,13 @@
 #  SPDX-License-Identifier: GPL-3.0-or-later
 
 import errno
+import json
 import logging
+import mimetypes
+import pathlib
+import re
 import subprocess
+import typing
 
 
 class FFmpeg(object):
@@ -15,13 +20,11 @@ class FFmpeg(object):
         options    (str): string containing options for ffmpeg as use in
             console (arguments separated by space)
         executable (str, optional): path to ffmpeg executable. Defaults to
-            'ffmpeg': Can be overwritten in case e.g libav is used.
+            'ffmpeg': Can be overwritten in case e.g. libav is used.
     """
 
     def __init__(self, source, target, options=None, executable="ffmpeg"):
-        """Initialize ffmpeg command line wrapper.
-
-        """
+        """Initialize ffmpeg command line wrapper."""
         self.executable = executable
         self._source = source
         self._target = target
@@ -79,14 +82,121 @@ class FFmpeg(object):
             )
 
 
+def ffmpeg_formats():
+    """run 'ffmpeg -formats' returning the result without E, D info
+
+    Returns (dict): extension: format name dictionary
+
+    """
+    result = subprocess.run(
+        ["ffmpeg", "-formats"],
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+    )
+    return {
+        "." + k: v
+        for k, v in re.findall(
+            r"(?:(?:D )|(?:DE)|(?: E)) ([^\s]*)\s+(.*)", result.stdout
+        )
+    }
+
+
+try:
+    formats = ffmpeg_formats()
+except FileNotFoundError:
+    logging.warning(
+        "ffmpeg is not installed. \n"
+        "File conversion will raise Errors. \n"
+        "Audio file recognition falls back to mimetypes."
+    )
+
+
+class FFProbeResult(typing.NamedTuple):
+    return_code: int
+    std_out_json: str
+    error: str
+
+
+def ffprobe(file_path) -> FFProbeResult:
+    """run ffprobe on file
+
+    Args:
+        file_path (str or pathlib.Path): file to check
+
+    Returns (FFProbeResult): FFProbeResult named tuple with command result
+
+    """
+    command_array = [
+        "ffprobe",
+        "-v",
+        "quiet",
+        "-print_format",
+        "json",
+        "-show_format",
+        "-show_streams",
+        str(file_path),
+    ]
+    result = subprocess.run(
+        command_array,
+        stdout=subprocess.PIPE,
+        stderr=subprocess.PIPE,
+        universal_newlines=True,
+    )
+    return FFProbeResult(
+        return_code=result.returncode, std_out_json=result.stdout, error=result.stderr
+    )
+
+
+def ffprobe_audio_format_name(file_path):
+    """returns the name of the audio format acquired with the ffprobe command
+
+    Args:
+        file_path (str or pathlib.Path): file to check
+
+    Returns (str or None): result or None if command fails
+
+    """
+    result = ffprobe(file_path)
+    if result.return_code == 0:
+        return json.loads(result.std_out_json)["format"]["format_name"]
+    return None
+
+
+def is_audio(file_path):
+    """Return True if file is a supported audio file.
+
+    mimetype must be of subtype audio and the extension must be supported by ffmpeg.
+    If ffmpeg is not installed only the mimetype is used.
+
+    Note: There might be cases where audio files are not recognized because the ffmpeg
+        output returns some formats in lists which is not handles by ffmpeg_formats
+        function. This is not the case for common audio formats.
+
+    Args:
+        file_path (pathlib.Path): file path of file to check
+
+    Returns (bool): check result
+    """
+    mimetype = mimetypes.guess_type(str(file_path))
+    if mimetype[0] is None or not mimetype[0].startswith("audio"):
+        return False
+    if formats:
+        if file_path.suffix in formats:
+            return True
+        else:
+            return False
+    else:
+        # fallback to mimetypes, which was checked before
+        return True
+
+
 class FFExecutableNotFoundError(Exception):
     """Raise when ffmpeg executable was not found."""
 
 
 class FFRuntimeError(Exception):
-    """Raise when ffmpeg command line execution returns a non-zero exit code.
-
-    """
+    """Raise when ffmpeg command line execution returns a non-zero exit code."""
 
     def __init__(self, cmd, exit_code, stdout, stderr):
         self.cmd = cmd

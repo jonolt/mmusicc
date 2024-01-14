@@ -5,13 +5,14 @@ import copy
 import logging
 
 import mutagen
+import mutagen.id3
 
 import mmusicc.util.allocationmap as am
 from mmusicc.formats._audio import AudioFile
 from mmusicc.util.metadatadict import Empty, scan_dictionary, AlbumArt
 from mmusicc.util.util import text_parser_get, join_str_list
 
-extensions = [".mp3", ".mp2", ".mp1", ".mpg", ".mpeg"]
+extensions = [".mp3"]
 """list of all extensions associated with this module"""
 # loader   see bottom
 # types    see bottom
@@ -47,7 +48,7 @@ class MP3File(AudioFile):
     def file_read(self):
         """reads file tags into AudioFile tag dictionary (dict_meta).
 
-        First tries to associate ID3 tags, than takes all txxx tags and runs
+        First tries to associate ID3 tags, then takes all txxx tags and runs
         them through the scan dictionary function.
         """
         tags_txxx = dict()
@@ -109,7 +110,9 @@ class MP3File(AudioFile):
     def file_save(
         self, remove_existing=False, write_empty=False, remove_v1=False, dry_run=False
     ):
-        """saves file tags from tag dictionary (dict_meta) to AudioFile.
+        """Saves file tags from tag dictionary (dict_meta) to AudioFile.
+
+        The save (write) is only applied when there is an actual change of the metadata.
 
         Note:
             write_empty may have no effect. Since mutagen will not load empty
@@ -199,10 +202,19 @@ class MP3File(AudioFile):
                 continue
             else:
                 if isinstance(value, list):
-                    value = join_str_list(value)
+                    try:
+                        value = join_str_list(value)
+                    except AttributeError as ex:
+                        logging.warning(
+                            f"Unable to join list for frame "
+                            f"with id'{frame.FrameID}' "
+                            f"of file '{self.file_path}' "
+                            f"with exception '{ex}' "
+                            f"and content '{value}'"
+                        )
                 self._set_value(frame, "text", value)
             if not frame.encoding:
-                self._set_value(frame, "encoding", mutagen.id3.Encoding.UTF16)
+                self._set_value(frame, "encoding", mutagen.id3.Encoding.UTF16)  # noqa
             try:
                 lang = frame.lang
                 if not lang:
@@ -222,14 +234,17 @@ class MP3File(AudioFile):
         # it is possible a tag is neither in loaded nor in the unprocessed tags list
         # this happened when a mp3 file had the to comment tags COMM and TXXX:COM,
         # where one off them overwrote the other.
+        tag_missmatch_str = (
+            "tags mismatch. Tags {} were are not in mapping and could not be handled."
+        )
         if not len(tags_audio) == 0:
             if remove_existing:
                 for tag in tags_audio:
                     audio.tags.delall(tag)
                     self._changed_tags.append(("delall", tag, "N.A.", "*"))
-                    logging.info(f"tags mismatch. Tags {tags_audio} were overlooked.")
+                    logging.debug(tag_missmatch_str.format(tags_audio))
             else:
-                logging.warning(f"tags mismatch. Tags {tags_audio} were overlooked.")
+                logging.warning(tag_missmatch_str.format(tags_audio))
 
         if len(self._changed_tags) == 0:
             return 0

@@ -29,7 +29,7 @@ class MetadataDict(dict):
             b_dict (dict): any dictionary with tag, value pairs
 
         Returns:
-            list: key value pairs that could't be imported.
+            list: key value pairs that couldn't be imported.
         """
         rest = scan_dictionary(b_dict, self)
         return rest
@@ -82,7 +82,7 @@ class PairedText(object):
 
 
 class Empty(object):
-    """Object representing the emptiness of a existing tag without an value."""
+    """Object representing the emptiness of an existing tag without a value."""
 
     value = ""
 
@@ -100,7 +100,7 @@ class Empty(object):
 
     @staticmethod
     def is_empty(text) -> bool:
-        """Returns True if text is instance Empty or a empty string ''."""
+        """Returns True if text is instance Empty or an empty string ''."""
         if isinstance(text, Empty):
             return True
         if isinstance(text, str) and text.strip() == "":
@@ -109,7 +109,7 @@ class Empty(object):
 
     @staticmethod
     def is_empty_or_none(text) -> bool:
-        """Returns True if text is instance Empty, a empty string or None."""
+        """Returns True if text is instance Empty, an empty string or None."""
         if text is None or Empty.is_empty(text):
             return True
         return False
@@ -286,7 +286,7 @@ def scan_dictionary(dict_tags, dict_data, parse_text=False):
             as it is. Defaults to False.
     Returns:
         dict<str, str>: dictionary with all tags whose name could not be
-            associated with. Note: keys are casfolded.
+            associated with. Note: str.casefold() is applied to dictionary keys.
     """
 
     # Make a copy of the source dictionary, so it is unchanged

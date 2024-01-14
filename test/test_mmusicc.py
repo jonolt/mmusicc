@@ -1,6 +1,6 @@
 #  Copyright (c) 2020 Johannes Nolte
 #  SPDX-License-Identifier: GPL-3.0-or-later
-
+import shutil
 from distutils.dir_util import copy_tree
 from distutils.file_util import copy_file
 
@@ -11,7 +11,7 @@ from ._util import *
 
 
 class Ste:
-    """Source Target Expected. Object holding files path for testing"""
+    """Source Target Expected. Object holding file paths for testing"""
 
     def __init__(self, combo, path_s, path_t, path_e, add_args=None):
         self.combo = combo
@@ -54,7 +54,7 @@ def ste(request, dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg, dir_lib_c_ogg):
         return Ste(
             combo,
             dir_lib_a_flac.joinpath("artist_puddletag"),
-            dir_lib_test,
+            dir_lib_test.joinpath("album_sub_folder_not_existing"),
             dir_lib_b_ogg.joinpath("artist_puddletag"),
             "--album",
         )
@@ -72,9 +72,9 @@ class TestMetadataOnly:
         "opt",
         [
             None,
-            "--lazy",
+            "--lazy-import",
             "--delete-existing-metadata",
-            "--lazy --delete-existing-metadata",
+            "--lazy-import --delete-existing-metadata",
         ],
     )
     def test_file_file(self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, opt, combo):
@@ -111,7 +111,7 @@ class TestMetadataOnly:
 
         if opt and "--delete-existing-metadata" in opt:
             assert len(metadata.unprocessed_tag) == 0
-            if "--lazy" in opt:
+            if "--lazy-import" in opt:
                 assert metadata.get_tag("composer") == "should not be here"
             else:
                 assert metadata.get_tag("composer") is None
@@ -134,10 +134,12 @@ class TestMetadataOnly:
         # check no file was modified (11 files were accessed: 11*100=1000)
         assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 0
 
-    @pytest.mark.parametrize("opt", [None, "--lazy", "--delete-existing-metadata"])
+    @pytest.mark.parametrize(
+        "opt", [None, "--lazy-import", "--delete-existing-metadata"]
+    )
     def test_folder_folder_part(self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, opt):
-        """test folder folder metadata sync, where target has not got all
-            elements of source folder
+        """test folder -> folder metadata sync, where target has not got all
+        elements of source folder
         """
         copy_tree(str(dir_lib_c_ogg), str(dir_lib_test))
         saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
@@ -157,8 +159,8 @@ class TestMetadataOnly:
             # by the standard operation. At Single the composer is imported as None and
             # therefore unchanged on file, while some wrong tags are changed. (7-2-1=4)
             assert equal_to_lib_b == 4
-        elif "--lazy" in opt:
-            # at import the the composer tag is not overwritten with None from source
+        elif "--lazy-import" in opt:
+            # at import the composer tag is not overwritten with None from source
             # also the empty values in CD_02 are not replaced with none. Since
             # write_empty is by default False, a value that is Empty in Metadata will
             # be deleted on file, therefore CD_02 has no Empty tags left.
@@ -226,7 +228,10 @@ class TestMetadataOnly:
         )
         path_t = dir_lib_test.joinpath("01_track1.ogg")
         _assert_run_mmusicc(
-            "--source", path_s, "--target-db", database_path,
+            "--source",
+            path_s,
+            "--target-db",
+            database_path,
         )
         assert pathlib.Path(database_path).is_file()
 
@@ -246,11 +251,18 @@ class TestMetadataOnly:
         assert Metadata(path_s).dict_data == Metadata(path_t).dict_data
 
     def test_folder_database_in_and_export(
-        self, dir_lib_a_flac, dir_lib_b_ogg, dir_lib_c_ogg, dir_lib_test,
+        self,
+        dir_lib_a_flac,
+        dir_lib_b_ogg,
+        dir_lib_c_ogg,
+        dir_lib_test,
     ):
         database_path = dir_lib_test.joinpath("fuubar.db3")
         _assert_run_mmusicc(
-            "--source", dir_lib_a_flac, "--target-db", database_path,
+            "--source",
+            dir_lib_a_flac,
+            "--target-db",
+            database_path,
         )
         assert pathlib.Path(database_path).is_file()
 
@@ -276,8 +288,8 @@ class TestConversionFileFile:
 
     @pytest.mark.parametrize("opt_format", ["mp3", "ogg"])
     def test_option_format(self, ste, opt_format):
-        """ both cases are converted to mp3 since -f is ignored and the
-            extension is known from the target
+        """both cases are converted to mp3/ogg since -f is ignored and the
+        extension is known from the target
         """
         # not tested if format can be neglected at file-->file
         _assert_run_mmusicc(
@@ -288,7 +300,7 @@ class TestConversionFileFile:
 
     def test_ffmpeg_options(self, ste):
         """test if ffmpeg options are passed through"""
-        # byte objects are not splited but converted to string
+        # byte objects are not split but converted to string
         _assert_run_mmusicc(
             "--only-files",
             "-s",
@@ -305,9 +317,9 @@ class TestConversionFileFile:
         assert pathlib.Path(ste.path_t).stat().st_size < 10000
 
     def test_catch_ffmpeg_error(self, ste):
-        """test if ffmpeg options are passed through and a exception is raised
-            for a invalid option string. since ffmpeg errors are captured, mmusic will
-            exit with code 0.
+        """test if ffmpeg options are passed through and an exception is raised
+        for an invalid option string. since ffmpeg errors are captured, mmusicc will
+        exit with code 0.
         """
         _assert_run_mmusicc(
             "--only-files",
@@ -369,30 +381,137 @@ class TestConversionFolderFolder:
             _assert_file_tree(ste.path_t, ste.path_e)
 
 
+@pytest.mark.parametrize("target_is_empty", [False, True])
+def test_delete_files(dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg, target_is_empty):
+    source_path = dir_lib_test.joinpath("source")
+    shutil.copytree(dir_lib_a_flac, source_path)
+    target_path = dir_lib_test.joinpath("target")
+    shutil.copytree(dir_lib_b_ogg, target_path)
+    shutil.rmtree(source_path.joinpath("artist_puddletag"))  # in target not in source
+    shutil.rmtree(target_path.joinpath("artist_quodlibet"))  # in source not in target
+    target_path.joinpath("artist_puddletag", "empty_dir_in_del_album").mkdir()
+    correct_file = source_path.joinpath(
+        "various_artists", "Escape_Character_No._1_(2012)", "playlist.m3u"
+    )
+    shutil.copyfile(
+        correct_file, target_path.joinpath(correct_file.relative_to(source_path))
+    )
+    extra_file_1 = target_path.joinpath(
+        "various_artists",
+        "album_best_hits_compilation_(2010)",
+        "CD_01",
+        correct_file.name,
+    )
+    extra_file_2 = target_path.joinpath(
+        "various_artists",
+        "album_best_hits_compilation_(2010)",
+        "CD_02",
+        correct_file.name,
+    )
+    shutil.copyfile(correct_file, extra_file_1)
+    shutil.copyfile(correct_file, extra_file_2)
+
+    duplicated = target_path.joinpath(
+        "various_artists/album_best_hits_compilation_(2010)/CD_02/02_track2.ogg"
+    )  # this one is deleted by mmusicc
+    shutil.copyfile(
+        duplicated, duplicated.with_name("02_trak2").with_suffix(duplicated.suffix)
+    )  # with_stem new @python3.9
+
+    no_media_folder = source_path.joinpath("no_media_folder")
+    no_media_folder.mkdir()
+    no_media_folder.joinpath("no_media_file").touch()
+
+    shutil.copytree(no_media_folder, target_path.joinpath(no_media_folder.name))
+    shutil.copytree(
+        no_media_folder, target_path.joinpath(no_media_folder.name + "_not_in_source")
+    )
+
+    target_path.joinpath("various_artists", "empty_dir_in_artist").mkdir()
+
+    a = {p.relative_to(source_path).with_suffix("") for p in source_path.rglob("*")}
+    b = {p.relative_to(target_path).with_suffix("") for p in target_path.rglob("*")}
+    assert len(a.symmetric_difference(b)) == 20
+
+    if target_is_empty:
+        # remove everything just created (the least complex way to ensure same source)
+        for path in target_path.iterdir():
+            if path.is_dir():
+                shutil.rmtree(path)
+            else:
+                path.unlink()
+
+    _assert_run_mmusicc(
+        "--source", source_path, "--target", target_path, "-f .ogg", "--delete-files"
+    )
+
+    a = {p.relative_to(source_path).with_suffix("") for p in source_path.rglob("*")}
+    b = {p.relative_to(target_path).with_suffix("") for p in target_path.rglob("*")}
+
+    if target_is_empty:
+        # 1+1x no media folder + file
+        # 1x m3u file not synced
+        assert len(a.difference(b)) == 3
+        return
+
+    assert correct_file.exists()
+    assert extra_file_1.exists()  # file still exists as no audio contents will not
+    assert extra_file_2.exists()  # deleted except when folder is deleted
+
+    # 2x no media playlist.m3u file
+    # 1x hidden folder
+    # 1x non hidden file in hidden folder
+    assert len(a.symmetric_difference(b)) == 4
+
+
 class TestMmusicc:
     """Test complete program"""
 
     @pytest.mark.parametrize(
-        "opt",
+        "opt, e_stats",
         [
-            None,
-            "--lazy-import",
-            "--delete-existing-metadata",
-            "--lazy --delete-existing-metadata",
+            (None, [6, 1, 3, 1, 0, 0]),
+            ("--lazy-import --delete-files", [4, 3, 3, 1, 0, 1]),
+            ("--delete-existing-metadata --delete-files", [4, 3, 0, 4, 0, 0]),
+            ("--lazy-import --delete-existing-metadata", [4, 3, 0, 4, 0, 0]),
         ],
     )
     def test_default(
-        self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, dir_lib_b_ogg, opt
+        self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, dir_lib_b_ogg, opt, e_stats
     ):
         """test the program for the default case it is made for with most used
-            parameters
+        parameters
         """
         copy_tree(str(dir_lib_c_ogg), str(dir_lib_test))
         org_file_list = get_file_list_tree(dir_lib_test)
+        if e_stats[5] == 1:  # add a file to be deleted
+            extra_file = dir_lib_test.joinpath(
+                "artist_quodlibet/album_bar_-_single_(2020)/02_track2.ogg"
+            )
+            copy_file(
+                dir_lib_test.joinpath(
+                    "artist_quodlibet/album_bar_-_single_(2020)/01_track1.ogg"
+                ),
+                extra_file,
+            )
         saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
-        _assert_run_mmusicc(
-            "--source", dir_lib_a_flac, "--target", dir_lib_test, "-f .ogg", opt
+        log_file_path = dir_lib_test.joinpath("mmusicc_log.log")
+        m = _assert_run_mmusicc(
+            "--source",
+            dir_lib_a_flac,
+            "--target",
+            dir_lib_test,
+            "-f .ogg",
+            opt,
+            "--log-file",
+            log_file_path,
+            "-v",
+            "pytest",
         )
+
+        stats = _get_stats(m)
+
+        _assert_stats(m, e_stats)
 
         # check that missing files are created
         _assert_file_tree(dir_lib_test, dir_lib_b_ogg)
@@ -429,13 +548,31 @@ class TestMmusicc:
         # check no file was modified, first run should have done all
         assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 0
 
+    def test_album(self, dir_lib_a_flac, dir_lib_test):
+        source_dir = dir_lib_a_flac.joinpath("artist_puddletag/album_good_(2018)")
+
+        args = [
+            "--source",
+            source_dir,
+            "--target",
+            dir_lib_test,
+            "-f .ogg",
+        ]
+        # expected to fail
+        with pytest.raises(SystemExit) as exc_info:
+            main(_cmd_mmusicc(*args))
+        assert exc_info.value.code == 2
+        # when we follow the error message then it works
+        args.append("--album")
+        _assert_run_mmusicc(*args)
+
     def test_custom_config_path(self, dir_lib_a_flac, dir_lib_test, dir_orig_data):
         """run mmusicc with testing config file, which is not the default one
 
-            because init_allocationmap will be skipped when list_tags is
-            already filled. It is cleared so the init will load the new
-            config file. Since the map is force initialized module wise by
-            the fixture it is reset to the default.
+        because init_allocationmap will be skipped when list_tags is
+        already filled. It is cleared so the init will load the new
+        config file. Since the map is force initialized module wise by
+        the fixture it is reset to the default.
         """
         import mmusicc.util.allocationmap as am
 
@@ -467,7 +604,7 @@ class TestMmusicc:
 def _assert_file_tree(tree_a, tree_b, depth=None) -> (list, list):
     """asserts if tree structure of sub-files and directories is identical
 
-        and returns a lists of the compared files as tuple (files_a, files_b).
+    and returns a lists of the compared files as tuple (files_a, files_b).
     """
     files_a, base_length_a = get_file_list_tree(tree_a, depth=depth, ret_base=True)
     files_b, base_length_b = get_file_list_tree(tree_b, depth=depth, ret_base=True)
@@ -482,8 +619,8 @@ def _assert_file_tree(tree_a, tree_b, depth=None) -> (list, list):
 def _cmd_mmusicc(*args):
     """create and return a proper command list from a mixed input list
 
-        strings will be splited at whitespaces, to pass a string like object
-        without splitting (eg. for ffmpeg args) pass it as bytes.
+    strings will be split at whitespaces, to pass a string like object
+    without splitting (e.g. for ffmpeg args) pass it as bytes.
     """
     final_cmd = list()
     if isinstance(args, pathlib.Path):
@@ -507,11 +644,34 @@ def _cmd_mmusicc(*args):
 
 def _assert_run_mmusicc(*args):
     """runs mmusicc with the given arguments. args will be preprocessed with
-        cmd_command().
+    cmd_command().
     """
-    with pytest.raises(SystemExit) as excinfo:
+    if "pytest" in args:
+        return main(_cmd_mmusicc(*args))
+
+    with pytest.raises(SystemExit) as exc_info:
         main(_cmd_mmusicc(*args))
-    assert excinfo.value.code == 0
+    assert exc_info.value.code == 0
+
+
+def _assert_stats(m, expected_values: list):
+    assert m.stats_unchanged == expected_values[0]
+    assert m.stats_metadata == expected_values[1]
+    assert m.stats_created == expected_values[2]
+    assert m.stats_both == expected_values[3]
+    assert m.stats_error == expected_values[4]
+    assert m.stats_deleted == expected_values[5]
+
+
+def _get_stats(m):
+    return [
+        m.stats_unchanged,
+        m.stats_metadata,
+        m.stats_created,
+        m.stats_both,
+        m.stats_error,
+        m.stats_deleted,
+    ]
 
 
 def test_assert_file_tree(dir_lib_b_ogg, dir_lib_c_ogg):

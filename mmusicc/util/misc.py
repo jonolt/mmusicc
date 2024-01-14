@@ -1,19 +1,24 @@
 import logging
-import mimetypes
+import os
 import pathlib
+import stat
 
 import mmusicc.util.allocationmap as am
-from mmusicc.formats import mimes
 
 
-def is_supported_audio(file):
-    """Return True if file is a supported audio file."""
-    mimetype = mimetypes.guess_type(str(file))
-
-    if mimetype[0] in mimes:
-        return True
+def is_hidden_path(path):
+    res = os.stat(path)
+    if hasattr(res, "st_file_attributes"):
+        return bool(res.st_file_attributes & stat.FILE_ATTRIBUTE_HIDDEN)
     else:
-        return False
+        return pathlib.Path(path).stem.startswith(".")
+
+
+def walk_directories(root_path, ignore_hidden=True):
+    for dir_path, _, _ in os.walk(root_path):
+        if ignore_hidden and is_hidden_path(dir_path):
+            continue
+        yield pathlib.Path(dir_path)
 
 
 def process_white_and_blacklist(whitelist, blacklist):
