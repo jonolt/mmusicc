@@ -77,7 +77,8 @@ class MP3File(AudioFile):
             elif frame_type_parent is mutagen.id3.TimeStampTextFrame:
                 tag_val = frame.text[0].get_text()
             elif frame_type_parent is mutagen.id3.Frame:
-                tag_val = frame.text
+                logging.warning(f"Frame not implemented, skipping: {str(frame)}")
+                continue
             else:
                 raise Exception("frame not implemented %s", frame.HashKey)
 
@@ -226,7 +227,10 @@ class MP3File(AudioFile):
             for tag, value in (
                 MP3File(self.file_path).file_read().unprocessed_tag.items()
             ):
-                tags_audio.remove(tag)
+                try:
+                    tags_audio.remove(tag)
+                except ValueError as ex:
+                    logging.warning(f"could not remove tag '{tag}' from tag list of audio file '{self.file_path}'")
                 audio.tags.delall(tag)
                 self._changed_tags.append(("delall", tag, value, "*"))
 

@@ -273,7 +273,9 @@ class Metadata(MetadataBase, metaclass=MetadataMeta):
             Exception: if no file is linked
         """
         if not self._audio:
-            raise Exception("no file_path linked")
+            raise Exception(
+                "no file_path linked, this might happen when using the "
+                "--dry-run or --only-meta option and no file is at the target location")
         self._audio.file_read()
         self._dict_data.update(self._audio.dict_meta)
 
@@ -293,7 +295,9 @@ class Metadata(MetadataBase, metaclass=MetadataMeta):
             Exception: if no file is linked
         """
         if not self._audio:
-            raise Exception("no file_path linked")
+            raise Exception(
+                "no file_path linked, this might happen when using the "
+                "--dry-run or --only-meta option and no file is at the target location")
         self._audio.dict_meta.update(self._dict_data)
         return self._audio.file_save(
             remove_existing=remove_existing,

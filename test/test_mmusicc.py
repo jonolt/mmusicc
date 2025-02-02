@@ -277,9 +277,9 @@ class TestMetadataOnly:
             "-f .ogg",
             "--delete-existing-metadata",
         )
-        # 11 audio files + 1 database file. 3 audio are changed.
+        # 13 audio files + 1 database file. 3 audio are changed.
         assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 30300
-        assert cmp_files_metadata(dir_lib_b_ogg, dir_lib_test) == 11
+        assert cmp_files_metadata(dir_lib_b_ogg, dir_lib_test) == 13
 
 
 @pytest.mark.parametrize("ste", ["file-->file"], indirect=True)
@@ -470,10 +470,11 @@ class TestMmusicc:
     @pytest.mark.parametrize(
         "opt, e_stats",
         [
-            (None, [6, 1, 3, 1, 0, 0]),
-            ("--lazy-import --delete-files", [4, 3, 3, 1, 0, 1]),
-            ("--delete-existing-metadata --delete-files", [4, 3, 0, 4, 0, 0]),
-            ("--lazy-import --delete-existing-metadata", [4, 3, 0, 4, 0, 0]),
+            # (opt, [unchanged, meta, created, both, error, deleted])
+            (None, [6, 1, 5, 1, 0, 0]),
+            ("--lazy-import --delete-files", [4, 3, 5, 1, 0, 1]),
+            ("--delete-existing-metadata --delete-files", [4, 3, 0, 6, 0, 0]),
+            ("--lazy-import --delete-existing-metadata", [4, 3, 0, 6, 0, 0]),
         ],
     )
     def test_default(
@@ -676,8 +677,8 @@ def _get_stats(m):
 
 def test_assert_file_tree(dir_lib_b_ogg, dir_lib_c_ogg):
     files_a, files_b = _assert_file_tree(dir_lib_b_ogg, dir_lib_b_ogg)
-    assert len(files_a) == 11
-    assert len(files_b) == 11
+    assert len(files_a) == 13
+    assert len(files_b) == 13
     files_a, files_b = _assert_file_tree(dir_lib_b_ogg, dir_lib_b_ogg, 2)
     assert len(files_a) == 1
     assert len(files_b) == 1

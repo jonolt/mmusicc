@@ -573,11 +573,13 @@ class MmusicC:
                     self.target_tree.pop(path)
 
             logging.log(25, "---------------------------------------------------------")
-            logging.log(25, "Comapring and Deleting Files (of remaining folders) ... ")
+            logging.log(25, "Comparing and Deleting Files (of remaining folders) ... ")
 
             # source and target are equal on folder level. Now iterate through
             # remaining folders at file level.
             for path in self.target_tree:
+                if self.target_tree[path] is None:
+                    continue
                 if isinstance(self.source_tree[path], GroupMetadata):
                     files_source = {
                         m.file_path.stem: m
@@ -685,9 +687,16 @@ class MmusicC:
             for r in report:
                 logging.log(25, r)
 
+        # reprint the input
+        for o in options:
+            logging.log(25, o)
+
     def group_metadata_run_file(self, key_path):
 
-        if key_path not in self.target_tree or (
+        logging.debug(f"group_metadata_run_file(self, key path={key_path})")
+
+        # (target is empty folder or does not exist) or (target has fewer items than source)
+        if self.target_tree.get(key_path) is None or (
             isinstance(self.source_tree[key_path], GroupMetadata)
             and len(
                 {
@@ -789,8 +798,8 @@ class MmusicC:
                 return 1 << 5  # 32
 
     def group_metadata_run_meta(self, key_path):
-        if key_path not in self.target_tree:
-            logging.debug("skipping")
+        if self.target_tree.get(key_path) is None:
+            logging.debug(f"group_metadata_run_meta(self, keypath={key_path}), target is empty or does not exist")
             return {}
 
         self.target_tree[key_path].import_tags(
