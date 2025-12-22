@@ -99,21 +99,6 @@ class MetadataBase(abc.ABC):
         ...
 
     @abc.abstractmethod
-    def import_tags_from_db(
-        self,
-        primary_key=None,
-        whitelist=None,
-        blacklist=None,
-        skip_none=True,
-        clear_blacklisted=False,
-    ):
-        ...
-
-    @abc.abstractmethod
-    def export_tags_to_db(self):
-        ...
-
-    @abc.abstractmethod
     def auto_fill_tags(self):
         ...
 
@@ -267,9 +252,11 @@ class Metadata(MetadataBase, metaclass=MetadataMeta):
             Exception: if no file is linked
         """
         if not self._audio:
+            if Metadata.dry_run is True:
+                return 0  # it can not be checked if there are changes needed
             raise Exception(
                 "no file_path linked, this might happen when using the "
-                "--dry-run or --only-meta option and no file is at the target location")
+                "--only-meta option and no file is at the target location")
         self._audio.dict_meta.update(self._dict_data)
         return self._audio.file_save(
             remove_existing=remove_existing,
@@ -327,77 +314,6 @@ class Metadata(MetadataBase, metaclass=MetadataMeta):
                 self._dict_data[tag] = val
             elif clear_blacklisted:
                 self._dict_data[tag] = None
-
-    def import_tags_from_db(
-        self,
-        primary_key=None,
-        whitelist=None,
-        blacklist=None,
-        skip_none=True,
-        clear_blacklisted=False,
-    ):
-        """Imports metadata from the database.
-
-        Args:
-            primary_key (str, None): unique identifier of the item
-                which data has to be loaded. The save function only uses the
-                absolute filepath atm. If value is None, am algorithm takes the
-                path of the linked file works and works itself backward
-                (beginning at the leave) in the key list of the DB until only
-                one key is left, which is used. In other words, its acts like
-                the keys are relative file path (with unknown working
-                directory). Defaults to None.
-            whitelist (list of str, optional): whitelist of tags to be
-                imported. If None, loads all tags (except blacklisted).
-                Defaults to None.
-            blacklist (list of str, optional): blacklist of tags not to be
-                imported. Applied after whitelist. If None, no tags are
-                blacklisted. Defaults to None.
-            skip_none (bool, optional): If True, don't overwrite values in
-                target, which are None in source. Defaults to True.
-            clear_blacklisted (bool, optional): Clear tags (set None) that are not in
-                whitelist and/or in blacklist.
-
-            Raises:
-             Exception: if no database linked to class
-
-        """
-
-        if not primary_key and self.file_path:
-            keys = self._database.get_list_of_primary_keys()
-            primary_key = get_the_right_one(keys, self.file_path)
-
-        if not self._database:
-            raise Exception("no database linked")
-        else:
-            data = self._database.read_meta(str(primary_key))
-            if data:
-                self._import_tags(
-                    data, whitelist, blacklist, skip_none, clear_blacklisted
-                )
-            else:
-                logging.warning(
-                    "database read failed, no data imported. "
-                    "File might not be in database"
-                )
-
-    def export_tags_to_db(self):
-        """Saves all tags to database.
-
-        This is the secure way. Data not wanted does not have to be loaded,
-        but all data can still be accessed in case it is needed again.
-
-        Raises:
-            Exception: if no database linked to class
-        """
-        if not self._database:
-            raise Exception("no database linked")
-        if self.file_path:
-            if not self._dry_run:
-                primary_key = str(self.file_path)
-                self._database.insert_meta(self._dict_data, primary_key)
-        else:
-            pass
 
     def auto_fill_tags(self):
         """Automatic fill/autocomplete tags with in config file defined rules.
@@ -596,39 +512,6 @@ class GroupMetadata(MetadataBase):
                 clear_blacklisted=clear_blacklisted,
             )
         self.__compare_tags()
-
-    def import_tags_from_db(
-        self,
-        whitelist=None,
-        blacklist=None,
-        skip_none=True,
-        clear_blacklisted=False,
-        primary_key=None,
-    ):
-        """Super-Method applied to all Objects in list. See Metadata.
-
-        Args:
-            whitelist (list<str>, optional): See Metadata.import_tags().
-            blacklist (list<str>, optional): See Metadata.import_tags().
-            skip_none      (bool, optional): See Metadata.import_tags().
-            clear_blacklisted   (bool, optional): See Metadata.import_tags().
-            primary_key (str, None): no function .
-
-        """
-        for metadata in self.list_metadata:
-            metadata.import_tags_from_db(
-                primary_key=None,
-                whitelist=whitelist,
-                blacklist=blacklist,
-                skip_none=skip_none,
-                clear_blacklisted=clear_blacklisted,
-            )
-        self.__compare_tags()
-
-    def export_tags_to_db(self):
-        """Super-Method applied to all Objects in list. See Metadata."""
-        for metadata in self.list_metadata:
-            metadata.export_tags_to_db()
 
     @property
     def unprocessed_tag(self):

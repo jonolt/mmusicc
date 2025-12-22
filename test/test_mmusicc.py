@@ -315,8 +315,9 @@ class TestConversionFolderFolder:
             _assert_file_tree(ste.path_t, ste.path_e)
 
 
+@pytest.mark.parametrize("dry_run", [False, True])
 @pytest.mark.parametrize("target_is_empty", [False, True])
-def test_delete_files(dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg, target_is_empty):
+def test_delete_files(dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg, target_is_empty, dry_run):
     source_path = dir_lib_test.joinpath("source")
     shutil.copytree(dir_lib_a_flac, source_path)
     target_path = dir_lib_test.joinpath("target")
@@ -363,9 +364,9 @@ def test_delete_files(dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg, target_is_emp
 
     target_path.joinpath("various_artists", "empty_dir_in_artist").mkdir()
 
-    a = {p.relative_to(source_path).with_suffix("") for p in source_path.rglob("*")}
-    b = {p.relative_to(target_path).with_suffix("") for p in target_path.rglob("*")}
-    assert len(a.symmetric_difference(b)) == 20
+    a_old = {p.relative_to(source_path).with_suffix("") for p in source_path.rglob("*")}
+    b_old = {p.relative_to(target_path).with_suffix("") for p in target_path.rglob("*")}
+    assert len(a_old.symmetric_difference(b_old)) == 20
 
     if target_is_empty:
         # remove everything just created (the least complex way to ensure same source)
@@ -375,32 +376,38 @@ def test_delete_files(dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg, target_is_emp
             else:
                 path.unlink()
 
-    _assert_run_mmusicc(
-        "--source", source_path, "--target", target_path, "-f .ogg", "--delete-files"
-    )
+    args = ["--source", source_path, "--target", target_path, "-f .ogg", "--delete-files"]
+    if dry_run:
+        args.append("--dry-run")
+    _assert_run_mmusicc(*args)
 
     a = {p.relative_to(source_path).with_suffix("") for p in source_path.rglob("*")}
     b = {p.relative_to(target_path).with_suffix("") for p in target_path.rglob("*")}
 
     if target_is_empty:
-        # 1+1x no media folder + file
-        # 1x m3u file not synced
-        assert len(a.difference(b)) == 3
-        return
+        if dry_run:
+            assert len(b) == 0
+        else:
+            # 1+1x no media folder + file
+            # 1x m3u file not synced
+            assert len(a.difference(b)) == 3
+    elif dry_run:
+        assert len(a_old.symmetric_difference(b_old)) == 20
+    else:
+        assert correct_file.exists()
+        assert extra_file_1.exists()  # file still exists as no audio contents will not
+        assert extra_file_2.exists()  # deleted except when folder is deleted
 
-    assert correct_file.exists()
-    assert extra_file_1.exists()  # file still exists as no audio contents will not
-    assert extra_file_2.exists()  # deleted except when folder is deleted
-
-    # 2x no media playlist.m3u file
-    # 1x hidden folder
-    # 1x non hidden file in hidden folder
-    assert len(a.symmetric_difference(b)) == 4
+        # 2x no media playlist.m3u file
+        # 1x hidden folder
+        # 1x non hidden file in hidden folder
+        assert len(a.symmetric_difference(b)) == 4
 
 
 class TestMmusicc:
     """Test complete program"""
 
+    @pytest.mark.parametrize("dry_run", [False, True])
     @pytest.mark.parametrize(
         "opt, e_stats",
         [
@@ -412,7 +419,7 @@ class TestMmusicc:
         ],
     )
     def test_default(
-        self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, dir_lib_b_ogg, opt, e_stats
+        self, dir_lib_a_flac, dir_lib_c_ogg, dir_lib_test, dir_lib_b_ogg, opt, e_stats, dry_run
     ):
         """test the program for the default case it is made for with most used
         parameters
@@ -431,7 +438,7 @@ class TestMmusicc:
             )
         saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
         log_file_path = dir_lib_test.joinpath("mmusicc_log.log")
-        m = _assert_run_mmusicc(
+        args = [
             "--source",
             dir_lib_a_flac,
             "--target",
@@ -442,46 +449,54 @@ class TestMmusicc:
             log_file_path,
             "-v",
             "pytest",
-        )
+        ]
+        if dry_run:
+            args.append("--dry-run")
+        m = _assert_run_mmusicc(*args)
 
-        stats = _get_stats(m)
+        stats_m = _get_stats(m)
 
-        _assert_stats(m, e_stats)
-
-        # check that missing files are created
-        _assert_file_tree(dir_lib_test, dir_lib_b_ogg)
-        path_changed = dir_lib_test.joinpath(
-            "artist_quodlibet/album_bar_-_single_(2020)/01_track1.ogg"
-        )
-        metadata = Metadata(str(path_changed))
-        assert metadata.get_tag("album") == "Bar - Single"
-        assert metadata.get_tag("date") == "2020"
-        assert metadata.get_tag("artist") == "Quod Libet"
-
-        cmp_th = cmp_files_hash_and_time(org_file_list, saved_file_info)
-        # see test_folder_folder_part for explanation
-        if opt is None:
-            assert cmp_th == 10100
+        if dry_run:
+            assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 0
+            # as the file exists there can't be differentiated between created and booth,
+            # with dry-run option it is always created returned
+            assert e_stats[2] + e_stats[3] == stats_m[2]
         else:
-            assert cmp_th == 30300
+            _assert_stats(m, e_stats)
+            # check that missing files are created
+            _assert_file_tree(dir_lib_test, dir_lib_b_ogg)
+            path_changed = dir_lib_test.joinpath(
+                "artist_quodlibet/album_bar_-_single_(2020)/01_track1.ogg"
+            )
+            metadata = Metadata(str(path_changed))
+            assert metadata.get_tag("album") == "Bar - Single"
+            assert metadata.get_tag("date") == "2020"
+            assert metadata.get_tag("artist") == "Quod Libet"
 
-        if opt and "--delete-existing-metadata" in opt:
-            assert len(metadata.unprocessed_tag) == 0
-            if "--lazy" in opt:
-                assert metadata.get_tag("composer") == "should not be here"
+            cmp_th = cmp_files_hash_and_time(org_file_list, saved_file_info)
+            # see test_folder_folder_part for explanation
+            if opt is None:
+                assert cmp_th == 10100
             else:
-                assert metadata.get_tag("composer") is None
-        else:
-            assert len(metadata.unprocessed_tag) > 0
-            assert metadata.get_tag("composer") == "should not be here"
+                assert cmp_th == 30300
 
-        # run a second time to ensure its deterministic
-        saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
-        _assert_run_mmusicc(
-            "--source", dir_lib_a_flac, "--target", dir_lib_test, "-f .ogg", opt
-        )
-        # check no file was modified, first run should have done all
-        assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 0
+            if opt and "--delete-existing-metadata" in opt:
+                assert len(metadata.unprocessed_tag) == 0
+                if "--lazy" in opt:
+                    assert metadata.get_tag("composer") == "should not be here"
+                else:
+                    assert metadata.get_tag("composer") is None
+            else:
+                assert len(metadata.unprocessed_tag) > 0
+                assert metadata.get_tag("composer") == "should not be here"
+
+            # run a second time to ensure its deterministic
+            saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
+            _assert_run_mmusicc(
+                "--source", dir_lib_a_flac, "--target", dir_lib_test, "-f .ogg", opt
+            )
+            # check no file was modified, first run should have done all
+            assert cmp_files_hash_and_time(dir_lib_test, saved_file_info) == 0
 
     def test_album(self, dir_lib_a_flac, dir_lib_test):
         source_dir = dir_lib_a_flac.joinpath("artist_puddletag/album_good_(2018)")

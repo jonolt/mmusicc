@@ -479,13 +479,14 @@ class MmusicC:
         if (
             self.result.delete_files
             and self.target_type == MmusicC.ElementType.folder
-        ):  # not database
+        ):
 
             def remove_metadata_file(metadata_obj: Metadata):
                 try:
-                    metadata_obj.unlink_audio_file()
-                    # TODO add option moving file to trash can
-                    metadata_obj.file_path.unlink()
+                    if not self.result.dry_run:
+                        metadata_obj.unlink_audio_file()
+                        # TODO add option moving file to trash can
+                        metadata_obj.file_path.unlink()
                     self.stats_deleted += 1
                     logging.log(25, f". {metadata_obj.file_path}")
                 except FileNotFoundError:
@@ -502,6 +503,8 @@ class MmusicC:
                 logging.log(25, "No Folders to delete. Continue.")
             else:
                 logging.log(25, "Comparing and Deleting Folders ...")
+                if self.result.dry_run:
+                    logging.log(25, "Note: Media files will appear twice in deletion log.")
 
                 # the sorting ensures we start with the deepest directory
                 # if len(diff) > 1:
@@ -510,6 +513,11 @@ class MmusicC:
                 )
 
                 for path in diff:
+                    if any([part.startswith(".") for part in path.parts]):
+                        logging.warning(f"Skipping deletion of file with hidden parent. {path}")
+                        # TODO write TEST
+                        continue
+
                     o = self.target_tree[path]
                     # remove all audio files
                     if isinstance(o, GroupMetadata):
@@ -523,7 +531,8 @@ class MmusicC:
                         dir_path = self.target.joinpath(path)
                         for file_path in dir_path.iterdir():
                             if file_path.is_file():
-                                file_path.unlink()
+                                if not self.result.dry_run:
+                                    file_path.unlink()
                                 logging.log(
                                     25,
                                     f"  {file_path.relative_to(self.target)}",  # noqa
@@ -535,7 +544,8 @@ class MmusicC:
                                 )
                                 break  # should never happen
                         else:
-                            dir_path.rmdir()  # remove the now empty folder
+                            if not self.result.dry_run:
+                                dir_path.rmdir()  # remove the now empty folder
                             logging.log(25, f"  {dir_path.relative_to(self.target)}")
 
                     self.target_tree.pop(path)
@@ -627,11 +637,16 @@ class MmusicC:
             f"Errors     : {self.stats_error}",
         ]
 
-        if self.target is MmusicC.ElementType.database:
-            logging.log(25, report[1])
-        else:
-            for r in report:
-                logging.log(25, r)
+        if self.result.dry_run:
+            report.extend([
+                "",
+                "Note: When in dry-run results may not be accurate. ",
+                "E.g. if a file does not exists, it is always displayed as created,",
+                "as there is no file created to check metadata on."
+            ])
+
+        for r in report:
+            logging.log(25, r)
 
         # reprint the input
         for o in options:
@@ -692,7 +707,7 @@ class MmusicC:
             }
             folder_path = self.target_tree[key_path].file_path.parent
 
-        if not folder_path.exists():
+        if not folder_path.exists() and not self.result.dry_run:
             folder_path.mkdir(parents=True)
 
         result = dict()
@@ -713,11 +728,14 @@ class MmusicC:
                     try:
                         meta_t.link_audio_file()
                     except FileNotFoundError:
-                        logging.warning(
-                            f"File {meta_t.file_path} could not be linked, "
-                            f"it might be missing."
-                        )
-                        res = 1 << 4  # 16
+                        if self.result.dry_run:
+                            pass
+                        else:
+                            logging.warning(
+                                f"File {meta_t.file_path} could not be linked, "
+                                f"it might be missing."
+                            )
+                            res = 1 << 4  # 16
 
             else:
                 res = 0
@@ -775,7 +793,7 @@ class MmusicC:
         file = (1,)
         album = (5,)  # not used
         folder = (2,)
-        database = (3,)
+        reserved = (3,)
         other = 4
 
 
