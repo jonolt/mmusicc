@@ -1,9 +1,10 @@
 #  Copyright (c) 2020 Johannes Nolte
 #  SPDX-License-Identifier: GPL-3.0-or-later
 
-import distutils.util
 import logging
 import sys
+
+from mmusicc.util.util import str2bool
 
 if __package__ is None and not hasattr(sys, "frozen"):
     # direct call of __main__.py
@@ -32,12 +33,11 @@ def main(args=None):
         m = mmusicc.MmusicC(args)
         if get_log_file():
             if not m.pre_result_logfile and m.stats_error > 0:
-                if distutils.util.strtobool(
-                    input(
+                ans = input(
                         "One or more errors occurred during synchronisation.\n"
                         "Save log file to current working directory? [y/n] "
                     )
-                ):
+                if str2bool(ans):
                     print(f"Log file can be found at: {get_log_file().resolve()}")
                 else:
                     del_log_file()
@@ -58,12 +58,11 @@ def main(args=None):
             print("A error occurred in python, stack trace saved to log file.")
         else:
             if get_log_file():
-                if distutils.util.strtobool(
-                    input(
+                ans = input(
                         "A error occurred in python, save log file with stack trace to "
                         "current working directory? [y/n] "
                     )
-                ):
+                if str2bool(ans):
                     print(f"Log file can be found at: {get_log_file().resolve()}")
                 else:
                     del_log_file()

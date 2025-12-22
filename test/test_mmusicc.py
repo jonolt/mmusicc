@@ -1,8 +1,7 @@
 #  Copyright (c) 2020 Johannes Nolte
 #  SPDX-License-Identifier: GPL-3.0-or-later
+
 import shutil
-from distutils.dir_util import copy_tree
-from distutils.file_util import copy_file
 
 import pytest
 
@@ -60,7 +59,7 @@ def ste(request, dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg, dir_lib_c_ogg):
         )
     elif combo == "folder-->folder_part":
         # folder with missing files and wrong mata to be updated
-        copy_tree(str(dir_lib_c_ogg), str(dir_lib_test))
+        shutil.copytree(dir_lib_c_ogg, dir_lib_test, dirs_exist_ok=True)
         return Ste(combo, dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg)
     else:
         raise ValueError("combo does not exists")
@@ -86,7 +85,7 @@ class TestMetadataOnly:
             "artist_quodlibet/album_bar_-_single_(2020)/01_track1.flac"
         )
         path_t = dir_lib_test.joinpath("01_track1.ogg")
-        copy_file(str(path_copy_source), str(path_t))
+        shutil.copy2(str(path_copy_source), str(path_t))
 
         org_file_list = [path_t]
         saved_file_info = save_files_hash_and_mtime(org_file_list, touch=True)
@@ -121,7 +120,7 @@ class TestMetadataOnly:
 
     def test_folder_folder(self, dir_lib_a_flac, dir_lib_b_ogg, dir_lib_test):
         """test folder folder metadata sync"""
-        copy_tree(str(dir_lib_b_ogg), str(dir_lib_test))
+        shutil.copytree(dir_lib_b_ogg, dir_lib_test, dirs_exist_ok=True)
         saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
         _assert_run_mmusicc(
             "--only-meta",
@@ -141,7 +140,7 @@ class TestMetadataOnly:
         """test folder -> folder metadata sync, where target has not got all
         elements of source folder
         """
-        copy_tree(str(dir_lib_c_ogg), str(dir_lib_test))
+        shutil.copytree(dir_lib_c_ogg, dir_lib_test, dirs_exist_ok=True)
         saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
         _assert_run_mmusicc(
             "--only-meta",
@@ -197,7 +196,7 @@ class TestMetadataOnly:
             "various_artists/album_best_hits_compilation_(2010)/" "CD_02/02_track2.flac"
         )
         path_t = dir_lib_test.joinpath("01_track1.ogg")
-        copy_file(str(path_copy_source), str(path_t))
+        shutil.copy2(str(path_copy_source), str(path_t))
         _assert_run_mmusicc(
             "--only-meta",
             "--source",
@@ -235,7 +234,7 @@ class TestMetadataOnly:
         )
         assert pathlib.Path(database_path).is_file()
 
-        copy_file(str(path_copy_s), str(dir_lib_test))
+        shutil.copy2(str(path_copy_s), str(dir_lib_test))
         saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
         assert not Metadata(path_s).dict_data == Metadata(path_t).dict_data
 
@@ -266,8 +265,8 @@ class TestMetadataOnly:
         )
         assert pathlib.Path(database_path).is_file()
 
-        copy_tree(str(dir_lib_c_ogg), str(dir_lib_test))
-        copy_tree(str(dir_lib_b_ogg), str(dir_lib_test), update=True)
+        shutil.copytree(dir_lib_b_ogg, dir_lib_test, dirs_exist_ok=True)
+        shutil.copytree(dir_lib_c_ogg, dir_lib_test, dirs_exist_ok=True)
         saved_file_info = save_files_hash_and_mtime(dir_lib_test, touch=True)
         _assert_run_mmusicc(
             "--target",
@@ -393,7 +392,7 @@ def test_delete_files(dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg, target_is_emp
     correct_file = source_path.joinpath(
         "various_artists", "Escape_Character_No._1_(2012)", "playlist.m3u"
     )
-    shutil.copyfile(
+    shutil.copy2(
         correct_file, target_path.joinpath(correct_file.relative_to(source_path))
     )
     extra_file_1 = target_path.joinpath(
@@ -408,13 +407,13 @@ def test_delete_files(dir_lib_a_flac, dir_lib_test, dir_lib_b_ogg, target_is_emp
         "CD_02",
         correct_file.name,
     )
-    shutil.copyfile(correct_file, extra_file_1)
-    shutil.copyfile(correct_file, extra_file_2)
+    shutil.copy2(correct_file, extra_file_1)
+    shutil.copy2(correct_file, extra_file_2)
 
     duplicated = target_path.joinpath(
         "various_artists/album_best_hits_compilation_(2010)/CD_02/02_track2.ogg"
     )  # this one is deleted by mmusicc
-    shutil.copyfile(
+    shutil.copy2(
         duplicated, duplicated.with_name("02_trak2").with_suffix(duplicated.suffix)
     )  # with_stem new @python3.9
 
@@ -483,13 +482,13 @@ class TestMmusicc:
         """test the program for the default case it is made for with most used
         parameters
         """
-        copy_tree(str(dir_lib_c_ogg), str(dir_lib_test))
+        shutil.copytree(dir_lib_c_ogg, dir_lib_test, dirs_exist_ok=True)
         org_file_list = get_file_list_tree(dir_lib_test)
         if e_stats[5] == 1:  # add a file to be deleted
             extra_file = dir_lib_test.joinpath(
                 "artist_quodlibet/album_bar_-_single_(2020)/02_track2.ogg"
             )
-            copy_file(
+            shutil.copy2(
                 dir_lib_test.joinpath(
                     "artist_quodlibet/album_bar_-_single_(2020)/01_track1.ogg"
                 ),

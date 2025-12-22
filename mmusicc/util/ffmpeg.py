@@ -97,7 +97,7 @@ def ffmpeg_formats():
     return {
         "." + k: v
         for k, v in re.findall(
-            r"(?:(?:D )|(?:DE)|(?: E)) ([^\s]*)\s+(.*)", result.stdout
+            r"(?:[D\s][E\s][d\s])\s([^\s]*)\s+(.*)", result.stdout
         )
     }
 

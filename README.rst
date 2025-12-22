@@ -89,7 +89,7 @@ Remarks
 Catching every special case of certain metadata formats and transferring it to a normalized dict is nearly impossible (especially with id3). Also different tagging program's have certain specialities how certain uncommon tags are saved or if say are even displayed. Therefore some features are not yet or only partially supported:
 
 - Only one Album Cover file is supported at the moment. More will raise Errors (will be fixed soon).
-- Support for id3.PairedTextFrames was dropped, since it is not used much and I haven't found a good way to handle them. They might come back in the future. They are used for 'TIPL: Involved People List', 'TMCL: Musicians Credits List'. Some taggers use these field for e.g arranger.
+- There is limited support for mp3 tags. Support for id3.PairedTextFrames was dropped, since it is not used much and I haven't found a good way to handle them. They might come back in the future. They are used for 'TIPL: Involved People List', 'TMCL: Musicians Credits List'. Some taggers use these field for e.g arranger.
 
 
 Version Milestones

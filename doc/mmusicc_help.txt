@@ -1,7 +1,7 @@
 usage: mmusicc (-s SOURCE | -sdb SOURCE_DB) (-t TARGET | -tdb TARGET_DB) [-h]
-               [--version] [--album]
-               [--only-meta | --only-files | --delete-files] [--dry-run] [-v]
-               [-a] [--log-file LOG_FILE] [-f FORMAT] [-o FFMPEG_OPTIONS]
+               [--version] [--album] [--only-meta | --only-files |
+               --delete-files] [--dry-run] [-v] [-a] [--log-file LOG_FILE]
+               [-f FORMAT] [-o FFMPEG_OPTIONS]
                [--white-list-tags WHITE_LIST_TAGS [WHITE_LIST_TAGS ...]]
                [--black-list-tags BLACK_LIST_TAGS [BLACK_LIST_TAGS ...]]
                [--lazy-import] [--delete-existing-metadata]
@@ -20,17 +20,15 @@ in Containers:
 ['.flac', '.mp3', '.oga', '.ogg', '.opus']
 
 Required Options:
-  -s SOURCE, --source SOURCE
-                        source file/album/lib-root. File or folder paths can
+  -s, --source SOURCE   source file/album/lib-root. File or folder paths can
                         have arbitrary names (type determined by their
                         existenz).
-  -sdb SOURCE_DB, --source-db SOURCE_DB
+  -sdb, --source-db SOURCE_DB
                         source database (SQLite database file or (not tested)
                         database URL.
-  -t TARGET, --target TARGET
-                        target file/album/lib-root. Files must have a suffix,
+  -t, --target TARGET   target file/album/lib-root. Files must have a suffix,
                         directories must not have extension.
-  -tdb TARGET_DB, --target-db TARGET_DB
+  -tdb, --target-db TARGET_DB
                         target database.
 
 General Options:
@@ -55,10 +53,9 @@ General Options:
                         exist log is appended.
 
 File Conversion:
-  -f FORMAT, --format FORMAT
-                        output container format of ffmpeg conversion , ignored
+  -f, --format FORMAT   output container format of ffmpeg conversion , ignored
                         when target is a file_path.
-  -o FFMPEG_OPTIONS, --ffmpeg-options FFMPEG_OPTIONS
+  -o, --ffmpeg-options FFMPEG_OPTIONS
                         conversion options for ffmpeg conversion, if empty
                         ffmpeg defaults are used. It is recommended to test
                         them directly with ffmpeg before they are used with

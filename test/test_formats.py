@@ -2,8 +2,8 @@
 #  SPDX-License-Identifier: GPL-3.0-or-later
 
 import re
+import shutil
 import warnings
-from distutils.file_util import copy_file
 
 import mutagen
 import pytest
@@ -100,7 +100,7 @@ def media_file(request, audio_files, dir_lib_test):
     file = audio_files.get(request.param)
     if not file:
         pytest.xfail("No file with given extension '{}' exists.".format(request.param))
-    copy_file(str(file), str(dir_lib_test))
+    shutil.copy2(file, dir_lib_test)
     return dir_lib_test.joinpath(file.name)
 
 

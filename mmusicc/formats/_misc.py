@@ -102,6 +102,9 @@ def MusicFile(file_path, return_unsupported=False):
     Returns:
         AudioFile: audio file instance of file in specified path
     """
+    if len(loaders) == 0:
+        raise Exception("No loaders found!")
+
     if not return_unsupported:
         loader = get_loader(file_path)
         if loader is not None:

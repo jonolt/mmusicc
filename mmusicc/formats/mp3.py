@@ -51,6 +51,10 @@ class MP3File(AudioFile):
         First tries to associate ID3 tags, then takes all txxx tags and runs
         them through the scan dictionary function.
         """
+
+        if len(am.dict_id32tag) == 0:
+            raise Exception("allocationmap not loaded")
+
         tags_txxx = dict()
 
         for frame in self._file.values():
@@ -64,6 +68,8 @@ class MP3File(AudioFile):
             elif frame_type is mutagen.id3.TXXX:
                 tags_txxx[frame.desc] = frame.text[0]
                 continue
+            elif frame_type is mutagen.id3.USLT or frame_type is mutagen.id3.ULT:
+                tag_val = frame.text
             elif frame_type_parent is mutagen.id3.TextFrame:
                 tag_val = frame.text[0]
             elif frame_type_parent is mutagen.id3.PairedTextFrame:

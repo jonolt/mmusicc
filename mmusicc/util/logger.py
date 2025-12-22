@@ -23,7 +23,7 @@ def copy_log_file(path_target):
             + datetime.datetime.now().strftime("-%Y%m%d-%H%M%S")
             + path_target.suffix
         )
-    shutil.copyfile(org_log_path, path_target)
+    shutil.copy2(org_log_path, path_target)
     return path_target
 
 
