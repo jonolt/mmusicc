@@ -1,7 +1,6 @@
-usage: mmusicc (-s SOURCE | -sdb SOURCE_DB) (-t TARGET | -tdb TARGET_DB) [-h]
-               [--version] [--album] [--only-meta | --only-files |
-               --delete-files] [--dry-run] [-v] [-a] [--log-file LOG_FILE]
-               [-f FORMAT] [-o FFMPEG_OPTIONS]
+usage: mmusicc -s SOURCE -t TARGET [-h] [--version] [--album] [--only-meta |
+               --only-files | --delete-files] [--dry-run] [-v] [-a]
+               [--log-file LOG_FILE] [-f FORMAT] [-o FFMPEG_OPTIONS]
                [--white-list-tags WHITE_LIST_TAGS [WHITE_LIST_TAGS ...]]
                [--black-list-tags BLACK_LIST_TAGS [BLACK_LIST_TAGS ...]]
                [--lazy-import] [--delete-existing-metadata]
@@ -11,8 +10,6 @@ Metadata and file syncing the following combination are possible:
   - file   --> file
   - file   --> parent folder (target name is generated from source)
   - folder --> folder        (use --album to not to move through tree)
-  - folder --> db            (full path as primary key)
-  - db     --> folder        (key matching starts at leave of path)
 
 Supported Formats: 
 ['FLAC', 'MP3', 'Ogg Opus', 'Ogg Vorbis']
@@ -23,13 +20,8 @@ Required Options:
   -s, --source SOURCE   source file/album/lib-root. File or folder paths can
                         have arbitrary names (type determined by their
                         existenz).
-  -sdb, --source-db SOURCE_DB
-                        source database (SQLite database file or (not tested)
-                        database URL.
   -t, --target TARGET   target file/album/lib-root. Files must have a suffix,
                         directories must not have extension.
-  -tdb, --target-db TARGET_DB
-                        target database.
 
 General Options:
   -h, --help            Show this help message and exit.

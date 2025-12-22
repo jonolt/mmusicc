@@ -27,7 +27,7 @@ Metadata Music Control
    :target: http://mmusicc.readthedocs.io/?badge=latest
 
 
-mmusicc is a lightweight audio file and metadata control and synchronization program to transfer the changes made in a master music library to a derived music library. New files or albums are converted using ffmpeg. When the file already exits, the metadata is compared und updated if it has changed. The individual tags and their processing can be freely selected by each user via a configuration file. There will be a simple Autofill future that can be used to fix small consistency errors, the rules will be editable in the config file (to be implemented). To Synchronize multiple folders at once, the folder structure, directory- and file-names must be identical at source and target, this should be given when this tool is used to one-way sync the master directory. Data can also be exported to or imported from a database (implementation still very basic) e.g. for a metadata backup.
+mmusicc is a lightweight audio file and metadata control and synchronization program to transfer the changes made in a master music library to a derived music library. New files or albums are converted using ffmpeg. When the file already exits, the metadata is compared und updated if it has changed. The individual tags and their processing can be freely selected by the user via a configuration file. To Synchronize multiple folders at once, the folder structure, directory- and file-names must be identical at source and target, this should be given when this tool is used to one-way sync the master directory.
 
 mmusicc shall not replace a metadata editor and only provides methods for automated syncing of large music libraries.
 
@@ -45,7 +45,6 @@ mmusicc is still under development and should not be used to overwrite master da
 
 The script is automatically installed on system. Use ``--help`` for usage info or see its output at `usage on mmusicc.readthedocs.org <https://mmusicc.readthedocs.io/en/latest/usage.html>`_. See also the following examples:
 
-Note: I only test the maintained Python version, that means mmusicc should run on all versions from 3.6 (EOL 2021-12-23) even if they are not explicitly supported.
 
 .. code-block:: bash
 
@@ -55,22 +54,12 @@ Note: I only test the maintained Python version, that means mmusicc should run o
     # syncing a full library to ogg
     mmusicc --source Music --target MusicOgg --format .ogg --ffmpeg-options "-c:a libvorbis -q 6 -vn"
 
-    # syncing a full library to opus
-    mmusicc --source Music --target MusicOgg --format .opus --ffmpeg-options "-c:a libopus -b:a 192000 -application audio -vn"
-
-    # converting one file to another format. The two commads are equivalent
+    # converting one file to another format. The two commands are equivalent
     mmusicc -s folder_source/song.flac -t . -f ogg
     mmusicc -s folder_source/song.flac -t song.ogg
 
-    # saving metadata to database
-    mmusicc -s Music -tdb database.db
-
-    # importing metadata from database,
-    # where only tags which got a value are imported leaving others untouched
-    mmusicc -t MusicMp3 -sdb database.db  --lazy
-
     # syncing A to B, where all existing metadat is deleted,
-    # leaving only the white listet tags on file
+    # leaving only the white listed tags on file
     mmusicc -s A -t B -f .ogg -white-list-tags track title artist delete-existing-metadata
 
 Supported Formats/Codecs
@@ -90,21 +79,3 @@ Catching every special case of certain metadata formats and transferring it to a
 
 - Only one Album Cover file is supported at the moment. More will raise Errors (will be fixed soon).
 - There is limited support for mp3 tags. Support for id3.PairedTextFrames was dropped, since it is not used much and I haven't found a good way to handle them. They might come back in the future. They are used for 'TIPL: Involved People List', 'TMCL: Musicians Credits List'. Some taggers use these field for e.g arranger.
-
-
-Version Milestones
-------------------
-
-+--------+--------------------------------------------------------------------+
-|version | milestone                                                          |
-+--------+--------------------------------------------------------------------+
-|0.1.0   | metadata working                                                   |
-+--------+--------------------------------------------------------------------+
-|0.2.0   | mmusicc working (and first package distribution (test.pypi only))  |
-+--------+--------------------------------------------------------------------+
-|0.3.0   | comprehensive testing and verification (release on pypi)           |
-+--------+--------------------------------------------------------------------+
-|0.5.0   | interactive mode with text user interface (tui) to display changes |
-+--------+--------------------------------------------------------------------+
-|0.7.0   | mmusicc can be run in graphical mode from tui (state machine)      |
-+--------+--------------------------------------------------------------------+

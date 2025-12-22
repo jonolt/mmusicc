@@ -7,7 +7,6 @@ import pathlib
 import re
 
 import mmusicc.util.allocationmap as am
-from mmusicc.database import MetaDB
 from mmusicc.formats import MusicFile, AudioFileError
 from mmusicc.formats import UnsupportedAudio, NoAudioFileError
 from mmusicc.util.ffmpeg import is_audio
@@ -48,33 +47,6 @@ class MetadataMeta(abc.ABCMeta):
         if cls._database:
             return True
         return False
-
-    def link_database(cls, database_url):
-        """Link a database to class.
-
-        Args:
-            database_url (str): database url following RFC-1738*. If the sting,
-                does not contain '://', a filepath for a sqlite database is
-                assumed.
-
-        Raises:
-            Exception: if a database is already linked
-        """
-        if not cls._database:
-            cls._database = MetaDB(database_url)
-        else:
-            raise Exception("Database already linked")
-
-    def unlink_database(cls):
-        """Unlink the database from the class.
-
-        Raises:
-            Exception: if no database is linked
-        """
-        if cls._database:
-            cls._database = None
-        else:
-            raise Exception("No Database linked")
 
     # prep for future class property
     # @property

@@ -38,23 +38,6 @@ def modified_metadata(request, dir_lib_x_flac):
     return request.param, meta
 
 
-def test_database_link(dir_lib_x_flac, path_database):
-    """test linking and unlinking the database and corresponding properties."""
-    metadata_path = _create_file_path(Metadata, dir_lib_x_flac)
-    meta = Metadata(metadata_path)
-    with pytest.raises(Exception):
-        meta.export_tags_to_db()
-    with pytest.raises(Exception):
-        Metadata.unlink_database()
-    Metadata.link_database(str(path_database))
-    assert Metadata.is_linked_database
-    with pytest.raises(Exception):
-        Metadata.link_database(str(path_database))
-    Metadata.unlink_database()
-    assert not Metadata.is_linked_database
-    Metadata.link_database(str(path_database))
-
-
 @pytest.mark.parametrize("class_meta", _dict_files.keys())
 def test_read_tags(class_meta, dir_lib_x_flac):
     metadata_path = _create_file_path(class_meta, dir_lib_x_flac)
@@ -120,49 +103,6 @@ def test_import_tags(modified_metadata, dir_lib_x_flac, skip_none, clear_blackli
         assert meta.get_tag("title") is None
 
 
-@pytest.mark.parametrize("skip_none", [True, False])
-@pytest.mark.parametrize("class_meta", _dict_files.keys())
-def test_import_db_tag(class_meta, dir_lib_x_flac, path_database, skip_none):
-    # artist: assert whitelist
-    # album : assert correct import
-    # title : assert skip none
-    if Metadata.is_linked_database:
-        Metadata.unlink_database()
-    Metadata.link_database(str(path_database))
-    metadata_path = _create_file_path(class_meta, dir_lib_x_flac)
-    meta = class_meta(metadata_path)
-    meta.set_tag("album", "fuu")
-    meta.set_tag("artist", "bar")
-    meta.import_tags_from_db(whitelist=["album", "title"], skip_none=skip_none)
-    assert meta.get_tag("artist") == "bar"
-    if skip_none:
-        if class_meta is Metadata:
-            assert meta.get_tag("title") == "str_title_A"
-        else:  # Group and Album are basically the same
-            assert isinstance(meta.get_tag("title"), Div)
-    else:
-        assert meta.get_tag("title") is None
-
-
-@pytest.mark.parametrize("class_meta", _dict_files.keys())
-def test_export_db_tag(class_meta, dir_lib_x_flac, temp_database):
-    # artist: assert whitelist
-    # album : assert correct import
-    if Metadata.is_linked_database:
-        Metadata.unlink_database()
-    Metadata.link_database(str(temp_database))
-    metadata_path = _create_file_path(class_meta, dir_lib_x_flac)
-    meta = class_meta(metadata_path)
-    meta.export_tags_to_db()
-    meta._dict_data.reset()
-    meta.import_tags_from_db()
-    assert meta.get_tag("artist") == "str_artist"
-    if class_meta is Metadata:
-        assert meta.get_tag("title") == "str_title_A"
-    else:  # Group and Album are basically the same
-        assert isinstance(meta.get_tag("title"), Div)
-
-
 def test_load_empty_meta(dir_lib_x_flac):
     meta = Metadata()
     assert not meta.audio_file_linked
@@ -176,19 +116,13 @@ def test_load_empty_meta(dir_lib_x_flac):
 
 def test_dry_run(dir_lib_x_flac, temp_database):
     Metadata.dry_run = True
-    if Metadata.is_linked_database:
-        Metadata.unlink_database()
-    Metadata.link_database(str(temp_database))
     metadata_path = _create_file_path(Metadata, dir_lib_x_flac)
     th = save_files_hash_and_mtime(metadata_path)
     meta = Metadata(metadata_path)
     meta.set_tag("album", "fuubar")
     meta.write_tags()
-    meta.export_tags_to_db()
     meta.read_tags()
     assert meta.get_tag("album") != "fuubar"
-    with pytest.raises(KeyError):
-        meta.import_tags_from_db()
     # reset class variable to default
     assert cmp_files_hash_and_time(metadata_path, th) == 0
     Metadata.dry_run = False

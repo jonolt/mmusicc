@@ -25,8 +25,6 @@ str_description_rqw = textwrap.dedent(
       - file   --> file
       - file   --> parent folder (target name is generated from source)
       - folder --> folder        (use --album to not to move through tree)
-      - folder --> db            (full path as primary key)
-      - db     --> folder        (key matching starts at leave of path)
 
     Supported Formats: 
     {}
@@ -104,12 +102,6 @@ class MmusicC:
             help="source file/album/lib-root. File or folder paths can have "
             "arbitrary names (type determined by their existenz).",
         )
-        group_source.add_argument(
-            "-sdb",
-            "--source-db",
-            action="store",
-            help="source database (SQLite database file or (not tested) database URL.",
-        )
 
         group_target = pg_required.add_mutually_exclusive_group(required=True)
         group_target.add_argument(
@@ -118,12 +110,6 @@ class MmusicC:
             action="store",
             help="target file/album/lib-root. Files must have a suffix, "
             "directories must not have extension.",
-        )
-        group_target.add_argument(
-            "-tdb",
-            "--target-db",
-            action="store",
-            help="target database.",
         )
 
         pg_general.add_argument(
@@ -273,31 +259,21 @@ class MmusicC:
         # not really needed but should improve readability
         self.run_both = self.run_files & self.run_meta
 
-        self.db_url = None
         self.source = None
 
         if self.result.source:
             self.source = pathlib.Path(self.result.source).expanduser().resolve()
         else:
             self.source = None
-            self.db_url = self.result.source_db
 
         if self.result.target:
             self.target = pathlib.Path(self.result.target).expanduser().resolve()
         else:
             self.target = None
-            self.db_url = self.result.target_db
-
-        if self.db_url:
-            if Metadata.is_linked_database:
-                Metadata.unlink_database()
-            Metadata.link_database(self.db_url)
 
         # analyze source input (file or folder must exist)
         if self.source is None:
-            if self.db_url is None:
-                self.parser.error("Either a source or a db_url must be given.")
-            self.source_type = MmusicC.ElementType.database
+            self.parser.error("A source folder or file must be given.")
         elif self.source.is_dir():
             self.source_type = MmusicC.ElementType.folder
         elif self.source.is_file():
@@ -312,24 +288,17 @@ class MmusicC:
 
         # analyze target input
         if self.target is None:
-            if self.db_url is None:
-                self.parser.error("Either a target or a db_url must be given.")
-            if self.source_type is MmusicC.ElementType.database:
-                self.parser.error("Can't sync from database to database!")
-            self.target_type = MmusicC.ElementType.database
+            self.parser.error("A target file or folder must be given.")
         else:
             if self.target.suffix == "":  # directory
                 self.target_type = MmusicC.ElementType.folder
-            else:  # only file left (db file is handles above)
+            else:
                 if self.target.suffix not in audio_loader.keys():
                     self.parser.error(
                         f"File with suffix {self.target.suffix} is not supported. "
                         f"See --help for supported formats."
                     )
                 self.target_type = MmusicC.ElementType.file
-
-        if not (self.source or self.target) and self.run_files:
-            self.parser.error("Target or source is database! I can only run meta!")
 
         if self.source and self.target:
             self.format_extension = None
@@ -410,9 +379,9 @@ class MmusicC:
         options = [
             f"             Running mmusicc {version.__version__}",
             f"source type: {self.source_type}",
-            f"source path: {self.source if self.source else self.db_url}",
+            f"source path: {self.source}",
             f"target type: {self.target_type}",
-            f"target path: {self.target if self.target else self.db_url}",
+            f"target path: {self.target}",
             f"format     : {getattr(self, 'format_extension', '')}"
             f"{' | ' if self.result.ffmpeg_options else ''}"
             f"{self.result.ffmpeg_options if self.result.ffmpeg_options else ''}",
@@ -508,8 +477,7 @@ class MmusicC:
             }
 
         if (
-            self.db_url is None
-            and self.result.delete_files
+            self.result.delete_files
             and self.target_type == MmusicC.ElementType.folder
         ):  # not database
 
@@ -600,71 +568,49 @@ class MmusicC:
 
         logging.log(25, "Running Sync ...")
 
-        if self.db_url:
-            # copy metadata to or from file depending on if its source or target
-            # TODO this must create a output to (especially for db-->file/folder)
-            if self.source_tree:
-                for metadata in self.source_tree.values():
-                    if metadata is None:
-                        continue
-                    metadata.export_tags_to_db()
-            if self.target_tree:  # is subclass metadata not string ?
-                for metadata in self.target_tree.values():
-                    if metadata is None:
-                        continue
-                    metadata.import_tags_from_db(
-                        whitelist=self.whitelist,
-                        blacklist=self.blacklist,
-                        skip_none=self.result.lazy_import,
-                        clear_blacklisted=self.result.delete_existing_metadata,
-                    )
-                    metadata.write_tags(
-                        remove_existing=self.result.delete_existing_metadata
-                    )
-        else:
-            for key_path in self.source_tree.keys():  # source can not, not exist
+        for key_path in self.source_tree.keys():  # source can not, not exist
 
-                if self.source_tree[key_path] is None:
-                    # path is structural or empty (no audio) folder
-                    continue
+            if self.source_tree[key_path] is None:
+                # path is structural or empty (no audio) folder
+                continue
 
-                res_a = {}
-                if self.run_files:
-                    res_a = self.group_metadata_run_file(key_path)
+            res_a = {}
+            if self.run_files:
+                res_a = self.group_metadata_run_file(key_path)
 
-                res_b = {}
-                if self.run_meta:
-                    res_b = self.group_metadata_run_meta(key_path)
+            res_b = {}
+            if self.run_meta:
+                res_b = self.group_metadata_run_meta(key_path)
 
-                if self.source_type == MmusicC.ElementType.folder:
-                    file_names = [
-                        f.stem for f in self.source_tree[key_path].file_path_list
-                    ]
-                else:
-                    # FIXME this can be done nicer!
-                    file_names = [set(res_a.keys()).union(set(res_b.keys())).pop()]
-                result = {
-                    key: res_a.get(key, 0) + res_b.get(key, 0) for key in file_names
-                }
+            if self.source_type == MmusicC.ElementType.folder:
+                file_names = [
+                    f.stem for f in self.source_tree[key_path].file_path_list
+                ]
+            else:
+                # FIXME this can be done nicer!
+                file_names = [set(res_a.keys()).union(set(res_b.keys())).pop()]
+            result = {
+                key: res_a.get(key, 0) + res_b.get(key, 0) for key in file_names
+            }
 
-                sum_unchanged = sum([z == 0 for z in result.values()])
-                self.stats_unchanged += sum_unchanged
-                sum_metadata = sum([z == 1 for z in result.values()])
-                self.stats_metadata += sum_metadata
-                sum_created = sum([z == 2 for z in result.values()])
-                self.stats_created += sum_created
-                sum_both = sum([z == 3 for z in result.values()])
-                self.stats_both += sum_both
-                self.stats_error += sum([z > 3 for z in result.values()])
+            sum_unchanged = sum([z == 0 for z in result.values()])
+            self.stats_unchanged += sum_unchanged
+            sum_metadata = sum([z == 1 for z in result.values()])
+            self.stats_metadata += sum_metadata
+            sum_created = sum([z == 2 for z in result.values()])
+            self.stats_created += sum_created
+            sum_both = sum([z == 3 for z in result.values()])
+            self.stats_both += sum_both
+            self.stats_error += sum([z > 3 for z in result.values()])
 
-                if not self.result.all and sum(result.values()) > 0:
-                    str_list = list()
-                    str_list.append(
-                        f"{len(result)-sum_unchanged:02d}/{len(result):02d} > {key_path}"  # noqa
-                    )
-                    for r, v in result.items():
-                        str_list.append(f"    {v} >> {r}")
-                    logging.log(25, "\n".join(str_list))
+            if not self.result.all and sum(result.values()) > 0:
+                str_list = list()
+                str_list.append(
+                    f"{len(result)-sum_unchanged:02d}/{len(result):02d} > {key_path}"  # noqa
+                )
+                for r, v in result.items():
+                    str_list.append(f"    {v} >> {r}")
+                logging.log(25, "\n".join(str_list))
 
         time_delta = datetime.datetime.now() - time_start
 
