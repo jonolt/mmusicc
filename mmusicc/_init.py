@@ -13,7 +13,7 @@ def init_allocationmap(path_config):
     """initialize allocation map of tags.
 
     Args:
-        path_config (str): path to allocation map config yaml file
+        path_config (str or pathlib.Path): path to config yaml of allocation map.
     """
     from mmusicc.util import allocationmap
 

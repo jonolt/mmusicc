@@ -22,7 +22,7 @@ def load_dir_modules(path, package):
         logging.error("%r not found" % path)
         return []
 
-    # get_importables can yield py and pyc for the same module
+    # get_importables can yield py and pyc for the same module,
     # and we want to load it only once
     modules = set(modules)
 
@@ -40,8 +40,8 @@ def load_dir_modules(path, package):
 
 
 def get_importables(folder):
-    """Searches a folder and its subfolders for modules and packages to import.
-    No subfolders in packages, .so supported.
+    """Searches a folder and its sub-folders for modules and packages to import.
+    No sub-folders in packages, .so supported.
 
     The root folder will not be considered a package.
 
@@ -92,7 +92,7 @@ def load_module(name, package, path):
     except KeyError:
         pass
 
-    module_spec = import_util.find_spec(fullname, [path])
+    module_spec = import_util.find_spec(fullname, path)
     if module_spec is None:
         return
 

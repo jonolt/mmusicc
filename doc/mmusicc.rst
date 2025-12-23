@@ -6,7 +6,6 @@ Subpackages
 
 .. toctree::
 
-   mmusicc.database
    mmusicc.formats
    mmusicc.util
 

@@ -1,6 +1,6 @@
-usage: mmusicc (-s SOURCE | -sdb SOURCE_DB) (-t TARGET | -tdb TARGET_DB) [-h]
-               [--version] [--album] [--only-meta | --only-files] [--dry-run]
-               [-v] [-a] [--log-file LOG_FILE] [-f FORMAT] [-o FFMPEG_OPTIONS]
+usage: mmusicc -s SOURCE -t TARGET [-h] [--version] [--album] [--only-meta |
+               --only-files | --delete-files] [--dry-run] [-v] [-a]
+               [--log-file LOG_FILE] [-f FORMAT] [-o FFMPEG_OPTIONS]
                [--white-list-tags WHITE_LIST_TAGS [WHITE_LIST_TAGS ...]]
                [--black-list-tags BLACK_LIST_TAGS [BLACK_LIST_TAGS ...]]
                [--lazy-import] [--delete-existing-metadata]
@@ -10,25 +10,18 @@ Metadata and file syncing the following combination are possible:
   - file   --> file
   - file   --> parent folder (target name is generated from source)
   - folder --> folder        (use --album to not to move through tree)
-  - folder --> db            (full path as primary key)
-  - db     --> folder        (key matching starts at leave of path)
 
 Supported Formats: 
 ['FLAC', 'MP3', 'Ogg Opus', 'Ogg Vorbis']
 in Containers:
-['.flac', '.mp1', '.mp2', '.mp3', '.mpeg', '.mpg', '.oga', '.ogg',
-'.opus']
+['.flac', '.mp3', '.oga', '.ogg', '.opus']
 
 Required Options:
-  -s SOURCE, --source SOURCE
-                        source file/album/lib-root.
-  -sdb SOURCE_DB, --source-db SOURCE_DB
-                        source database (SQLite database file or (not tested)
-                        database URL.
-  -t TARGET, --target TARGET
-                        target file/album/lib-root.
-  -tdb TARGET_DB, --target-db TARGET_DB
-                        target database.
+  -s, --source SOURCE   source file/album/lib-root. File or folder paths can
+                        have arbitrary names (type determined by their
+                        existenz).
+  -t, --target TARGET   target file/album/lib-root. Files must have a suffix,
+                        directories must not have extension.
 
 General Options:
   -h, --help            Show this help message and exit.
@@ -37,6 +30,11 @@ General Options:
   --only-meta           only sync meta, don't sync files. Auto set when
                         syncing from/to database.
   --only-files          only sync files, don't update metadata.
+  --delete-files        Delete audio files and folders that are not in
+                        source.Hidden folders and their contents are ignored.
+                        Folders without audio files or of deleted albums are
+                        removed with all their content. The non audio contents
+                        of folders having supported audio are ignored.
   --dry-run             do everything as usual, but without writing (file and
                         database). It is recommended to use with --only-meta
                         or --only-files, otherwise errors are likely.
@@ -47,10 +45,9 @@ General Options:
                         exist log is appended.
 
 File Conversion:
-  -f FORMAT, --format FORMAT
-                        output container format of ffmpeg conversion (ignored
-                        when target is file_path).
-  -o FFMPEG_OPTIONS, --ffmpeg-options FFMPEG_OPTIONS
+  -f, --format FORMAT   output container format of ffmpeg conversion , ignored
+                        when target is a file_path.
+  -o, --ffmpeg-options FFMPEG_OPTIONS
                         conversion options for ffmpeg conversion, if empty
                         ffmpeg defaults are used. It is recommended to test
                         them directly with ffmpeg before they are used with
